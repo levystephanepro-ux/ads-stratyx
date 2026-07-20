@@ -2,7 +2,6 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 const PUBLIC_PREFIXES = [
-  "/",
   "/login",
   "/register",
   "/pricing",
@@ -16,6 +15,10 @@ const PUBLIC_PREFIXES = [
 
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
+
+  if (path === "/") {
+    return NextResponse.next();
+  }
 
   if (PUBLIC_PREFIXES.some((p) => path === p || path.startsWith(p + "/"))) {
     return NextResponse.next();
@@ -36,20 +39,28 @@ export async function middleware(request: NextRequest) {
         return request.cookies.getAll();
       },
       setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+        cookiesToSet.forEach(({ name, value }) =>
+          request.cookies.set(name, value)
+        );
         response = NextResponse.next({ request });
         cookiesToSet.forEach(({ name, value, options }) =>
-          response.cookies.set(name, value, options),
+          response.cookies.set(name, value, options)
         );
       },
     },
   });
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user && path === "/") {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
 
   if (!user) {
     if (path.startsWith("/api/")) {
-      return NextResponse.json({ error: "non authentifié" }, { status: 401 });
+      return NextResponse.json({ error: "non authentifie" }, { status: 401 });
     }
     return NextResponse.redirect(new URL("/login", request.url));
   }
