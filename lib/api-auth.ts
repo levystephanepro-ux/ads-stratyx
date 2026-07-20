@@ -41,3 +41,39 @@ export async function tokenValueOk(presented: string | null | undefined): Promis
 export async function tokenOk(req: Request): Promise<boolean> {
   return tokenValueOk(req.headers.get("x-app-token"));
 }
+
+/** Le token présenté est-il celui du propriétaire (MCP_SHARED_TOKEN) ?
+ *  Sert à réserver certaines actions (ex. édition des templates partagés).
+ *  Sans MCP_SHARED_TOKEN défini (dev local), tout le monde est "owner". */
+export function isOwnerToken(presented: string | null | undefined): boolean {
+  const required = process.env.MCP_SHARED_TOKEN;
+  if (!required) return true;
+  return presented === required;
+}
+
+/** Retourne le workspace_id associé au token présenté (null si non trouvé). */
+export async function getWorkspaceIdFromValue(
+  token: string | null | undefined,
+): Promise<string | null> {
+  if (!token || !supabaseConfigured()) return null;
+  try {
+    const admin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { persistSession: false, autoRefreshToken: false } },
+    );
+    const { data } = await admin
+      .from("mcp_tokens")
+      .select("workspace_id")
+      .eq("token", token)
+      .maybeSingle();
+    return (data?.workspace_id as string | undefined) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Idem, depuis l'en-tête `x-app-token` de la requête. */
+export async function getWorkspaceId(req: Request): Promise<string | null> {
+  return getWorkspaceIdFromValue(req.headers.get("x-app-token"));
+}

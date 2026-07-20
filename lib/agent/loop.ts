@@ -68,9 +68,18 @@ export async function runAgentLoop(
   }
 
   // Si un compte spécifique est demandé, restreindre le workspace à ce seul compte.
-  if (opts.customerId && ws.connections.length > 1) {
+  if (opts.customerId) {
     const match = ws.connections.filter((c) => c.customerId === opts.customerId);
-    if (match.length > 0) ws = { ...ws, connections: match };
+    if (match.length > 0) {
+      ws = { ...ws, connections: match };
+    } else if (ws.workspaceId === "env" && ws.connections.length === 1) {
+      // Chemin "compte env" (MCC unique, même refresh token pour tous les
+      // comptes gérés) : on cible le compte demandé au lieu du défaut global.
+      ws = {
+        ...ws,
+        connections: [{ ...ws.connections[0], customerId: opts.customerId }],
+      };
+    }
   }
 
   const client = new Anthropic({ apiKey });

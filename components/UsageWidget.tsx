@@ -9,6 +9,8 @@ interface Usage {
   spentAgent: number;
   spentCopilote: number;
   budget: number | null;
+  spentCredits?: number;
+  totalCredits?: number | null;
   resetDate: string;
 }
 
@@ -41,6 +43,35 @@ export default function UsageWidget() {
   }, []);
 
   if (!usage) return null;
+
+  // Vue client : quota exprimé en crédits (plus parlant qu'un coût API en $).
+  if (usage.totalCredits != null) {
+    const total = usage.totalCredits;
+    const spentCr = usage.spentCredits ?? 0;
+    const remaining = Math.max(0, total - spentCr);
+    const pctUsed = Math.min(100, (spentCr / total) * 100);
+    return (
+      <div className="card" style={{ padding: "14px 16px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
+          <span style={{ fontWeight: 600, fontSize: 13 }}>Crédits IA</span>
+          <span className="subtitle" style={{ fontSize: 11 }}>
+            Recharge {daysUntil(usage.resetDate)}
+          </span>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <span className="subtitle" style={{ fontSize: 12 }}>Restants ce mois-ci</span>
+          <span style={{ fontSize: 12, fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>
+            {remaining} / {total}
+          </span>
+        </div>
+        <Bar pct={pctUsed} />
+        <p className="subtitle" style={{ fontSize: 12, marginTop: 8, marginBottom: 0 }}>
+          Chaque conversation du Copilote ou mission d&apos;agent consomme des crédits
+          selon sa complexité.
+        </p>
+      </div>
+    );
+  }
 
   const { spent, spentAgent, spentCopilote, budget, resetDate } = usage;
   const pct = budget ? (spent / budget) * 100 : null;

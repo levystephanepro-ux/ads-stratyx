@@ -19,10 +19,13 @@ export default async function CopilotePage({
   requireSub(ctx);
   const tok = ctx.mcpToken;
   const anthropicMissing = !process.env.ANTHROPIC_API_KEY;
-  const accountInfo = await getDefaultAccountInfo();
+  const accountInfo = await getDefaultAccountInfo({
+    workspaceId: ctx.workspaceId,
+    isOwner: ctx.isOwner,
+  });
 
   return (
-    <Shell active="copilote" token={tok} trialDaysLeft={ctx.trialDaysLeft}>
+    <Shell active="copilote" token={tok} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner}>
       <h1 className="page-title">💬 Copilote</h1>
       <p className="page-lede">
         Discute avec tes campagnes en langage naturel. Le copilote interroge ton

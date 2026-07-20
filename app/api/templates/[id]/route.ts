@@ -1,10 +1,22 @@
 // Modification / suppression d'un template.
 import { NextResponse } from "next/server";
-import { tokenOk } from "@/lib/api-auth";
+import { tokenOk, isOwnerToken } from "@/lib/api-auth";
 import { updateTemplate, deleteTemplate } from "@/lib/agent/store";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+// La bibliothèque de templates est partagée : modifications réservées au
+// propriétaire de la plateforme.
+function ownerOnly(req: Request): NextResponse | null {
+  if (!isOwnerToken(req.headers.get("x-app-token"))) {
+    return NextResponse.json(
+      { error: "Bibliothèque gérée par ads·stratyx — lecture seule." },
+      { status: 403 },
+    );
+  }
+  return null;
+}
 
 export async function PATCH(
   req: Request,
@@ -13,6 +25,8 @@ export async function PATCH(
   if (!(await tokenOk(req))) {
     return NextResponse.json({ error: "token invalide" }, { status: 401 });
   }
+  const denied = ownerOnly(req);
+  if (denied) return denied;
   const { id } = await params;
   const b = await req.json().catch(() => ({}));
   try {
@@ -39,6 +53,8 @@ export async function DELETE(
   if (!(await tokenOk(req))) {
     return NextResponse.json({ error: "token invalide" }, { status: 401 });
   }
+  const denied = ownerOnly(req);
+  if (denied) return denied;
   const { id } = await params;
   try {
     await deleteTemplate(id);

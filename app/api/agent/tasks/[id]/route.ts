@@ -1,6 +1,6 @@
 // Modification / suppression d'une tâche d'Agent IA.
 import { NextResponse } from "next/server";
-import { tokenOk } from "@/lib/api-auth";
+import { tokenOk, getWorkspaceId } from "@/lib/api-auth";
 import { updateTask, deleteTask } from "@/lib/agent/store";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +36,8 @@ export async function PATCH(
   if (typeof b.allow_write === "boolean") patch.allow_write = b.allow_write;
 
   try {
-    await updateTask(id, patch);
+    // Scope client : un token workspace ne modifie que ses propres tâches.
+    await updateTask(id, patch, await getWorkspaceId(req));
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json(
@@ -55,7 +56,7 @@ export async function DELETE(
   }
   const { id } = await params;
   try {
-    await deleteTask(id);
+    await deleteTask(id, await getWorkspaceId(req));
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json(

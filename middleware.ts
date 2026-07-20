@@ -4,6 +4,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 const PUBLIC_PREFIXES = [
+  "/", // landing page publique (match exact uniquement, voir test ci-dessous)
   "/login",
   "/register",
   "/pricing",

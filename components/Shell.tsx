@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
+import CreditGauge from "@/components/CreditGauge";
 
 // ── Icônes SVG inline ────────────────────────────────────────────────────────
 const Ic = {
@@ -51,6 +52,19 @@ const Ic = {
       <path d="m6.5 10 7-4M6.5 10l7 4"/>
     </svg>
   ),
+  aide: (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="10" cy="10" r="7.5"/>
+      <path d="M10 14v-1"/>
+      <path d="M10 10.5a2 2 0 1 1 0-4 2 2 0 0 1 0 4v1.5"/>
+    </svg>
+  ),
+  admin: (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 2 4 4.5v4c0 4.1 2.6 7.3 6 8.5 3.4-1.2 6-4.4 6-8.5v-4L10 2Z"/>
+      <path d="m7.5 9.5 2 2 3.5-3.5"/>
+    </svg>
+  ),
   logout: (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
       <path d="M8 17H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h4M13 14l3-4-3-4M16 10H8"/>
@@ -68,7 +82,7 @@ const Ic = {
   ),
 };
 
-type PageKey = "home" | "copilote" | "agent" | "templates" | "connexions" | "persona" | "search-console";
+type PageKey = "home" | "copilote" | "agent" | "templates" | "connexions" | "persona" | "search-console" | "aide" | "admin";
 
 const NAV: { key: PageKey; label: string; ic: keyof typeof Ic; href: string }[] = [
   { key: "home",       label: "Accueil",     ic: "home",       href: "/dashboard" },
@@ -78,6 +92,7 @@ const NAV: { key: PageKey; label: string; ic: keyof typeof Ic; href: string }[] 
   { key: "persona",         label: "Persona",          ic: "persona",    href: "/persona" },
   { key: "search-console", label: "Search Console",   ic: "gsc",        href: "/search-console" },
   { key: "connexions",      label: "Connexions",       ic: "connexions", href: "/connexions" },
+  { key: "aide",            label: "Aide",             ic: "aide",       href: "/aide" },
 ];
 
 export default function Shell({
@@ -85,12 +100,14 @@ export default function Shell({
   token,
   headerRight,
   trialDaysLeft,
+  showAdmin,
   children,
 }: {
   active: PageKey;
   token?: string;
   headerRight?: React.ReactNode;
   trialDaysLeft?: number | null;
+  showAdmin?: boolean;
   children: React.ReactNode;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -155,9 +172,24 @@ export default function Shell({
           {NAV.slice(0, 3).map(navLink)}
           <div className="nav-group-label" style={{ marginTop: 18 }}>Outils</div>
           {NAV.slice(3).map(navLink)}
+          {showAdmin && (
+            <>
+              <div className="nav-group-label" style={{ marginTop: 18 }}>Gestion</div>
+              <Link
+                href="/admin"
+                className={`side-link${active === "admin" ? " active" : ""}`}
+                onClick={() => setDrawerOpen(false)}
+              >
+                <span className="side-ic">{Ic.admin}</span>
+                <span className="side-label">Admin</span>
+                {active === "admin" && <span className="side-dot" />}
+              </Link>
+            </>
+          )}
         </nav>
 
         <div className="sidebar-foot">
+          <CreditGauge />
           <ThemeToggle />
           <form action="/api/auth/signout" method="post" style={{ margin: 0 }}>
             <button type="submit" className="side-link logout-btn">

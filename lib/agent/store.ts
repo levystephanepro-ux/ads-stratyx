@@ -33,6 +33,7 @@ export interface AgentTask {
   allow_write: boolean;
   last_run_at: string | null;
   last_status: string | null;
+  workspace_id: string | null;
 }
 
 export function supabaseReady(): boolean {
@@ -126,10 +127,25 @@ function fallbackTasks(): AgentTask[] {
     allow_write: m.allowWrite ?? false,
     last_run_at: null,
     last_status: null,
+    workspace_id: null,
   }));
 }
 
-export async function listTasks(): Promise<AgentTask[]> {
+export async function listTasks(workspaceId?: string | null): Promise<AgentTask[]> {
+  if (!supabaseReady()) return fallbackTasks();
+  let q = admin().from("agent_tasks").select("*");
+  if (workspaceId) {
+    q = q.eq("workspace_id", workspaceId);
+  } else {
+    q = q.is("workspace_id", null);
+  }
+  const { data, error } = await q.order("created_at", { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as AgentTask[];
+}
+
+/** Toutes les tâches, tous workspaces confondus (cron quotidien). */
+export async function listAllTasks(): Promise<AgentTask[]> {
   if (!supabaseReady()) return fallbackTasks();
   const { data, error } = await admin()
     .from("agent_tasks")
@@ -139,13 +155,11 @@ export async function listTasks(): Promise<AgentTask[]> {
   return (data ?? []) as AgentTask[];
 }
 
-export async function getTask(id: string): Promise<AgentTask | null> {
+export async function getTask(id: string, workspaceId?: string | null): Promise<AgentTask | null> {
   if (!supabaseReady()) return fallbackTasks().find((t) => t.id === id) ?? null;
-  const { data, error } = await admin()
-    .from("agent_tasks")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
+  let q = admin().from("agent_tasks").select("*").eq("id", id);
+  if (workspaceId) q = q.eq("workspace_id", workspaceId);
+  const { data, error } = await q.maybeSingle();
   if (error) throw new Error(error.message);
   return (data as AgentTask) ?? null;
 }
@@ -164,11 +178,11 @@ export type NewTask = {
   allow_write: boolean;
 };
 
-export async function createTask(t: NewTask): Promise<AgentTask> {
+export async function createTask(t: NewTask, workspaceId?: string | null): Promise<AgentTask> {
   if (!supabaseReady()) notReady();
   const { data, error } = await admin()
     .from("agent_tasks")
-    .insert(t)
+    .insert({ ...t, workspace_id: workspaceId ?? null })
     .select("*")
     .single();
   if (error) throw new Error(error.message);
@@ -178,18 +192,23 @@ export async function createTask(t: NewTask): Promise<AgentTask> {
 export async function updateTask(
   id: string,
   patch: Partial<NewTask>,
+  workspaceId?: string | null,
 ): Promise<void> {
   if (!supabaseReady()) notReady();
-  const { error } = await admin()
+  let q = admin()
     .from("agent_tasks")
     .update({ ...patch, updated_at: new Date().toISOString() })
     .eq("id", id);
+  if (workspaceId) q = q.eq("workspace_id", workspaceId);
+  const { error } = await q;
   if (error) throw new Error(error.message);
 }
 
-export async function deleteTask(id: string): Promise<void> {
+export async function deleteTask(id: string, workspaceId?: string | null): Promise<void> {
   if (!supabaseReady()) notReady();
-  const { error } = await admin().from("agent_tasks").delete().eq("id", id);
+  let q = admin().from("agent_tasks").delete().eq("id", id);
+  if (workspaceId) q = q.eq("workspace_id", workspaceId);
+  const { error } = await q;
   if (error) throw new Error(error.message);
 }
 
@@ -203,26 +222,32 @@ export async function markTaskRun(id: string, status: string): Promise<void> {
 
 // ---------------- Réglages (clé/valeur) ----------------
 
-export async function getSetting(key: string): Promise<string | null> {
+export async function getSetting(key: string, workspaceId?: string | null): Promise<string | null> {
   if (!supabaseReady()) return null;
   try {
-    const { data, error } = await admin()
-      .from("app_settings")
-      .select("value")
-      .eq("key", key)
-      .maybeSingle();
-    if (error) return null; // table pas encore créée : repli silencieux
+    let q = admin().from("app_settings").select("value").eq("key", key);
+    if (workspaceId) {
+      q = q.eq("workspace_id", workspaceId);
+    } else {
+      q = q.is("workspace_id", null);
+    }
+    const { data, error } = await q.maybeSingle();
+    if (error) return null;
     return (data?.value as string | undefined) ?? null;
   } catch {
     return null;
   }
 }
 
-export async function setSetting(key: string, value: string): Promise<void> {
+export async function setSetting(key: string, value: string, workspaceId?: string | null): Promise<void> {
   if (!supabaseReady()) notReady();
+  // Unicité (key, workspace_id) — index app_settings_key_ws_uniq (migration 0017).
   const { error } = await admin()
     .from("app_settings")
-    .upsert({ key, value, updated_at: new Date().toISOString() });
+    .upsert(
+      { key, value, workspace_id: workspaceId ?? null, updated_at: new Date().toISOString() },
+      { onConflict: "key,workspace_id" },
+    );
   if (error) throw new Error(error.message);
 }
 

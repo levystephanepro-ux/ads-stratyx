@@ -2,6 +2,7 @@
 import { getAppUrl } from "@/lib/app-url";
 import { adsConfig, isLive, hasEnvAccount } from "@/lib/google-ads/config";
 import { listManagedAccounts } from "@/lib/google-ads/client";
+import { listWorkspaceAccounts } from "@/lib/google-ads/default-account";
 import { getSetting, supabaseReady } from "@/lib/agent/store";
 import { getOAuthMeta } from "@/lib/oauth-store";
 import ConnexionsManager, { type ManagedAccount } from "@/components/ConnexionsManager";
@@ -23,21 +24,32 @@ export default async function ConnexionsPage() {
   const gscConnected = gscMeta !== null;
   const connectUrl = `/api/auth/gsc/connect?token=${encodeURIComponent(tok)}`;
 
+  // Owner : tous les comptes du MCC. Client : uniquement les comptes reliés
+  // à SON espace (zéro tant que l'équipe n'a pas fait la liaison).
   let accounts: ManagedAccount[] = [];
   let fetchError: string | null = null;
-  if (isLive() && hasEnvAccount()) {
-    try {
-      accounts = await listManagedAccounts(adsConfig.refreshToken);
-    } catch (e) {
-      fetchError = e instanceof Error ? e.message : String(e);
+  if (ctx.isOwner) {
+    if (isLive() && hasEnvAccount()) {
+      try {
+        accounts = await listManagedAccounts(adsConfig.refreshToken);
+      } catch (e) {
+        fetchError = e instanceof Error ? e.message : String(e);
+      }
     }
+  } else if (ctx.workspaceId) {
+    accounts = (await listWorkspaceAccounts(ctx.workspaceId)).map((a) => ({
+      customerId: a.customerId,
+      name: a.name,
+      currencyCode: null,
+    }));
   }
 
   const defaultCustomerId =
-    (await getSetting("default_customer_id")) || adsConfig.customerId;
+    (await getSetting("default_customer_id", ctx.workspaceId)) ||
+    (ctx.isOwner ? adsConfig.customerId : accounts[0]?.customerId ?? "");
 
   return (
-    <Shell active="connexions" token={tok} trialDaysLeft={ctx.trialDaysLeft}>
+    <Shell active="connexions" token={tok} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner}>
       <h1 className="page-title">🔗 Connexions</h1>
       <p className="page-lede">
         Tes comptes Google Ads (via ton compte manager MCC) et le connecteur Stratyx.
@@ -45,7 +57,7 @@ export default async function ConnexionsPage() {
 
       {/* Comptes Google Ads */}
       <div className="section-title">
-        Comptes Google Ads {adsConfig.loginCustomerId && `· MCC ${adsConfig.loginCustomerId}`}
+        Comptes Google Ads {ctx.isOwner && adsConfig.loginCustomerId && `· MCC ${adsConfig.loginCustomerId}`}
       </div>
 
       {fetchError && (
@@ -58,7 +70,15 @@ export default async function ConnexionsPage() {
         </div>
       )}
 
-      {!isLive() || !hasEnvAccount() ? (
+      {!ctx.isOwner && accounts.length === 0 ? (
+        <div className="card">
+          <p className="subtitle" style={{ margin: 0 }}>
+            Aucun compte Google Ads relié à ton espace pour le moment.
+            L&apos;équipe ads·stratyx relie ton compte lors de l&apos;activation —
+            écris-nous si ce n&apos;est pas encore fait.
+          </p>
+        </div>
+      ) : ctx.isOwner && (!isLive() || !hasEnvAccount()) ? (
         <div className="card">
           <p className="subtitle" style={{ margin: 0 }}>
             Mode démo — connecte un compte Google Ads réel pour gérer les comptes du MCC.
@@ -73,16 +93,20 @@ export default async function ConnexionsPage() {
         />
       )}
 
-      {/* Google Search Console */}
-      <div className="section-title" style={{ marginTop: 36 }}>
-        Google Search Console
-      </div>
-      <ConnexionsGscCard
-        connected={gscConnected}
-        email={gscMeta?.email ?? null}
-        connectUrl={connectUrl}
-        token={tok}
-      />
+      {/* Google Search Console — nécessite un token workspace valide */}
+      {tok && (
+        <>
+          <div className="section-title" style={{ marginTop: 36 }}>
+            Google Search Console
+          </div>
+          <ConnexionsGscCard
+            connected={gscConnected}
+            email={gscMeta?.email ?? null}
+            connectUrl={connectUrl}
+            token={tok}
+          />
+        </>
+      )}
 
       {/* Connecteurs externes */}
       <div className="section-title" style={{ marginTop: 36 }}>
@@ -206,7 +230,9 @@ export default async function ConnexionsPage() {
         </div>
       </div>
 
-      {/* Connecteur Stratyx (MCP) */}
+      {/* Connecteur Stratyx (MCP) — nécessite un token workspace valide */}
+      {tok && (
+      <>
       <div className="section-title" style={{ marginTop: 32 }}>
         Connecteur Stratyx (MCP)
       </div>
@@ -240,6 +266,8 @@ export default async function ConnexionsPage() {
           </div>
         </details>
       </div>
+      </>
+      )}
     </Shell>
   );
 }

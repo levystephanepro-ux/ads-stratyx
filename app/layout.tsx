@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ads-stratyx — pilote tes Google Ads avec Stratyx",
+  title: "Stratyx — pilote tes Google Ads en langage naturel",
   description:
-    "Connecte ton compte Google Ads à Stratyx et pilote tes campagnes en langage naturel.",
-  // App privée : on interdit toute indexation par les moteurs de recherche.
-  robots: { index: false, follow: false, nocache: true },
+    "Copilote IA + agents autonomes pour tes campagnes Google Ads. Audits, rapports " +
+    "quotidiens par email, optimisations — en français, sans regex ni tableurs. " +
+    "Essai gratuit 14 jours.",
+  // La landing est indexable ; les pages de l'app sont derrière le login.
+  robots: { index: true, follow: true },
 };
 
 export default function RootLayout({

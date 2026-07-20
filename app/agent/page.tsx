@@ -17,14 +17,14 @@ export default async function AgentPage() {
   const anthropicMissing = !process.env.ANTHROPIC_API_KEY;
   const dbReady = supabaseReady();
   const [tasks, templates, { accounts, defaultCustomerId }] = await Promise.all([
-    listTasks(),
+    listTasks(ctx.isOwner ? null : ctx.workspaceId),
     listTemplates(),
-    getAccountsInfo(),
+    getAccountsInfo({ workspaceId: ctx.workspaceId, isOwner: ctx.isOwner }),
   ]);
   const templateCategories = [...new Set(templates.map((t) => t.category).filter(Boolean))].sort();
 
   return (
-    <Shell active="agent" token={tok} trialDaysLeft={ctx.trialDaysLeft}>
+    <Shell active="agent" token={tok} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner}>
       <h1 className="page-title">🤖 Agent IA</h1>
       <p className="page-lede">
         Des agents qui exécutent des missions récurrentes tout seuls et t'envoient

@@ -12,9 +12,10 @@ const RESEND_ENDPOINT = "https://api.resend.com/emails";
 export async function sendAgentEmail(
   subject: string,
   markdown: string,
+  toOverride?: string | null,
 ): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
-  const to = process.env.AGENT_EMAIL_TO;
+  const to = toOverride ?? process.env.AGENT_EMAIL_TO;
   const from =
     process.env.AGENT_EMAIL_FROM ?? "ads-stratyx <onboarding@resend.dev>";
 

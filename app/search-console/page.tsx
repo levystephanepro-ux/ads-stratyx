@@ -10,7 +10,7 @@ export default async function SearchConsolePage() {
   const ctx = await getDashboardContext();
   requireSub(ctx);
   return (
-    <Shell active="search-console" token={ctx.mcpToken} trialDaysLeft={ctx.trialDaysLeft}>
+    <Shell active="search-console" token={ctx.mcpToken} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner}>
       <SearchConsoleClient token={ctx.mcpToken} isMock={!isScLive()} />
     </Shell>
   );

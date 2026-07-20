@@ -34,7 +34,7 @@ export default async function Dashboard() {
 
   const [templates, accountInfo] = await Promise.all([
     listTemplates(),
-    getDefaultAccountInfo(),
+    getDefaultAccountInfo({ workspaceId: ctx.workspaceId, isOwner: ctx.isOwner }),
   ]);
   const popular = templates.slice(0, 6);
 
@@ -45,7 +45,7 @@ export default async function Dashboard() {
   );
 
   return (
-    <Shell active="home" token={ctx.mcpToken} headerRight={headerRight} trialDaysLeft={ctx.trialDaysLeft}>
+    <Shell active="home" token={ctx.mcpToken} headerRight={headerRight} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner}>
       {/* Hero de bienvenue */}
       <div className="hero" style={{ marginBottom: 18 }}>
         <div style={{ position: "relative", zIndex: 1 }}>

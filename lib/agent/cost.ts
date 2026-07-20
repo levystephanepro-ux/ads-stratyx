@@ -35,24 +35,32 @@ export function monthKey(date = new Date()): string {
   return `cost_${date.getUTCFullYear()}_${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-/** Ajoute un coût au cumul mensuel dans app_settings (silencieux si Supabase absent). */
-export async function addMonthlyCost(usd: number, source: "agent" | "copilote"): Promise<void> {
+/** Ajoute un coût au cumul mensuel dans app_settings (silencieux si Supabase absent).
+ *  Scopé par workspace quand workspaceId est fourni (quotas par client). */
+export async function addMonthlyCost(
+  usd: number,
+  source: "agent" | "copilote",
+  workspaceId?: string | null,
+): Promise<void> {
   try {
     const { getSetting, setSetting } = await import("./store");
     const key = monthKey();
     const sourceKey = `${key}_${source}`;
-    const [total, bySource] = await Promise.all([getSetting(key), getSetting(sourceKey)]);
+    const [total, bySource] = await Promise.all([
+      getSetting(key, workspaceId),
+      getSetting(sourceKey, workspaceId),
+    ]);
     await Promise.all([
-      setSetting(key, String((parseFloat(total ?? "0") + usd).toFixed(6))),
-      setSetting(sourceKey, String((parseFloat(bySource ?? "0") + usd).toFixed(6))),
+      setSetting(key, String((parseFloat(total ?? "0") + usd).toFixed(6)), workspaceId),
+      setSetting(sourceKey, String((parseFloat(bySource ?? "0") + usd).toFixed(6)), workspaceId),
     ]);
   } catch {
     // silencieux : le suivi de coût ne doit jamais bloquer l'app
   }
 }
 
-/** Lit le coût cumulé du mois + budget configuré. */
-export async function getMonthlyUsage(): Promise<{
+/** Lit le coût cumulé du mois + budget configuré (scopé par workspace). */
+export async function getMonthlyUsage(workspaceId?: string | null): Promise<{
   spent: number;
   spentAgent: number;
   spentCopilote: number;
@@ -64,10 +72,10 @@ export async function getMonthlyUsage(): Promise<{
   const now = new Date();
   const resetDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
   const [total, agent, copilote, budget] = await Promise.all([
-    getSetting(key),
-    getSetting(`${key}_agent`),
-    getSetting(`${key}_copilote`),
-    getSetting("budget_monthly_usd"),
+    getSetting(key, workspaceId),
+    getSetting(`${key}_agent`, workspaceId),
+    getSetting(`${key}_copilote`, workspaceId),
+    getSetting("budget_monthly_usd", workspaceId),
   ]);
   return {
     spent: parseFloat(total ?? "0"),

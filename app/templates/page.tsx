@@ -17,7 +17,7 @@ export default async function TemplatesPage() {
   const templates = await listTemplates();
 
   return (
-    <Shell active="templates" token={tok} trialDaysLeft={ctx.trialDaysLeft}>
+    <Shell active="templates" token={tok} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner}>
       <h1 className="page-title">📋 Templates</h1>
       <p className="page-lede">
         Ta bibliothèque de prompts réutilisables. Modifie-les, crée les tiens, puis

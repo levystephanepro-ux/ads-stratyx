@@ -6,7 +6,10 @@
 import { NextResponse } from "next/server";
 import { runAgentLoop } from "@/lib/agent/loop";
 import { addMonthlyCost } from "@/lib/agent/cost";
-import { tokenValueOk } from "@/lib/api-auth";
+import { tokenValueOk, getWorkspaceIdFromValue } from "@/lib/api-auth";
+import { getWorkspaceBilling, getWorkspaceOwnerEmail } from "@/lib/billing";
+import { getSetting } from "@/lib/agent/store";
+import { isOwnerEmail } from "@/lib/owner";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -44,12 +47,35 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "aucun message" }, { status: 400 });
   }
 
+  // Workspace client (token SaaS) : quota + isolation sur SON compte Google Ads.
+  const workspaceId = await getWorkspaceIdFromValue(payload.token);
+  let customerId: string | undefined;
+  if (workspaceId) {
+    const billing = await getWorkspaceBilling(workspaceId);
+    if (!billing.allowed) {
+      return NextResponse.json({ error: billing.reason }, { status: 402 });
+    }
+    customerId =
+      (await getSetting("default_customer_id", workspaceId)) ?? undefined;
+    if (!customerId) {
+      // L'owner sans défaut choisi retombe sur le compte global (env) ;
+      // un client, lui, doit avoir un compte relié à son espace.
+      const ownerWs = isOwnerEmail(await getWorkspaceOwnerEmail(workspaceId));
+      if (!ownerWs) {
+        return NextResponse.json(
+          { error: "Aucun compte Google Ads relié à ton espace. Va dans Connexions." },
+          { status: 409 },
+        );
+      }
+    }
+  }
+
   try {
     const r = await runAgentLoop(
       history.map((m) => ({ role: m.role, content: m.content })),
-      { system: COPILOTE_SYSTEM, allowWrite: true },
+      { system: COPILOTE_SYSTEM, allowWrite: true, customerId },
     );
-    await addMonthlyCost(r.usage.costUsd, "copilote");
+    await addMonthlyCost(r.usage.costUsd, "copilote", workspaceId);
     return NextResponse.json({
       reply: r.finalText,
       toolCalls: r.toolCalls,

@@ -1,7 +1,8 @@
 // Création d'une tâche d'Agent IA.
 import { NextResponse } from "next/server";
-import { tokenOk } from "@/lib/api-auth";
-import { createTask } from "@/lib/agent/store";
+import { tokenOk, getWorkspaceId } from "@/lib/api-auth";
+import { createTask, listTasks } from "@/lib/agent/store";
+import { getWorkspaceBilling } from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -9,6 +10,24 @@ export const runtime = "nodejs";
 export async function POST(req: Request) {
   if (!(await tokenOk(req))) {
     return NextResponse.json({ error: "token invalide" }, { status: 401 });
+  }
+  const workspaceId = await getWorkspaceId(req);
+  if (workspaceId) {
+    const billing = await getWorkspaceBilling(workspaceId);
+    if (!billing.allowed) {
+      return NextResponse.json({ error: billing.reason }, { status: 402 });
+    }
+    const existing = await listTasks(workspaceId);
+    if (existing.length >= billing.limits.maxAgents) {
+      return NextResponse.json(
+        {
+          error:
+            `Ton plan ${billing.limits.label} permet ${billing.limits.maxAgents} agents ` +
+            `maximum. Supprime un agent ou passe au plan supérieur.`,
+        },
+        { status: 403 },
+      );
+    }
   }
   const b = await req.json().catch(() => ({}));
   if (!b.name?.trim() || !b.prompt?.trim()) {
@@ -38,7 +57,7 @@ export async function POST(req: Request) {
         : "claude-haiku-4-5-20251001",
       enabled: b.enabled !== false,
       allow_write: b.allow_write === true,
-    });
+    }, workspaceId);
     return NextResponse.json(t);
   } catch (e) {
     return NextResponse.json(

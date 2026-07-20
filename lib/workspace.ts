@@ -4,6 +4,7 @@
 import { randomBytes } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { adsConfig } from "@/lib/google-ads/config";
+import { isOwnerEmail } from "@/lib/owner";
 
 export interface DashboardContext {
   configured: boolean; // Supabase présent ?
@@ -15,6 +16,8 @@ export interface DashboardContext {
   connectionsCount: number;
   defaultAccountName: string | null;
   subscriptionStatus: "trialing" | "active" | "past_due" | "canceled" | "none";
+  isOwner: boolean; // propriétaire de la plateforme (voit tout le MCC)
+  plan: string; // "starter" | "pro" (cf. lib/plans.ts)
   trialDaysLeft: number | null; // null si abonnement actif ou pas de trial
   isBlocked: boolean; // trial expiré sans abonnement actif
 }
@@ -41,6 +44,8 @@ export async function getDashboardContext(): Promise<DashboardContext> {
     connectionsCount: 0,
     defaultAccountName: null,
     subscriptionStatus: "none",
+    isOwner: true, // mode démo / non configuré : comportement mono-compte
+    plan: "pro",
     trialDaysLeft: null,
     isBlocked: false,
   };
@@ -55,16 +60,23 @@ export async function getDashboardContext(): Promise<DashboardContext> {
 
   base.authed = true;
   base.email = user.email ?? null;
+  base.isOwner = isOwnerEmail(user.email);
+
+  // Sécurité : le repli sur MCP_SHARED_TOKEN (mode mono-compte) est réservé à
+  // l'owner. Un client sans workspace ne doit JAMAIS recevoir le token partagé
+  // (sinon il voit les connexions GSC/MCP du propriétaire).
+  if (!base.isOwner) base.mcpToken = "";
 
   // Abonnement — avant le check workspace pour que le banner s'affiche toujours
   const { data: sub } = await supabase
     .from("subscriptions")
-    .select("status, trial_ends_at, current_period_end")
+    .select("status, plan, trial_ends_at, current_period_end")
     .eq("user_id", user.id)
     .maybeSingle();
 
   if (sub) {
     base.subscriptionStatus = sub.status as DashboardContext["subscriptionStatus"];
+    base.plan = sub.plan ?? "pro";
     if (sub.status === "trialing" && sub.trial_ends_at) {
       const diff = new Date(sub.trial_ends_at).getTime() - Date.now();
       const days = Math.max(0, Math.ceil(diff / 86_400_000));
