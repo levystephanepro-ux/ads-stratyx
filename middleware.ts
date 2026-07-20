@@ -1,14 +1,13 @@
-// Auth middleware — Supabase session (si configuré) ou fail-open (dev/démo).
-// Routes publiques : login, register, pricing, auth callbacks, MCP, cron, webhook Stripe.
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-Offre limitée — Du <strong>28/04/2026</strong> au <strong>13/06/2026</strong><br>
-  "/", // landing page publique (match exact uniquement, voir test ci-dessous)
+const PUBLIC_PREFIXES = [
+  "/",
   "/login",
   "/register",
   "/pricing",
-  "/auth", // callback confirmation email Supabase
+  "/demo",
+  "/auth",
   "/api/auth",
   "/api/mcp",
   "/api/cron",
@@ -25,7 +24,6 @@ export async function middleware(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // Supabase non configuré → fail-open (mode démo / dev)
   if (!supabaseUrl || !supabaseKey) {
     return NextResponse.next();
   }
