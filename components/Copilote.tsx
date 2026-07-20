@@ -82,4 +82,120 @@ export default function Copilote({
         {messages.length === 0 && !loading && (
           <div style={{ margin: "auto", maxWidth: 460, textAlign: "center", paddingTop: 32 }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>💬</div>
-            <p className="subtitle" style={{
+            <p className="subtitle" style={{ marginTop: 0 }}>
+              Pose une question sur tes campagnes. Le copilote interroge ton compte en direct.
+            </p>
+            <div style={{ display: "grid", gap: 8, marginTop: 16 }}>
+              {SUGGESTIONS.map((s) => (
+                <button
+                  key={s}
+                  className="btn-ghost"
+                  style={{ justifyContent: "flex-start", fontWeight: 400 }}
+                  onClick={() => send(s)}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {messages.map((m, i) => (
+          <div
+            key={i}
+            style={{
+              display: "flex",
+              justifyContent: m.role === "user" ? "flex-end" : "flex-start",
+              marginBottom: 14,
+            }}
+          >
+            <div
+              style={{
+                maxWidth: "80%",
+                background: m.role === "user" ? "var(--accent)" : "var(--surface-2)",
+                color: m.role === "user" ? "white" : "var(--text)",
+                border: m.role === "user" ? "none" : "1px solid var(--border)",
+                borderRadius: 12,
+                padding: "10px 14px",
+              }}
+            >
+              {m.tools && m.tools.length > 0 && (
+                <div className="subtitle" style={{ fontSize: 11, marginBottom: 6, marginTop: 0 }}>
+                  🔧 {m.tools.join(" · ")}
+                </div>
+              )}
+              <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.5, fontSize: 14 }}>
+                {m.content}
+              </div>
+              {m.role === "assistant" && m.costUsd !== undefined && (
+                <div className="subtitle" style={{ fontSize: 11, marginTop: 6, opacity: 0.6 }}>
+                  {Math.max(1, Math.round(m.costUsd / 0.05))} crédit
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {loading && (
+          <div className="subtitle" style={{ fontSize: 13 }}>
+            Le copilote réfléchit et interroge Google Ads…
+          </div>
+        )}
+
+        {error && (
+          <div
+            className="mono"
+            style={{
+              color: "var(--red)",
+              borderColor: "color-mix(in srgb, var(--red) 45%, transparent)",
+            }}
+          >
+            {error}
+          </div>
+        )}
+        <div ref={endRef} />
+      </div>
+
+      <div
+        style={{
+          borderTop: "1px solid var(--border)",
+          padding: "10px 12px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+        }}
+      >
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              send(input);
+            }
+          }}
+          placeholder="Écris ta question…"
+          disabled={loading}
+          style={{ border: "none", background: "transparent", outline: "none", padding: "2px 0", fontSize: 14 }}
+        />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {accountName && (
+              <span className="pill" style={{ fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px" }}>
+                📊 {accountName}
+              </span>
+            )}
+            <span className="subtitle" style={{ fontSize: 12 }}>↵ pour envoyer</span>
+          </div>
+          <button
+            onClick={() => send(input)}
+            disabled={loading || !input.trim()}
+            style={{ flexShrink: 0 }}
+          >
+            Envoyer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
