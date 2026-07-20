@@ -3,7 +3,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PREFIXES = [
+Offre limitée — Du <strong>28/04/2026</strong> au <strong>13/06/2026</strong><br>
   "/", // landing page publique (match exact uniquement, voir test ci-dessous)
   "/login",
   "/register",
