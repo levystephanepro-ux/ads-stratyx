@@ -1,7 +1,4 @@
 "use client";
-
-// Widget de suivi des coûts API Anthropic — style "Limites d'utilisation" Claude.
-// Affiché sur le dashboard, se rafraîchit côté client via /api/usage.
 import { useEffect, useState } from "react";
 
 interface Usage {
@@ -14,19 +11,16 @@ interface Usage {
   resetDate: string;
 }
 
-function Bar({ pct, warn }: { pct: number; warn?: boolean }) {
-  const color = pct > 80 ? "var(--red, #ef4444)" : pct > 50 ? "#f59e0b" : "var(--accent)";
+const USD_PER_CREDIT = 0.05;
+const usdToCredits = (usd: number) => Math.round(usd / USD_PER_CREDIT);
+
+function Bar({ pct }: { pct: number }) {
+  const color = pct > 80 ? "#ef4444" : pct > 50 ? "#f59e0b" : "var(--accent)";
   return (
     <div style={{ height: 3, background: "var(--border)", borderRadius: 2, overflow: "hidden", marginTop: 4 }}>
       <div style={{ height: "100%", width: `${Math.min(pct, 100)}%`, background: color, borderRadius: 2, transition: "width 0.4s" }} />
     </div>
   );
-}
-
-function fmt(usd: number) {
-  if (usd === 0) return "$0.00";
-  if (usd < 0.01) return `$${usd.toFixed(4)}`;
-  return `$${usd.toFixed(2)}`;
 }
 
 function daysUntil(dateStr: string) {
@@ -44,73 +38,38 @@ export default function UsageWidget() {
 
   if (!usage) return null;
 
-  // Vue client : quota exprimé en crédits (plus parlant qu'un coût API en $).
-  if (usage.totalCredits != null) {
-    const total = usage.totalCredits;
-    const spentCr = usage.spentCredits ?? 0;
-    const remaining = Math.max(0, total - spentCr);
-    const pctUsed = Math.min(100, (spentCr / total) * 100);
-    return (
-      <div className="card" style={{ padding: "14px 16px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
-          <span style={{ fontWeight: 600, fontSize: 13 }}>Crédits IA</span>
-          <span className="subtitle" style={{ fontSize: 11 }}>
-            Recharge {daysUntil(usage.resetDate)}
-          </span>
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-          <span className="subtitle" style={{ fontSize: 12 }}>Restants ce mois-ci</span>
-          <span style={{ fontSize: 12, fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>
-            {remaining} / {total}
-          </span>
-        </div>
-        <Bar pct={pctUsed} />
-        <p className="subtitle" style={{ fontSize: 12, marginTop: 8, marginBottom: 0 }}>
-          Chaque conversation du Copilote ou mission d&apos;agent consomme des crédits
-          selon sa complexité.
-        </p>
-      </div>
-    );
-  }
-
-  const { spent, spentAgent, spentCopilote, budget, resetDate } = usage;
-  const pct = budget ? (spent / budget) * 100 : null;
+  const total = usage.totalCredits ?? usdToCredits(usage.budget ?? 0);
+  const spent = usage.spentCredits ?? usdToCredits(usage.spent);
+  const spentAgent = usdToCredits(usage.spentAgent);
+  const spentCopilote = usdToCredits(usage.spentCopilote);
+  const remaining = Math.max(0, total - spent);
+  const pct = total > 0 ? Math.min(100, (spent / total) * 100) : 0;
   const pctAgent = spent > 0 ? (spentAgent / spent) * 100 : 0;
   const pctCopilote = spent > 0 ? (spentCopilote / spent) * 100 : 0;
 
   return (
     <div className="card" style={{ padding: "14px 16px" }}>
-      {/* En-tête */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
-        <span style={{ fontWeight: 600, fontSize: 13 }}>Coûts API Anthropic</span>
+        <span style={{ fontWeight: 600, fontSize: 13 }}>Crédits IA</span>
         <span className="subtitle" style={{ fontSize: 11 }}>
-          Réinit. {daysUntil(resetDate)}
+          Recharge {daysUntil(usage.resetDate)}
         </span>
       </div>
 
-      {/* Total vs budget */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-        <span className="subtitle" style={{ fontSize: 12 }}>
-          {budget ? "Ce mois-ci" : "Total cumulé"}
-        </span>
+        <span className="subtitle" style={{ fontSize: 12 }}>Restants ce mois-ci</span>
         <span style={{ fontSize: 12, fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>
-          {fmt(spent)}{budget ? ` / ${fmt(budget)}` : ""}
-          {pct !== null && (
-            <span className="subtitle" style={{ marginLeft: 6, fontWeight: 400 }}>
-              ({Math.round(pct)}%)
-            </span>
-          )}
+          {remaining} / {total}
         </span>
       </div>
-      {pct !== null && <Bar pct={pct} />}
+      <Bar pct={pct} />
 
-      {/* Détail Agent IA */}
       {spentAgent > 0 && (
         <div style={{ marginTop: 10 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-            <span className="subtitle" style={{ fontSize: 12 }}>🤖 Agent IA</span>
+            <span className="subtitle" style={{ fontSize: 12 }}>Agent IA</span>
             <span style={{ fontSize: 12, fontVariantNumeric: "tabular-nums" }}>
-              {fmt(spentAgent)}
+              {spentAgent} cr
               <span className="subtitle" style={{ marginLeft: 6 }}>({Math.round(pctAgent)}%)</span>
             </span>
           </div>
@@ -118,13 +77,12 @@ export default function UsageWidget() {
         </div>
       )}
 
-      {/* Détail Copilote */}
       {spentCopilote > 0 && (
         <div style={{ marginTop: 8 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-            <span className="subtitle" style={{ fontSize: 12 }}>💬 Copilote</span>
+            <span className="subtitle" style={{ fontSize: 12 }}>Copilote</span>
             <span style={{ fontSize: 12, fontVariantNumeric: "tabular-nums" }}>
-              {fmt(spentCopilote)}
+              {spentCopilote} cr
               <span className="subtitle" style={{ marginLeft: 6 }}>({Math.round(pctCopilote)}%)</span>
             </span>
           </div>
@@ -134,7 +92,7 @@ export default function UsageWidget() {
 
       {spent === 0 && (
         <p className="subtitle" style={{ fontSize: 12, marginTop: 8, marginBottom: 0 }}>
-          Aucune dépense ce mois-ci.
+          Aucun crédit utilisé ce mois-ci.
         </p>
       )}
     </div>

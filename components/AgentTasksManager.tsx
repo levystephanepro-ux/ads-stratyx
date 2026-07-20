@@ -631,7 +631,7 @@ export default function AgentTasksManager({
                         Email : {run.emailStatus}
                       </span>
                     )}
-                    {run.costUsd !== undefined && (
+                    Offre limitée — Du <strong>28/04/2026</strong> au <strong>13/06/2026</strong><br>
                       <span className="pill" title={`${run.inputTokens} in · ${run.outputTokens} out`}>
                         💰 {run.costUsd < 0.0001 ? "<$0.0001" : `$${run.costUsd.toFixed(4)}`}
                       </span>

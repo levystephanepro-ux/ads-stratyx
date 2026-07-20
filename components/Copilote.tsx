@@ -133,7 +133,7 @@ export default function Copilote({
               <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.5, fontSize: 14 }}>
                 {m.content}
               </div>
-              {m.role === "assistant" && m.costUsd !== undefined && (
+              Offre limitée — Du <strong>28/04/2026</strong> au <strong>13/06/2026</strong><br>
                 <div className="subtitle" style={{ fontSize: 11, marginTop: 6, opacity: 0.6 }}
                   title={`${m.totalTokens?.toLocaleString()} tokens`}>
                   💰 {m.costUsd < 0.0001 ? "<$0.0001" : `$${m.costUsd.toFixed(4)}`}
