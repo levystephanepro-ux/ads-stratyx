@@ -86,6 +86,9 @@ export interface AccountInfo {
   name: string;
 }
 
+const USD_PER_CREDIT = 0.05;
+const usdToCredits = (usd: number) => Math.max(1, Math.round(usd / USD_PER_CREDIT));
+
 export default function AgentTasksManager({
   tasks,
   token,
@@ -114,7 +117,6 @@ export default function AgentTasksManager({
   const [accountSaving, setAccountSaving] = useState(false);
 
   const headers = { "Content-Type": "application/json", "x-app-token": token };
-
   const selectedAccount = accounts.find((a) => a.customerId === selectedId) ?? accounts[0];
 
   async function changeAccount(customerId: string) {
@@ -136,7 +138,6 @@ export default function AgentTasksManager({
     return [...new Set([...templateCategories, ...fromAgents])].sort();
   }, [templateCategories, tasks]);
 
-  // Catégories effectivement présentes dans les agents (pour le filtre)
   const agentCategories = useMemo(() => {
     const cats = tasks.map((t) => t.category).filter(Boolean) as string[];
     return [...new Set(cats)].sort();
@@ -237,7 +238,6 @@ export default function AgentTasksManager({
       try {
         data = JSON.parse(text);
       } catch {
-        // Réponse non-JSON : timeout Vercel, erreur réseau, etc.
         const preview = text.replace(/<[^>]*>/g, " ").trim().slice(0, 200);
         const hint = res.status === 504 || res.status === 524
           ? "L'agent a dépassé le délai maximum (timeout Vercel)."
@@ -269,7 +269,6 @@ export default function AgentTasksManager({
 
   return (
     <div>
-      {/* Barre d'actions */}
       <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
         <div className="searchbar" style={{ flex: 1, minWidth: 200, marginBottom: 0 }}>
           <input
@@ -280,45 +279,30 @@ export default function AgentTasksManager({
           />
         </div>
 
-        {/* Sélecteur de compte */}
         {accounts.length > 1 ? (
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ fontSize: 13, color: "var(--muted)" }}>Compte</span>
             <select
-              style={{
-                ...inputStyle,
-                width: "auto",
-                padding: "8px 12px",
-                fontSize: 13,
-                opacity: accountSaving ? 0.6 : 1,
-              }}
+              style={{ ...inputStyle, width: "auto", padding: "8px 12px", fontSize: 13, opacity: accountSaving ? 0.6 : 1 }}
               value={selectedId}
               onChange={(e) => changeAccount(e.target.value)}
               disabled={accountSaving}
             >
               {accounts.map((a) => (
-                <option key={a.customerId} value={a.customerId}>
-                  {a.name}
-                </option>
+                <option key={a.customerId} value={a.customerId}>{a.name}</option>
               ))}
             </select>
             {accountSaving && <span style={{ fontSize: 12, color: "var(--muted)" }}>…</span>}
           </div>
         ) : selectedAccount ? (
-          <span
-            className="pill"
-            style={{ fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 12px" }}
-          >
+          <span className="pill" style={{ fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 12px" }}>
             📊 {selectedAccount.name}
           </span>
         ) : null}
 
-        <button onClick={openNew} disabled={!dbReady}>
-          + Nouvel agent
-        </button>
+        <button onClick={openNew} disabled={!dbReady}>+ Nouvel agent</button>
       </div>
 
-      {/* Filtres statut */}
       <div className="chips">
         <button className={`chip ${filter === "all" ? "active" : ""}`} onClick={() => setFilter("all")}>
           Tous <span style={{ opacity: 0.6 }}>{tasks.length}</span>
@@ -331,13 +315,9 @@ export default function AgentTasksManager({
         </button>
       </div>
 
-      {/* Filtres catégorie */}
       {agentCategories.length > 0 && (
         <div className="chips" style={{ marginTop: -10 }}>
-          <button
-            className={`chip ${catFilter === "Tous" ? "active" : ""}`}
-            onClick={() => setCatFilter("Tous")}
-          >
+          <button className={`chip ${catFilter === "Tous" ? "active" : ""}`} onClick={() => setCatFilter("Tous")}>
             Toutes catégories
           </button>
           {agentCategories.map((c) => (
@@ -349,9 +329,7 @@ export default function AgentTasksManager({
             >
               <span style={{ fontSize: 10, opacity: catFilter === c ? 0 : 1, marginRight: 2 }}>●</span>
               {c}
-              <span style={{ opacity: 0.6 }}>
-                {" "}{tasks.filter((t) => t.category === c).length}
-              </span>
+              <span style={{ opacity: 0.6 }}> {tasks.filter((t) => t.category === c).length}</span>
             </button>
           ))}
         </div>
@@ -366,14 +344,12 @@ export default function AgentTasksManager({
         </div>
       )}
 
-      {/* Formulaire */}
       {editingId && (
         <div className="card" style={{ marginBottom: 16, background: "var(--surface-2)" }}>
           <h3 style={{ marginTop: 0 }}>
             {editingId === "new" ? "Nouvel agent" : "Modifier l'agent"}
           </h3>
           <div style={{ display: "grid", gap: 12 }}>
-            {/* Compte courant (lecture seule) */}
             {selectedAccount && (
               <div>
                 <div className="subtitle" style={{ fontSize: 12, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
@@ -386,7 +362,6 @@ export default function AgentTasksManager({
               </div>
             )}
 
-            {/* Nom + Catégorie */}
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
               <label style={{ flex: 1, minWidth: 160 }}>
                 <div className="subtitle" style={{ fontSize: 13, marginBottom: 4 }}>Nom</div>
@@ -408,9 +383,7 @@ export default function AgentTasksManager({
                   autoComplete="off"
                 />
                 <datalist id="agent-cat-list">
-                  {allCategories.map((c) => (
-                    <option key={c} value={c} />
-                  ))}
+                  {allCategories.map((c) => <option key={c} value={c} />)}
                 </datalist>
               </label>
             </div>
@@ -424,6 +397,7 @@ export default function AgentTasksManager({
                 placeholder="Ce que fait l'agent, en une ligne"
               />
             </label>
+
             <label>
               <div className="subtitle" style={{ fontSize: 13, marginBottom: 4 }}>
                 Consigne (prompt) — ce que l'agent doit faire
@@ -436,21 +410,13 @@ export default function AgentTasksManager({
               />
             </label>
 
-            {/* Modèle */}
             <label>
               <div className="subtitle" style={{ fontSize: 12, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Modèle IA</div>
-              <select
-                style={inputStyle}
-                value={form.model}
-                onChange={(e) => setForm({ ...form, model: e.target.value })}
-              >
-                {MODELS.map((m) => (
-                  <option key={m.id} value={m.id}>{m.label}</option>
-                ))}
+              <select style={inputStyle} value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })}>
+                {MODELS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
               </select>
             </label>
 
-            {/* Fréquence */}
             <div>
               <div className="subtitle" style={{ fontSize: 12, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fréquence</div>
               <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
@@ -509,6 +475,7 @@ export default function AgentTasksManager({
               />
               <span>Programmé (tourne automatiquement + email)</span>
             </label>
+
             <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <input
                 type="checkbox"
@@ -542,7 +509,6 @@ export default function AgentTasksManager({
         {filtered.length} agent{filtered.length > 1 ? "s" : ""}
       </div>
 
-      {/* Liste des agents */}
       <div style={{ display: "grid", gap: 16 }}>
         {filtered.map((t) => {
           const run = runs[t.id];
@@ -550,7 +516,6 @@ export default function AgentTasksManager({
             <div className="card" key={t.id}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
                 <div style={{ flex: 1, minWidth: 200 }}>
-                  {/* Titre + étiquettes */}
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
                     <div style={{ fontWeight: 600, fontSize: 15, lineHeight: 1.3 }}>{t.name}</div>
                     <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 1 }}>
@@ -569,7 +534,6 @@ export default function AgentTasksManager({
                     <div className="subtitle" style={{ fontSize: 13, marginTop: 2 }}>{t.description}</div>
                   )}
 
-                  {/* Pills de statut */}
                   <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
                     {t.enabled ? (
                       <>
@@ -594,7 +558,6 @@ export default function AgentTasksManager({
                   </div>
                 </div>
 
-                {/* Actions */}
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   <button onClick={() => runNow(t)} disabled={run?.loading}>
                     {run?.loading ? "…" : "Lancer"}
@@ -604,9 +567,7 @@ export default function AgentTasksManager({
                       <button className="btn-ghost" onClick={() => toggle(t)}>
                         {t.enabled ? "Suspendre" : "Activer"}
                       </button>
-                      <button className="btn-ghost" onClick={() => openEdit(t)}>
-                        Modifier
-                      </button>
+                      <button className="btn-ghost" onClick={() => openEdit(t)}>Modifier</button>
                       <button className="btn-ghost" style={{ color: "var(--red)" }} onClick={() => remove(t)}>
                         Suppr.
                       </button>
@@ -631,14 +592,9 @@ export default function AgentTasksManager({
                         Email : {run.emailStatus}
                       </span>
                     )}
-                    Offre limitée — Du <strong>28/04/2026</strong> au <strong>13/06/2026</strong><br>
-                      <span className="pill" title={`${run.inputTokens} in · ${run.outputTokens} out`}>
-                        💰 {run.costUsd < 0.0001 ? "<$0.0001" : `$${run.costUsd.toFixed(4)}`}
-                      </span>
-                    )}
-                    {run.inputTokens !== undefined && (
-                      <span className="pill" style={{ opacity: 0.7, fontSize: 11 }}>
-                        {((run.inputTokens ?? 0) + (run.outputTokens ?? 0)).toLocaleString()} tokens
+                    {run.costUsd !== undefined && (
+                      <span className="pill">
+                        {usdToCredits(run.costUsd)} crédit
                       </span>
                     )}
                   </div>
