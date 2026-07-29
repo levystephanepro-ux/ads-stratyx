@@ -1,0 +1,280 @@
+/* ------------------------------------------------------------------
+   /artisans/ma-zone — CSS vanilla, scopé sous .zone
+   Hérite des variables de .art (artisans.css), importé avant.
+   ------------------------------------------------------------------ */
+
+.zone {
+  max-width: 940px;
+}
+
+/* ---------------------------------------------------------- HERO */
+
+.zone-hero {
+  padding: 40px 0 32px;
+}
+
+.zone-retour {
+  display: inline-block;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+  color: var(--art-muted);
+  text-decoration: none;
+}
+
+.zone-retour:hover {
+  color: var(--art-ink);
+  text-decoration: underline;
+}
+
+.zone-hero h1 {
+  font-size: clamp(1.7rem, 4.6vw, 2.6rem);
+  margin-top: 12px;
+}
+
+.zone-hero .subtitle {
+  color: var(--art-muted);
+  max-width: 52ch;
+  margin-top: 14px;
+}
+
+/* --------------------------------------------------------- CORPS */
+
+.zone-corps {
+  display: grid;
+  gap: 28px;
+  grid-template-columns: 1fr;
+  padding-bottom: 64px;
+}
+
+@media (min-width: 860px) {
+  .zone-corps {
+    grid-template-columns: 1.35fr 1fr;
+    align-items: start;
+    gap: 40px;
+  }
+}
+
+/* ----------------------------------------------------- FORMULAIRE */
+
+.zone-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.zone-champ {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.zone-champ label {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.zone-champ input,
+.zone-champ select {
+  font: inherit;
+  font-size: 1rem;
+  padding: 12px 14px;
+  border: 1px solid var(--art-line);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.06);
+  color: var(--art-ink);
+  width: 100%;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* 16px minimum : empêche le zoom automatique sur iOS */
+@media (max-width: 640px) {
+  .zone-champ input,
+  .zone-champ select {
+    font-size: 16px;
+  }
+}
+
+.zone-champ select {
+  background-image: linear-gradient(45deg, transparent 50%, var(--art-muted) 50%),
+    linear-gradient(135deg, var(--art-muted) 50%, transparent 50%);
+  background-position: calc(100% - 20px) 20px, calc(100% - 14px) 20px;
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+  padding-right: 40px;
+}
+
+.zone-champ input:focus,
+.zone-champ select:focus {
+  outline: none;
+  border-color: var(--art-accent);
+  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.25);
+}
+
+.zone-duo {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 560px) {
+  .zone-duo {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.zone-aide {
+  font-size: 0.85rem;
+  color: var(--art-muted);
+}
+
+.zone-aide--final {
+  margin-top: -6px;
+}
+
+.zone-erreur {
+  font-size: 0.85rem;
+  color: var(--art-warn);
+  font-weight: 600;
+}
+
+.zone-alerte {
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: rgba(255, 128, 113, 0.12);
+  border: 1px solid rgba(255, 128, 113, 0.4);
+  color: var(--art-warn);
+  font-size: 0.92rem;
+  margin: 0;
+}
+
+/* Champ piège anti-robots : masqué sans display:none (certains robots l'ignorent) */
+.zone-piege {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* ------------------------------------------------- CONSENTEMENT */
+
+.zone-consentement {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 16px;
+  background: var(--art-soft);
+  border-radius: 10px;
+}
+
+.zone-consentement input {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  accent-color: var(--art-accent);
+}
+
+.zone-consentement label {
+  font-size: 0.85rem;
+  color: var(--art-muted);
+  line-height: 1.5;
+}
+
+.zone-consentement a {
+  color: var(--art-ink);
+}
+
+.zone-submit {
+  width: 100%;
+  padding: 15px 20px;
+  font-size: 1.05rem;
+}
+
+.zone-submit:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* ------------------------------------------------------- APARTÉ */
+
+.zone-aparte {
+  padding: 26px;
+}
+
+.zone-aparte h2 {
+  font-size: 1.15rem;
+  margin-bottom: 16px;
+}
+
+.zone-aparte ol {
+  margin: 0 0 16px;
+  padding-left: 20px;
+}
+
+.zone-aparte li {
+  margin-bottom: 14px;
+  font-size: 0.93rem;
+  color: var(--art-muted);
+  line-height: 1.55;
+}
+
+.zone-aparte strong {
+  color: var(--art-ink);
+}
+
+/* ----------------------------------------------------- RÉPONSE */
+
+.zone-reponse {
+  padding: 32px;
+  border: 1px solid var(--art-accent);
+  box-shadow: 0 0 0 1px var(--art-accent);
+  border-radius: 14px;
+  background: var(--art-soft);
+}
+
+.zone-reponse h2 {
+  font-size: clamp(1.2rem, 3vw, 1.6rem);
+  margin-bottom: 12px;
+}
+
+.zone-reponse p {
+  color: var(--art-muted);
+}
+
+.zone-suggestions {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--art-line);
+}
+
+.zone-suggestions h3 {
+  font-size: 0.95rem;
+  margin-bottom: 10px;
+}
+
+.zone-suggestions ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.zone-suggestions li {
+  padding: 6px 12px;
+  background: var(--art-soft);
+  border-radius: 999px;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.zone-suite {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}

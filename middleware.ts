@@ -6,6 +6,8 @@ const PUBLIC_PREFIXES = [
   "/register",
   "/pricing",
   "/demo",
+  "/artisans",
+  "/confidentialite",
   "/auth",
   "/api/auth",
   "/api/mcp",

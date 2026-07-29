@@ -1,0 +1,182 @@
+/* ------------------------------------------------------------------
+   /artisans/formation — CSS vanilla, scopé sous .form
+   Hérite des variables de .art (artisans.css), importé avant.
+   ------------------------------------------------------------------ */
+
+/* ---------------------------------------------------------- HERO */
+
+.form-hero {
+  padding: 40px 0 48px;
+  border-bottom: 1px solid var(--art-line);
+}
+
+.form-hero h1 {
+  font-size: clamp(1.8rem, 5vw, 3rem);
+  margin-top: 12px;
+}
+
+.form-hero .subtitle {
+  color: var(--art-muted);
+  max-width: 54ch;
+  margin-top: 16px;
+  font-size: clamp(1rem, 2.1vw, 1.15rem);
+}
+
+/* Le lien de retour est défini dans ma-zone.css ; recopié ici pour
+   que la page reste autonome si l'ordre des imports change. */
+.form .zone-retour {
+  display: inline-block;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+  color: var(--art-muted);
+  text-decoration: none;
+}
+
+.form .zone-retour:hover {
+  color: var(--art-ink);
+  text-decoration: underline;
+}
+
+/* ------------------------------------------------------- MODULES */
+
+.form-modules {
+  margin-top: 28px;
+  border-top: 1px solid var(--art-line);
+}
+
+.form-module {
+  border-bottom: 1px solid var(--art-line);
+}
+
+.form-module summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 32px 18px 0;
+  position: relative;
+}
+
+.form-module summary::-webkit-details-marker {
+  display: none;
+}
+
+.form-module summary::after {
+  content: "+";
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.4rem;
+  font-weight: 300;
+  color: var(--art-accent);
+}
+
+.form-module[open] summary::after {
+  content: "−";
+}
+
+.form-module-num {
+  flex: 0 0 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--art-accent);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.form-module-titre {
+  font-weight: 600;
+  font-size: 1.05rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.form-module-duree {
+  font-size: 0.82rem;
+  font-weight: 400;
+  color: var(--art-muted);
+  padding: 2px 9px;
+  border: 1px solid var(--art-line);
+  border-radius: 999px;
+}
+
+.form-module-corps {
+  padding: 0 0 22px 50px;
+}
+
+.form-module-promesse {
+  color: var(--art-ink);
+  font-size: 0.97rem;
+  max-width: 62ch;
+  margin-bottom: 14px;
+}
+
+.form-module-corps ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.form-module-corps li {
+  position: relative;
+  padding: 6px 0 6px 20px;
+  color: var(--art-muted);
+  font-size: 0.93rem;
+}
+
+.form-module-corps li::before {
+  content: "—";
+  position: absolute;
+  left: 0;
+  color: var(--art-accent);
+}
+
+/* ----------------------------------------------------- LIVRABLES */
+
+.form-livrables {
+  list-style: none;
+  padding: 0;
+  margin: 28px 0 0;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 720px) {
+  .form-livrables {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 28px;
+  }
+}
+
+.form-livrables li {
+  position: relative;
+  padding: 9px 0 9px 28px;
+  font-size: 0.93rem;
+  color: var(--art-muted);
+  border-bottom: 1px solid var(--art-line);
+}
+
+.form-livrables li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  top: 9px;
+  color: var(--art-ok);
+  font-weight: 700;
+}
+
+/* ------------------------------------------------- ACCESSIBILITÉ */
+
+.form summary:focus-visible {
+  outline: 2px solid var(--art-accent);
+  outline-offset: 3px;
+  border-radius: 6px;
+}

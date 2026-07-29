@@ -1,0 +1,429 @@
+/* ------------------------------------------------------------------
+   /artisans — CSS vanilla, scopé sous .art
+   VERSION SOMBRE : texte clair sur fond sombre, alignée sur le
+   thème de l'application. Aucune dépendance, aucune librairie.
+
+   Pour repasser en clair un jour, seules les 8 variables du bloc
+   .art ci-dessous sont à changer.
+   ------------------------------------------------------------------ */
+
+.art {
+  --art-ink: #f4f4f8;                      /* texte principal */
+  --art-muted: #a3a3b8;                    /* texte secondaire */
+  --art-line: rgba(255, 255, 255, 0.12);   /* filets */
+  --art-soft: rgba(255, 255, 255, 0.04);   /* fonds de section */
+  --art-surface: rgba(255, 255, 255, 0.05);/* cartes */
+  --art-accent: #7c5cff;                   /* violet de marque */
+  --art-ok: #45d68f;                       /* zone libre */
+  --art-warn: #ff8071;                     /* alerte, zone prise */
+
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 20px 80px;
+  color: var(--art-ink);
+  line-height: 1.6;
+}
+
+.art h1,
+.art h2,
+.art h3 {
+  line-height: 1.2;
+  margin: 0 0 12px;
+  color: var(--art-ink);
+}
+
+.art h1 {
+  font-size: clamp(2rem, 6vw, 3.4rem);
+  letter-spacing: -0.02em;
+}
+
+.art h2 {
+  font-size: clamp(1.4rem, 3.6vw, 2rem);
+  margin-bottom: 16px;
+}
+
+.art h3 {
+  font-size: 1.05rem;
+}
+
+.art p {
+  margin: 0 0 14px;
+}
+
+.art a {
+  color: var(--art-ink);
+}
+
+/* ---------------------------------------------------------- HERO */
+
+.art-hero {
+  padding: 64px 0 48px;
+  border-bottom: 1px solid var(--art-line);
+}
+
+.art-hero .subtitle {
+  font-size: clamp(1rem, 2.2vw, 1.2rem);
+  color: var(--art-muted);
+  max-width: 42ch;
+  margin-top: 18px;
+}
+
+.art-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.art-note {
+  font-size: 0.85rem;
+  color: var(--art-muted);
+  margin-top: 16px;
+}
+
+/* ------------------------------------------------------ SECTIONS */
+
+.art-section {
+  padding: 56px 0;
+  border-bottom: 1px solid var(--art-line);
+}
+
+.art-section--accent,
+.art-section--demo,
+.art-section--franc {
+  background: var(--art-soft);
+  margin: 0 -20px;
+  padding: 56px 20px;
+  border-bottom: none;
+  border-top: 1px solid var(--art-line);
+}
+
+.art-lead {
+  color: var(--art-muted);
+  max-width: 62ch;
+}
+
+/* ---------------------------------------------------------- GRID */
+
+.art-grid {
+  display: grid;
+  gap: 16px;
+  margin-top: 28px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 760px) {
+  .art-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.art .card {
+  padding: 22px;
+  border: 1px solid var(--art-line);
+  border-radius: 12px;
+  background: var(--art-surface);
+}
+
+.art .card h3 {
+  color: var(--art-ink);
+}
+
+.art .card p {
+  color: var(--art-muted);
+  font-size: 0.95rem;
+  margin-bottom: 0;
+}
+
+/* --------------------------------------------------------- ZONES */
+
+.art-zones {
+  margin-top: 32px;
+  padding: 24px;
+  background: var(--art-surface);
+  border: 1px solid var(--art-line);
+  border-radius: 12px;
+}
+
+.art-zones-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.art-zones ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 20px;
+}
+
+.art-zones li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--art-line);
+  align-items: center;
+}
+
+@media (min-width: 620px) {
+  .art-zones li {
+    grid-template-columns: 1fr 1fr auto;
+  }
+}
+
+.art-zone-metier {
+  font-weight: 600;
+}
+
+.art-zone-commune {
+  color: var(--art-muted);
+  font-size: 0.92rem;
+}
+
+.art-zone-etat {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  justify-self: end;
+}
+
+.art-zones li.libre .art-zone-etat {
+  color: var(--art-ok);
+}
+
+.art-zones li.prise {
+  opacity: 0.5;
+}
+
+.art-zones li.prise .art-zone-etat {
+  color: var(--art-warn);
+}
+
+/* -------------------------------------------------------- OFFRES */
+
+.art-offres {
+  display: grid;
+  gap: 18px;
+  margin-top: 28px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 780px) {
+  .art-offres {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.art-offre {
+  display: flex;
+  flex-direction: column;
+}
+
+.art-offre--reco {
+  border-color: var(--art-accent);
+  box-shadow: 0 0 0 1px var(--art-accent);
+}
+
+.art-prix {
+  font-size: 1.7rem;
+  font-weight: 700;
+  margin: 10px 0 16px;
+  color: var(--art-ink);
+}
+
+.art-offre ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 18px;
+  flex: 1;
+}
+
+.art-offre li {
+  padding: 7px 0 7px 22px;
+  position: relative;
+  font-size: 0.95rem;
+  color: var(--art-muted);
+}
+
+.art-offre li::before {
+  content: "→";
+  position: absolute;
+  left: 0;
+  color: var(--art-accent);
+}
+
+.art-offre-note {
+  font-size: 0.88rem;
+  font-style: italic;
+  color: var(--art-muted);
+  border-left: 3px solid var(--art-accent);
+  padding-left: 12px;
+}
+
+/* ------------------------------------------------------ FINDINGS */
+
+.art-findings {
+  list-style: none;
+  padding: 0;
+  margin: 24px 0 28px;
+  max-width: 70ch;
+}
+
+.art-findings li {
+  padding: 14px 0 14px 32px;
+  border-top: 1px solid var(--art-line);
+  position: relative;
+  color: var(--art-muted);
+  font-size: 0.95rem;
+}
+
+.art-findings li::before {
+  content: "!";
+  position: absolute;
+  left: 0;
+  top: 14px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--art-warn);
+  color: #10101c;
+  font-size: 0.75rem;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+}
+
+.art-findings strong {
+  color: var(--art-ink);
+}
+
+/* --------------------------------------------------------- STEPS */
+
+.art-steps {
+  list-style: none;
+  padding: 0;
+  margin: 28px 0 0;
+}
+
+.art-steps li {
+  display: flex;
+  gap: 18px;
+  padding: 20px 0;
+  border-top: 1px solid var(--art-line);
+}
+
+.art-step-num {
+  flex: 0 0 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--art-accent);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.art-steps p {
+  color: var(--art-muted);
+  font-size: 0.95rem;
+  margin-bottom: 0;
+}
+
+/* ----------------------------------------------------- PAS POUR */
+
+.art-non {
+  list-style: none;
+  padding: 0;
+  margin: 24px 0 0;
+  max-width: 72ch;
+}
+
+.art-non li {
+  padding: 16px 0;
+  border-top: 1px solid var(--art-line);
+  color: var(--art-muted);
+  font-size: 0.95rem;
+}
+
+.art-non strong {
+  color: var(--art-ink);
+  display: block;
+  margin-bottom: 4px;
+}
+
+/* ------------------------------------------------------------ FAQ */
+
+.art-faq {
+  margin-top: 24px;
+  max-width: 72ch;
+}
+
+.art-faq details {
+  border-top: 1px solid var(--art-line);
+}
+
+.art-faq summary {
+  cursor: pointer;
+  padding: 16px 28px 16px 0;
+  font-weight: 600;
+  list-style: none;
+  position: relative;
+  color: var(--art-ink);
+}
+
+.art-faq summary::-webkit-details-marker {
+  display: none;
+}
+
+.art-faq summary::after {
+  content: "+";
+  position: absolute;
+  right: 4px;
+  top: 14px;
+  font-size: 1.3rem;
+  font-weight: 400;
+  color: var(--art-accent);
+}
+
+.art-faq details[open] summary::after {
+  content: "−";
+}
+
+.art-faq details p {
+  color: var(--art-muted);
+  font-size: 0.95rem;
+  padding-bottom: 16px;
+  margin: 0;
+}
+
+/* ------------------------------------------------------- FINALE */
+
+.art-final {
+  margin: 56px -20px 0;
+  padding: 64px 20px;
+  background: var(--art-soft);
+  border-top: 1px solid var(--art-line);
+  border-bottom: 1px solid var(--art-line);
+  text-align: center;
+}
+
+.art-final p {
+  color: var(--art-muted);
+  max-width: 46ch;
+  margin: 0 auto 24px;
+}
+
+/* -------------------------------------------------- ACCESSIBILITÉ */
+
+.art a:focus-visible,
+.art summary:focus-visible {
+  outline: 2px solid var(--art-accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}

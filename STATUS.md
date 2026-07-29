@@ -45,6 +45,8 @@
 
 - [2026-07-20] [cowork] Setup CLAUDE.md + STATUS.md — communication bidirectionnelle Claude Code ↔ Cowork
 
+- [2026-07-22] [cowork] Audit sécurité Supabase — correction complète RLS + fonctions
+
 ---
 
 ## 📝 Journal de session
@@ -54,6 +56,15 @@
 - Créé `CLAUDE.md` (contexte complet du projet)
 - Créé `STATUS.md` (ce fichier)
 - Stack confirmée : Next.js 15, Supabase, Vercel, Stripe, Google Ads API, Anthropic SDK
+
+### 2026-07-22 — Cowork (sécurité Supabase)
+- Alerte critique résolue : table `discovery_sessions` supprimée (inutilisée, RLS désactivé)
+- Policies RLS créées : `agent_tasks`, `templates`, `personas` (INSERT corrigé)
+- Fonctions sécurisées : `handle_new_user` et `update_updated_at` → SECURITY INVOKER + search_path fixé
+- `handle_new_user` : accès anon/authenticated révoqué
+- Leaked password protection : non disponible (plan Free Supabase)
+- `app_settings` et `oauth_tokens` : RLS activé sans policy = bloqué côté client ✅
+- Résultat final : 0 erreurs critiques, 1 warning non bloquant (plan Free)
 
 ---
 
