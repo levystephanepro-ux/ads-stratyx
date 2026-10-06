@@ -7,7 +7,7 @@ import { setSetting, getSetting } from "@/lib/agent/store";
 import { getAlertsConfig, templateOn, METRICS, type AlertsConfig, type CustomRule } from "./config";
 
 export interface Alert { key: string; severity: "critique" | "important"; title: string; detail: string }
-export interface AccountAlerts { customerId: string; name: string; alerts: Alert[]; errors: string[] }
+export interface AccountAlerts { customerId: string; name: string; alerts: Alert[]; errors: string[]; /** URL sans réponse à ce passage (comparé au passage suivant) */ unreachable?: string[] }
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 const day = (base: Date, n: number) => { const d = new Date(base); d.setUTCDate(d.getUTCDate() + n); return iso(d); };
@@ -32,20 +32,41 @@ function metricValue(a: Agg, m: CustomRule["metric"]): number | null {
 const fmtMetric = (m: CustomRule["metric"], v: number) =>
   METRICS[m].unit === "€" ? (m === "cpc" ? `${v.toFixed(2).replace(".", ",")} €` : eur(v)) : METRICS[m].unit === "%" ? `${n1(v)} %` : n1(v);
 
-async function checkUrl(url: string): Promise<string | null> {
-  const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 8000);
+/**
+ * Teste une URL comme un navigateur. Seules les vraies erreurs de page comptent
+ * (404, 410, 5xx). 401/403/429 = pare-feu du site qui filtre les serveurs : ignoré.
+ * Pas de réponse = « injoignable », signalé seulement si ça se répète au passage suivant
+ * (certains hébergeurs bloquent les serveurs cloud alors que le site marche).
+ */
+type UrlCheck = { kind: "ok" } | { kind: "error"; status: number } | { kind: "unreachable" };
+async function fetchOnce(url: string, ms: number): Promise<UrlCheck> {
+  const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), ms);
   try {
-    const res = await fetch(url, { method: "GET", redirect: "follow", signal: ctl.signal, headers: { "user-agent": "Mozilla/5.0 (compatible; StratyxBot/1.0; +https://stratyxmedia.fr)" } });
-    return res.status >= 400 ? `répond ${res.status}` : null;
-  } catch (e) {
-    return (e as Error)?.name === "AbortError" ? "ne répond pas (plus de 8 s)" : "inaccessible";
+    const res = await fetch(url, {
+      method: "GET", redirect: "follow", signal: ctl.signal, cache: "no-store",
+      headers: {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Safari/537.36",
+        accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "accept-language": "fr-FR,fr;q=0.9",
+      },
+    });
+    res.body?.cancel().catch(() => undefined);
+    if (res.status === 404 || res.status === 410 || res.status >= 500) return { kind: "error", status: res.status };
+    return { kind: "ok" };
+  } catch {
+    return { kind: "unreachable" };
   } finally { clearTimeout(t); }
 }
+async function checkUrl(url: string): Promise<UrlCheck> {
+  const first = await fetchOnce(url, 12000);
+  return first.kind === "ok" ? first : fetchOnce(url, 12000); // deuxième essai
+}
 
-export async function evaluateAccount(customerId: string, name: string, cfg: AlertsConfig, now = new Date()): Promise<AccountAlerts> {
+export async function evaluateAccount(customerId: string, name: string, cfg: AlertsConfig, now = new Date(), prevUnreachable: string[] = []): Promise<AccountAlerts> {
   const ctx = { customerId };
   const errors: string[] = [];
   const alerts: Alert[] = [];
+  let unreachable: string[] = [];
   const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const y = day(today, -1);
   const from = day(today, -38); // 30 j de référence + 7 j récents + hier
@@ -114,10 +135,14 @@ export async function evaluateAccount(customerId: string, name: string, cfg: Ale
   // 6. Pages en erreur
   if (templateOn(cfg, "pages_erreur").on && urlsRows.length) {
     const urls = [...new Set(urlsRows.flatMap((r) => (r.adGroupAd?.ad?.finalUrls ?? []) as string[]))].filter((u) => /^https?:\/\//.test(u)).slice(0, 15);
-    const res = await Promise.all(urls.map(async (u) => ({ u, err: await checkUrl(u) })));
-    const bad = res.filter((r) => r.err);
+    const res = await Promise.all(urls.map(async (u) => ({ u, r: await checkUrl(u) })));
+    const bad = res.filter((x) => x.r.kind === "error");
+    unreachable = res.filter((x) => x.r.kind === "unreachable").map((x) => x.u);
     if (bad.length) alerts.push({ key: "pages_erreur", severity: "critique", title: `${bad.length} page(s) de destination en erreur`,
-      detail: bad.map((b) => `${b.u} ${b.err}`).join(" · ") });
+      detail: bad.map((b) => `${b.u} répond ${(b.r as { status: number }).status}`).join(" · ") });
+    const twice = unreachable.filter((u) => prevUnreachable.includes(u));
+    if (twice.length) alerts.push({ key: "pages_injoignables", severity: "important", title: `${twice.length} page(s) injoignable(s) depuis nos serveurs, deux fois de suite`,
+      detail: `${twice.join(" · ")}. Ouvre-la toi-même : si elle s'affiche, c'est le pare-feu de l'hébergeur qui filtre les robots (sans gravité pour Google Ads).` });
   }
   // 7. Règles personnalisées
   for (const rule of cfg.rules) {
@@ -138,15 +163,16 @@ export async function evaluateAccount(customerId: string, name: string, cfg: Ale
         detail: `${METRICS[rule.metric].label} ${rule.period === "hier" ? "d'hier" : "des 7 derniers jours"}${rule.campaign ? ` (campagnes « ${rule.campaign} »)` : ""} : ${fmtMetric(rule.metric, v)}, seuil ${rule.op} ${fmtMetric(rule.metric, rule.value)}.` });
     }
   }
-  return { customerId, name, alerts, errors };
+  return { customerId, name, alerts, errors, unreachable };
 }
 
 export interface AlertsRun { ranAt: string; accounts: AccountAlerts[] }
 
 export async function runAlertsForOwner(): Promise<AlertsRun> {
   if (!isLive()) return { ranAt: new Date().toISOString(), accounts: [] };
-  const [accounts, cfg] = await Promise.all([monitoredAccounts(), getAlertsConfig()]);
-  const out = await Promise.all(accounts.map((a) => evaluateAccount(a.customerId, a.name, cfg).catch((e) => ({
+  const [accounts, cfg, prev] = await Promise.all([monitoredAccounts(), getAlertsConfig(), lastAlertsRun().catch(() => null)]);
+  const prevOf = (id: string) => prev?.accounts.find((a) => a.customerId === id)?.unreachable ?? [];
+  const out = await Promise.all(accounts.map((a) => evaluateAccount(a.customerId, a.name, cfg, new Date(), prevOf(a.customerId)).catch((e) => ({
     customerId: a.customerId, name: a.name, alerts: [], errors: [e instanceof Error ? e.message : String(e)],
   }))));
   const run = { ranAt: new Date().toISOString(), accounts: out };

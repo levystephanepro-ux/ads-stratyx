@@ -10,7 +10,7 @@ export const TEMPLATES: { key: TemplateKey; label: string; hint: string; param?:
   { key: "sans_conversion", label: "Plus de conversions", hint: "Aucune conversion depuis N jours alors que le compte dépense (suivi cassé, formulaire en panne).", param: { label: "Depuis", def: 5, unit: "jours" } },
   { key: "cpa_hausse", label: "Coût par conversion en hausse", hint: "CPA des 7 derniers jours au-dessus du CPA des 30 jours d'avant (3 conversions minimum).", param: { label: "Seuil", def: 1.5, unit: "× le CPA habituel" } },
   { key: "budget_mois", label: "Budget du mois dépassé", hint: "Projection de fin de mois au-dessus du budget mensuel saisi sur l'accueil.", param: { label: "Tolérance", def: 10, unit: "%" } },
-  { key: "pages_erreur", label: "Pages de destination en erreur", hint: "Une URL finale d'annonce active répond en erreur (404, 500…) ou ne répond pas." },
+  { key: "pages_erreur", label: "Pages de destination en erreur", hint: "Une URL finale d'annonce active répond en erreur (404, 410, 500…). Une page qui ne répond pas n'est signalée que si ça se répète deux vérifications de suite." },
 ];
 
 export type Metric = "cost" | "conv" | "cpa" | "clicks" | "ctr" | "cpc";
