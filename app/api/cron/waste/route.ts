@@ -7,7 +7,7 @@ import { runAlertsForOwner, alertsMarkdown, type AlertsRun } from "@/lib/alerts/
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300; // plusieurs comptes clients (Fluid compute)
 
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;

@@ -18,7 +18,7 @@ const eur = (n: number) => `${Math.round(n).toLocaleString("fr-FR")} €`;
 const fmtId = (id: string) => id.replace(/^(\d{3})(\d{3})(\d+)$/, "$1-$2-$3");
 
 interface Row {
-  customerId: string; name: string; monitored: boolean;
+  customerId: string; name: string; monitored: boolean; direct: boolean;
   cost: number | null; conv: number; clicks: number; lastDay: string | null; error: string | null;
   score: number | null; scoreDate: string | null;
 }
@@ -37,7 +37,7 @@ export default async function ComptesLies() {
       rows = await Promise.all(accounts.map(async (a): Promise<Row> => {
         const audit = audits.find((r) => r.customer_id === a.customerId);
         const base: Row = {
-          customerId: a.customerId, name: a.name, monitored: await isMonitored(a.customerId),
+          customerId: a.customerId, name: a.name, direct: a.source === "direct", monitored: await isMonitored(a.customerId),
           cost: null, conv: 0, clicks: 0, lastDay: null, error: null,
           score: audit?.health_score ?? null, scoreDate: audit?.run_date ?? null,
         };
@@ -90,7 +90,7 @@ export default async function ComptesLies() {
                   <div style={{ flex: "1 1 220px", minWidth: 0 }}>
                     <div style={{ fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</div>
                     <div className="subtitle" style={{ margin: 0, fontSize: 12 }}>
-                      {fmtId(r.customerId)}
+                      {fmtId(r.customerId)}{r.direct ? " · accès direct (hors MCC)" : ""}
                       {r.lastDay ? ` · dernière dépense le ${frDate(r.lastDay)}` : idle ? " · aucune dépense sur 30 jours" : ""}
                     </div>
                     {r.error && <div style={{ color: "var(--red)", fontSize: 12, marginTop: 4 }}>Lecture impossible : {r.error.slice(0, 140)}</div>}

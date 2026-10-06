@@ -4,6 +4,7 @@ import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 import CreditGauge from "@/components/CreditGauge";
 import { Icons } from "@/components/Icons";
+import Owl from "@/components/Owl";
 
 // Icônes : Lucide (components/Icons.tsx)
 const Ic = Icons;
@@ -73,7 +74,7 @@ export default function Shell({
         >
           {Ic.menu}
         </button>
-        <div className="brand">ads<span>·stratyx</span></div>
+        <div className="brand"><Owl size={30} badge /><span className="brand-txt">ads<b>·stratyx</b></span></div>
         <ThemeToggle />
       </header>
 
@@ -89,7 +90,7 @@ export default function Shell({
       {/* ── Sidebar ── */}
       <aside className={`sidebar${drawerOpen ? " drawer-open" : ""}`}>
         <div className="sidebar-head">
-          <div className="brand">ads<span>·stratyx</span></div>
+          <div className="brand"><Owl size={30} badge /><span className="brand-txt">ads<b>·stratyx</b></span></div>
           <button
             className="drawer-close"
             onClick={() => setDrawerOpen(false)}

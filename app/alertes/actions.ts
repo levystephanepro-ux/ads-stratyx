@@ -36,6 +36,8 @@ export async function addRuleAction(form: FormData): Promise<void> {
     period: form.get("period") === "7" ? "7" : "hier",
     campaign: String(form.get("campaign") ?? "").trim().slice(0, 80),
   };
+  const [acc, accName] = String(form.get("account") ?? "").split("|");
+  if (/^\d{6,12}$/.test(acc ?? "")) { rule.account = acc; rule.accountName = (accName ?? "").slice(0, 80); }
   const c = await getAlertsConfig();
   c.rules = [...c.rules, rule].slice(0, 30);
   await saveAlertsConfig(c);

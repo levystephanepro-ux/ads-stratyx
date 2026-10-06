@@ -7,6 +7,7 @@ import { MOCK_ACCOUNT } from "@/lib/google-ads/mock-data";
 import { fetchAuditData, last30Days } from "./fetch";
 import { runAudit } from "./rules";
 import { getSetting, setSetting } from "@/lib/agent/store";
+import { mapLimit } from "@/lib/concurrency";
 import type { AuditResult, Constat } from "./types";
 
 export interface AccountAudit {
@@ -39,11 +40,11 @@ function db() {
   });
 }
 
-export async function ownerAccounts(): Promise<{ customerId: string; name: string }[]> {
+export async function ownerAccounts(): Promise<{ customerId: string; name: string; source?: "mcc" | "direct" }[]> {
   if (!isLive()) return [{ customerId: MOCK_ACCOUNT.customerId, name: MOCK_ACCOUNT.descriptiveName }];
   if (!hasEnvAccount()) return [];
   const list = await listManagedAccounts(adsConfig.refreshToken);
-  return list.map((a) => ({ customerId: a.customerId, name: a.name }));
+  return list.map((a) => ({ customerId: a.customerId, name: a.name, source: a.source }));
 }
 
 // Surveillance par compte (page « Comptes liés ») : activée par défaut,
@@ -98,14 +99,12 @@ export async function runAuditForOwner(): Promise<{
   const range = last30Days();
   const accounts = await monitoredAccounts();
   const supa = db();
-  const out: AccountAudit[] = [];
-
-  for (const acc of accounts) {
+  // 4 comptes lus en parallèle : tient dans le temps imparti même avec beaucoup de clients
+  const out: AccountAudit[] = await mapLimit(accounts, 4, async (acc): Promise<AccountAudit> => {
     try {
       const { data, skipped } = await fetchAuditData({ customerId: acc.customerId });
       const result = runAudit(data, { targetCpa: targetCpaFromEnv() });
       result.skipped = skipped;
-      out.push({ ...acc, result, error: null });
       if (supa) {
         const { error } = await supa.from("audit_reports").upsert(
           {
@@ -124,12 +123,13 @@ export async function runAuditForOwner(): Promise<{
           },
           { onConflict: "workspace_id,customer_id,run_date" },
         );
-        if (error) throw new Error(`Enregistrement Supabase : ${error.message}`);
+        if (error) return { ...acc, result, error: `Enregistrement Supabase : ${error.message}` };
       }
+      return { ...acc, result, error: null };
     } catch (e) {
-      out.push({ ...acc, result: null, error: e instanceof Error ? e.message : String(e) });
+      return { ...acc, result: null, error: e instanceof Error ? e.message : String(e) };
     }
-  }
+  });
 
   const active = out.filter((a) => a.result && a.result.totalCost > 0);
   const errors = out.filter((a) => a.error);

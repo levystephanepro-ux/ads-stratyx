@@ -97,7 +97,7 @@ export async function createPausedSearchCampaign(customerId: string, s: Campaign
     } } } });
   });
 
-  const j = await adsPost(null, `${c}/googleAds:mutate`, { mutateOperations: ops, validateOnly });
+  const j = await adsPost({ customerId }, `${c}/googleAds:mutate`, { mutateOperations: ops, validateOnly });
   const res = (j.mutateOperationResponses ?? []) as { campaignResult?: { resourceName?: string } }[];
   return { campaign: res.find((r) => r.campaignResult?.resourceName)?.campaignResult?.resourceName ?? null };
 }

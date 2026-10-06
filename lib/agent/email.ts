@@ -45,11 +45,11 @@ export async function sendAgentEmail(
 // en HTML lisible dans un client mail. Volontairement minimal mais robuste.
 function renderHtml(title: string, md: string): string {
   const body = mdToHtml(md);
-  return `<!doctype html><html lang="fr"><body style="margin:0;background:#0b0b12;padding:24px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#ececf2">
-<div style="max-width:640px;margin:0 auto;background:#14141f;border:1px solid #2a2a3d;border-radius:14px;padding:28px">
-<div style="font-weight:700;font-size:15px;color:#a78bfa;margin-bottom:18px">ads·stratyx <span style="color:#9a9ab0;font-weight:500">· Agent IA</span></div>
+  return `<!doctype html><html lang="fr"><body style="margin:0;background:#f9f4ed;padding:24px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#2e2b25">
+<div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #eadfce;border-radius:14px;padding:28px">
+<div style="font-weight:700;font-size:15px;color:#0B3C5D;margin-bottom:18px">ads<span style="color:#F2A122">·stratyx</span> <span style="color:#6b665e;font-weight:500">· Agent IA</span></div>
 ${body}
-<div style="margin-top:24px;padding-top:16px;border-top:1px solid #2a2a3d;color:#9a9ab0;font-size:12px">Rapport généré automatiquement — ${escapeHtml(title)}</div>
+<div style="margin-top:24px;padding-top:16px;border-top:1px solid #eadfce;color:#6b665e;font-size:12px">Rapport généré automatiquement — ${escapeHtml(title)}</div>
 </div></body></html>`;
 }
 
@@ -64,7 +64,7 @@ function inline(s: string): string {
   return escapeHtml(s)
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/\*(.+?)\*/g, "<em>$1</em>")
-    .replace(/`(.+?)`/g, '<code style="background:#1c1c2b;padding:1px 5px;border-radius:5px">$1</code>');
+    .replace(/`(.+?)`/g, '<code style="background:#f6efe4;padding:1px 5px;border-radius:5px">$1</code>');
 }
 
 function mdToHtml(md: string): string {
@@ -142,7 +142,7 @@ function renderTable(header: string[], rows: string[][]): string {
   const th = header
     .map(
       (c) =>
-        `<th style="text-align:left;padding:8px 10px;border-bottom:1px solid #2a2a3d;color:#9a9ab0;font-size:12px;text-transform:uppercase">${inline(c)}</th>`,
+        `<th style="text-align:left;padding:8px 10px;border-bottom:1px solid #eadfce;color:#6b665e;font-size:12px;text-transform:uppercase">${inline(c)}</th>`,
     )
     .join("");
   const trs = rows
@@ -151,7 +151,7 @@ function renderTable(header: string[], rows: string[][]): string {
         `<tr>${r
           .map(
             (c) =>
-              `<td style="padding:8px 10px;border-bottom:1px solid #2a2a3d;font-size:14px">${inline(c)}</td>`,
+              `<td style="padding:8px 10px;border-bottom:1px solid #eadfce;font-size:14px">${inline(c)}</td>`,
           )
           .join("")}</tr>`,
     )

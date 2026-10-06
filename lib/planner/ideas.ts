@@ -50,7 +50,7 @@ export async function keywordIdeas(customerId: string, seeds: string[], geoIds: 
   if (url && keywords.length) body.keywordAndUrlSeed = { url, keywords };
   else if (url) body.urlSeed = { url };
   else body.keywordSeed = { keywords };
-  const j = await adsPost(null, `customers/${customerId}:generateKeywordIdeas`, body);
+  const j = await adsPost({ customerId }, `customers/${customerId}:generateKeywordIdeas`, body);
   const m = (v: unknown) => (v === undefined || v === null ? null : Number(v) / 1e6);
   return ((j.results ?? []) as { text?: string; keywordIdeaMetrics?: Record<string, unknown> }[]).map((r) => ({
     text: r.text ?? "",

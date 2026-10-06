@@ -22,6 +22,10 @@ export default function RootLayout({
     // ce qui déclenche un faux mismatch. Ça n'affecte que cet élément.
     <html lang="fr" suppressHydrationWarning>
       <head>
+        {/* Polices du site stratyxmedia.fr : Inter (texte) et Syne (titres) */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" />
         {/* Applique le thème sauvegardé avant le premier rendu pour éviter le flash */}
         <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('ads-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}})();` }} />
       </head>

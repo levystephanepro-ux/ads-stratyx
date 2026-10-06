@@ -75,6 +75,12 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 
 ## 📝 Journal de session
 
+### 2026-10-06 — Cowork (Charte Stratyx + multi-clients sans limite cachée)
+- Couleurs de stratyxmedia.fr : bleu nuit #0B3C5D (accent, menu), orange #F2A122 (marque, repères), crème #F9F4ED (fond) ; polices Inter + Syne (Google Fonts) ; chouette (`components/Owl.tsx`, favicon `app/icon.svg`) ; rapports clients et emails aux mêmes couleurs.
+- Comptes en accès direct (hors MCC) : `listManagedAccounts` ajoute listAccessibleCustomers ; login-customer-id choisi par compte (`loginFor`/`authHeaders` dans client.ts : MCC pour ses clients, le compte lui-même en accès direct, autre MCC accessible pour ses clients).
+- Crons et Diagnostic : comptes lus en parallèle (`lib/concurrency.ts`, 4 à la fois ; rapport du lundi 3 à la fois), maxDuration 300 s (Fluid compute) ; alertes 120 s.
+- Règles d'alerte : choix du compte (ou tous).
+
 ### 2026-10-06 — Cowork (Design clair + icônes)
 - Thème clair par défaut (fond blanc/gris très clair, cartes avec ombre légère, menu latéral violet dégradé façon Ades) ; sombre en option (choix mémorisé `ads-theme`).
 - Variables `--side-*` dans globals.css ; le menu redéfinit --text/--muted/--border/--surface-2 pour ses composants (jauge, compte, thème).

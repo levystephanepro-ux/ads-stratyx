@@ -6,10 +6,11 @@ import SubmitButton from "@/components/SubmitButton";
 import { getDashboardContext } from "@/lib/workspace";
 import { getAlertsConfig, templateOn, TEMPLATES, METRICS, type Metric } from "@/lib/alerts/config";
 import { lastAlertsRun } from "@/lib/alerts/run";
+import { ownerAccounts } from "@/lib/audit/run";
 import { saveTemplatesAction, addRuleAction, deleteRuleAction, runAlertsNowAction } from "./actions";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 type SP = Promise<{ msg?: string }>;
 const lab = { display: "block", fontSize: 12, color: "var(--muted)", margin: "0 0 4px" } as const;
@@ -18,7 +19,7 @@ export default async function AlertesPage({ searchParams }: { searchParams: SP }
   const ctx = await getDashboardContext();
   if (!ctx.isOwner) redirect("/dashboard");
   const sp = await searchParams;
-  const [cfg, last] = await Promise.all([getAlertsConfig(), lastAlertsRun().catch(() => null)]);
+  const [cfg, last, accounts] = await Promise.all([getAlertsConfig(), lastAlertsRun().catch(() => null), ownerAccounts().catch(() => [])]);
   const msg = sp.msg ? { ok: sp.msg.startsWith("ok:"), text: sp.msg.replace(/^(ok|err):/, "") } : null;
   const sel = { padding: "8px 10px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface-2)", color: "var(--text)", fontSize: 14 } as const;
 
@@ -95,6 +96,7 @@ export default async function AlertesPage({ searchParams }: { searchParams: SP }
                   {r.name && <strong>{r.name} · </strong>}
                   {METRICS[r.metric].label} {r.period === "hier" ? "d'hier" : "des 7 derniers jours"} {r.op} {r.value}{METRICS[r.metric].unit ? ` ${METRICS[r.metric].unit}` : ""}
                   {r.campaign ? ` · campagnes « ${r.campaign} »` : " · compte entier"}
+                  {r.account ? ` · ${r.accountName || r.account}` : " · tous les comptes"}
                 </span>
                 <button type="submit" className="btn-ghost" style={{ padding: "5px 10px", fontSize: 12 }}>Supprimer</button>
               </form>
@@ -112,6 +114,11 @@ export default async function AlertesPage({ searchParams }: { searchParams: SP }
           <div><span style={lab}>Condition</span>
             <select name="op" style={sel} defaultValue=">"><option value=">">au-dessus de</option><option value="<">en dessous de</option></select></div>
           <div><span style={lab}>Seuil</span><input name="value" inputMode="decimal" placeholder="60" required /></div>
+          <div><span style={lab}>Compte</span>
+            <select name="account" style={sel} defaultValue="">
+              <option value="">Tous les comptes surveillés</option>
+              {accounts.map((a) => <option key={a.customerId} value={`${a.customerId}|${a.name}`}>{a.name}</option>)}
+            </select></div>
           <div><span style={lab}>Campagnes contenant</span><input name="campaign" placeholder="vide = compte entier" /></div>
           <div><SubmitButton pending="Ajout…" style={{ width: "100%" }}>Ajouter la règle</SubmitButton></div>
         </form>

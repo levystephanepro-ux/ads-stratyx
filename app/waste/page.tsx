@@ -13,7 +13,7 @@ import { describeFix } from "@/lib/fixes/apply";
 import { listActions, canUndo, UNDO_DAYS, type ActionLog } from "@/lib/fixes/store";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300; // plusieurs comptes clients (Fluid compute)
 
 const eur = (n: number | string) => `${Math.round(Number(n)).toLocaleString("fr-FR")} €`;
 const SEV: Record<Severity, { label: string; color: string }> = {

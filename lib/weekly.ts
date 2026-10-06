@@ -7,6 +7,7 @@ import { getGlobalBilling } from "@/lib/billing";
 import { isLive } from "@/lib/google-ads/config";
 import { monitoredAccounts, latestAuditReports } from "@/lib/audit/run";
 import { getScript } from "@/lib/scripts/registry";
+import { mapLimit } from "@/lib/concurrency";
 import { makeRange } from "@/lib/scripts/helpers";
 import { formatCell } from "@/lib/scripts/format";
 import { getAccountContext } from "@/lib/account-context";
@@ -27,16 +28,15 @@ export async function runWeeklyReports(): Promise<{ account: string; ok: boolean
   const accounts = await monitoredAccounts();
   const audits = await latestAuditReports();
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  const results = [];
-
-  for (const acc of accounts) {
+  type Res = { account: string; ok: boolean; detail: string; markdown?: string };
+  const results: Res[] = await mapLimit(accounts, 3, async (acc): Promise<Res> => {
     try {
       const billing = await getGlobalBilling();
-      if (!billing.allowed) { results.push({ account: acc.name, ok: false, detail: billing.reason ?? "plafond IA" }); continue; }
+      if (!billing.allowed) { return { account: acc.name, ok: false, detail: billing.reason ?? "plafond IA" }; }
 
       const point = await scriptAsText("point-semaine", acc.customerId);
       const cost = Number(point.rows.find((r) => r.metric === "Coût (€)")?.now ?? 0);
-      if (!cost) { results.push({ account: acc.name, ok: false, detail: "aucune dépense cette semaine" }); continue; }
+      if (!cost) { return { account: acc.name, ok: false, detail: "aucune dépense cette semaine" }; }
       const match = await scriptAsText("match-des-campagnes", acc.customerId);
       const audit = audits.find((a) => a.customer_id === acc.customerId);
       const prio = audit
@@ -54,10 +54,10 @@ export async function runWeeklyReports(): Promise<{ account: string; ok: boolean
       const usage = calcCost(MODEL, res.usage.input_tokens, res.usage.output_tokens);
       await addMonthlyCost(usage.costUsd, "agent", null);
       const markdown = res.content.map((c) => (c.type === "text" ? c.text : "")).join("");
-      results.push({ account: acc.name, ok: true, detail: `${Math.max(1, Math.round(usage.costUsd / 0.05))} crédit(s)`, markdown });
+      return { account: acc.name, ok: true, detail: `${Math.max(1, Math.round(usage.costUsd / 0.05))} crédit(s)`, markdown };
     } catch (e) {
-      results.push({ account: acc.name, ok: false, detail: e instanceof Error ? e.message : String(e) });
+      return { account: acc.name, ok: false, detail: e instanceof Error ? e.message : String(e) };
     }
-  }
+  });
   return results;
 }

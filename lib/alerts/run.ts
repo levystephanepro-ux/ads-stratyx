@@ -146,6 +146,7 @@ export async function evaluateAccount(customerId: string, name: string, cfg: Ale
   }
   // 7. Règles personnalisées
   for (const rule of cfg.rules) {
+    if (rule.account && rule.account !== customerId) continue; // règle réservée à un autre compte
     let agg: Agg;
     const since = rule.period === "hier" ? y : day(today, -7);
     if (rule.campaign) {

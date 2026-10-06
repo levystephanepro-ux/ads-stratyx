@@ -32,6 +32,9 @@ export interface CustomRule {
   period: "hier" | "7";
   /** vide = compte entier ; sinon campagnes dont le nom contient ce texte */
   campaign: string;
+  /** compte visé (customerId) ; vide = tous les comptes surveillés */
+  account?: string;
+  accountName?: string;
 }
 
 export interface AlertsConfig {

@@ -21,6 +21,8 @@ import type {
 export interface AdsContext {
   customerId: string;
   refreshToken?: string | null;
+  /** login-customer-id explicite ; sinon déduit (MCC, ou le compte lui-même en accès direct). */
+  loginCustomerId?: string | null;
 }
 
 export async function getAccount(ctx: AdsContext): Promise<AdsAccount> {
@@ -90,10 +92,42 @@ export interface ManagedAccount {
   name: string;
   currencyCode: string | null;
   isManager: boolean;
+  /** « mcc » = sous le MCC configuré ; « direct » = accès donné directement à ton email Google. */
+  source?: "mcc" | "direct";
+  /** login-customer-id à envoyer pour ce compte. */
+  loginId?: string;
 }
 
 // Cache mémoire des comptes gérés (évite un appel customer_client à chaque render).
 let managedCache: { accounts: ManagedAccount[]; exp: number } | null = null;
+// compte → login-customer-id (rempli par listManagedAccounts)
+const loginMap = new Map<string, string>();
+
+/** login-customer-id à utiliser pour un compte (requêtes de l'owner). */
+async function loginFor(ctx: AdsContext): Promise<string | null> {
+  if (ctx.loginCustomerId !== undefined) return ctx.loginCustomerId;
+  if (ctx.refreshToken) return adsConfig.loginCustomerId || null; // comptes connectés en OAuth : comportement d'origine
+  if (!loginMap.has(ctx.customerId) && !(managedCache && managedCache.exp > Date.now())) {
+    try { await listManagedAccounts(); } catch { /* repli ci-dessous */ }
+  }
+  return loginMap.get(ctx.customerId) ?? (adsConfig.loginCustomerId || null);
+}
+
+async function authHeaders(ctx: AdsContext): Promise<Record<string, string>> {
+  const refresh = ctx.refreshToken ?? adsConfig.refreshToken;
+  if (!refresh) {
+    throw new Error("Aucun refresh_token pour ce compte. Renseigne GOOGLE_ADS_REFRESH_TOKEN ou connecte le compte via OAuth.");
+  }
+  const token = await getAccessToken(refresh);
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+    "developer-token": adsConfig.developerToken,
+    "Content-Type": "application/json",
+  };
+  const login = await loginFor(ctx);
+  if (login) headers["login-customer-id"] = login;
+  return headers;
+}
 
 /**
  * Liste les comptes clients sous le manager (MCC) configuré. Si aucun MCC n'est
@@ -115,25 +149,57 @@ export async function listManagedAccounts(
   if (managedCache && managedCache.exp > Date.now()) return managedCache.accounts;
 
   const mcc = adsConfig.loginCustomerId || adsConfig.customerId;
-  const rows = await search(
-    { customerId: mcc, refreshToken },
-    `SELECT customer_client.id, customer_client.descriptive_name,
-            customer_client.currency_code, customer_client.manager,
-            customer_client.level, customer_client.status
-     FROM customer_client
-     WHERE customer_client.status = 'ENABLED'`,
-  );
-  const accounts: ManagedAccount[] = rows
-    .map((r) => r.customerClient!)
-    .filter((c) => c && !c.manager) // on ne garde que les comptes clients
-    .map((c) => ({
-      customerId: String(c.id),
-      name: c.descriptiveName ?? `Compte ${c.id}`,
-      currencyCode: c.currencyCode ?? null,
-      isManager: false,
-    }));
+  const clientsOf = async (manager: string, source: "mcc" | "direct"): Promise<ManagedAccount[]> => {
+    const rows = await search(
+      { customerId: manager, refreshToken, loginCustomerId: manager },
+      `SELECT customer_client.id, customer_client.descriptive_name,
+              customer_client.currency_code, customer_client.manager,
+              customer_client.level, customer_client.status
+       FROM customer_client
+       WHERE customer_client.status = 'ENABLED'`,
+    );
+    return rows
+      .map((r) => r.customerClient!)
+      .filter((c) => c && !c.manager) // on ne garde que les comptes clients
+      .map((c) => ({
+        customerId: String(c.id),
+        name: c.descriptiveName ?? `Compte ${c.id}`,
+        currencyCode: c.currencyCode ?? null,
+        isManager: false,
+        source,
+        loginId: manager,
+      }));
+  };
 
-  // Repli : si le MCC n'a pas de clients listables, on expose au moins le compte courant.
+  const accounts: ManagedAccount[] = await clientsOf(mcc, "mcc");
+  const known = new Set(accounts.map((a) => a.customerId));
+
+  // Comptes en accès direct (le client a ajouté ton email Google sans passer par le MCC),
+  // et autres MCC accessibles. Une erreur ici ne bloque jamais la liste du MCC.
+  try {
+    const ids = await listAccessibleCustomerIds(refreshToken ?? adsConfig.refreshToken);
+    for (const id of ids) {
+      if (id === mcc || known.has(id)) continue;
+      try {
+        const info = await search({ customerId: id, refreshToken, loginCustomerId: id },
+          `SELECT customer.id, customer.descriptive_name, customer.currency_code, customer.manager, customer.status FROM customer LIMIT 1`);
+        const c = (info[0] as RawRow | undefined)?.customer;
+        if (!c || c.status === "CANCELED" || c.status === "CLOSED") continue;
+        if (c.manager) {
+          for (const sub of await clientsOf(id, "direct")) {
+            if (!known.has(sub.customerId)) { accounts.push(sub); known.add(sub.customerId); }
+          }
+        } else {
+          accounts.push({ customerId: id, name: c.descriptiveName ?? `Compte ${id}`, currencyCode: c.currencyCode ?? null, isManager: false, source: "direct", loginId: id });
+          known.add(id);
+        }
+      } catch { /* compte inaccessible (suspendu, droits insuffisants) : ignoré */ }
+    }
+  } catch { /* listAccessibleCustomers indisponible : on garde le MCC */ }
+
+  accounts.forEach((a) => { if (a.loginId) loginMap.set(a.customerId, a.loginId); });
+
+  // Repli : si rien n'est listable, on expose au moins le compte courant.
   const result = accounts.length
     ? accounts
     : [{ customerId: adsConfig.customerId, name: `Compte ${adsConfig.customerId}`, currencyCode: null, isManager: false }];
@@ -144,9 +210,10 @@ export async function listManagedAccounts(
 
 /** Liste les IDs de comptes accessibles avec un refresh token (post-OAuth). */
 export async function listAccessibleCustomerIds(
-  refreshToken: string,
+  refreshToken: string | null | undefined,
 ): Promise<string[]> {
   assertLiveConfig();
+  if (!refreshToken) return [];
   const token = await getAccessToken(refreshToken);
   const res = await fetch(
     `https://googleads.googleapis.com/${adsConfig.apiVersion}/customers:listAccessibleCustomers`,
@@ -460,17 +527,11 @@ export async function updateCampaignBudget(
  * mots-clés, suggestions de lieux, googleAds:mutate atomique. `path` est relatif
  * à la version, ex. « customers/123:generateKeywordIdeas ».
  */
-export async function adsPost(ctx: { refreshToken?: string | null } | null, path: string, body: unknown): Promise<RawRow> {
+export async function adsPost(ctx: { customerId?: string; refreshToken?: string | null } | null, path: string, body: unknown): Promise<RawRow> {
   assertLiveConfig();
-  const refresh = ctx?.refreshToken ?? adsConfig.refreshToken;
-  if (!refresh) throw new Error("Aucun refresh_token.");
-  const token = await getAccessToken(refresh);
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${token}`,
-    "developer-token": adsConfig.developerToken,
-    "Content-Type": "application/json",
-  };
-  if (adsConfig.loginCustomerId) headers["login-customer-id"] = adsConfig.loginCustomerId;
+  const headers = await authHeaders(ctx?.customerId
+    ? { customerId: ctx.customerId, refreshToken: ctx.refreshToken }
+    : { customerId: adsConfig.loginCustomerId || adsConfig.customerId, refreshToken: ctx?.refreshToken, loginCustomerId: adsConfig.loginCustomerId || null });
   const res = await fetch(`https://googleads.googleapis.com/${adsConfig.apiVersion}/${path}`, { method: "POST", headers, body: JSON.stringify(body) });
   const j = await res.json();
   if (!res.ok) throw new Error(gaError(j));
@@ -494,15 +555,7 @@ async function mutate(
   operations: unknown[],
 ): Promise<{ results?: unknown[] }> {
   assertLiveConfig();
-  const refresh = ctx.refreshToken ?? adsConfig.refreshToken;
-  if (!refresh) throw new Error("Aucun refresh_token pour cette écriture.");
-  const token = await getAccessToken(refresh);
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${token}`,
-    "developer-token": adsConfig.developerToken,
-    "Content-Type": "application/json",
-  };
-  if (adsConfig.loginCustomerId) headers["login-customer-id"] = adsConfig.loginCustomerId;
+  const headers = await authHeaders(ctx);
 
   const res = await fetch(
     `https://googleads.googleapis.com/${adsConfig.apiVersion}/customers/${ctx.customerId}/${resource}:mutate`,
@@ -601,21 +654,8 @@ export async function searchRaw(ctx: AdsContext, query: string): Promise<RawRow[
 /** Exécute une requête GAQL (googleAds:search) avec pagination. */
 async function search(ctx: AdsContext, query: string): Promise<GaqlRow[]> {
   assertLiveConfig();
-  const refresh = ctx.refreshToken ?? adsConfig.refreshToken;
-  if (!refresh) {
-    throw new Error(
-      "Aucun refresh_token pour ce compte. Renseigne GOOGLE_ADS_REFRESH_TOKEN " +
-        "ou connecte le compte via OAuth.",
-    );
-  }
-  const token = await getAccessToken(refresh);
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${token}`,
-    "developer-token": adsConfig.developerToken,
-    "Content-Type": "application/json",
-  };
-  // login-customer-id = compte manager (MCC) quand on interroge un client.
-  if (adsConfig.loginCustomerId) headers["login-customer-id"] = adsConfig.loginCustomerId;
+  // login-customer-id = MCC pour ses clients, le compte lui-même en accès direct.
+  const headers = await authHeaders(ctx);
 
   const url = `https://googleads.googleapis.com/${adsConfig.apiVersion}/customers/${ctx.customerId}/googleAds:search`;
   const rows: GaqlRow[] = [];
