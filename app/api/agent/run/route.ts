@@ -10,7 +10,7 @@ import { runTask } from "@/lib/agent/run";
 import { sendAgentEmail } from "@/lib/agent/email";
 import { addMonthlyCost } from "@/lib/agent/cost";
 import { tokenValueOk, getWorkspaceIdFromValue } from "@/lib/api-auth";
-import { getWorkspaceBilling, getWorkspaceOwnerEmail } from "@/lib/billing";
+import { getWorkspaceBilling, getWorkspaceOwnerEmail, getGlobalBilling } from "@/lib/billing";
 import { isOwnerEmail } from "@/lib/owner";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +39,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "tâche inconnue" }, { status: 404 });
   }
 
+  if (!workspaceId) {
+    const g = await getGlobalBilling();
+    if (!g.allowed) {
+      return NextResponse.json({ error: g.reason }, { status: 402 });
+    }
+  }
   let customerId = payload.customerId;
   let emailTo: string | null = null;
   if (workspaceId) {

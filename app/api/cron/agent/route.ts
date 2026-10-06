@@ -12,8 +12,10 @@ import { listAllTasks, taskDue, markTaskRun, getSetting } from "@/lib/agent/stor
 import { runTask } from "@/lib/agent/run";
 import { sendAgentEmail } from "@/lib/agent/email";
 import { addMonthlyCost } from "@/lib/agent/cost";
-import { getWorkspaceBilling, getWorkspaceOwnerEmail } from "@/lib/billing";
+import { getWorkspaceBilling, getWorkspaceOwnerEmail, getGlobalBilling } from "@/lib/billing";
 import { isOwnerEmail } from "@/lib/owner";
+import { parseCampaignFilter } from "@/lib/campaign-context";
+import { getDefaultAccountInfo } from "@/lib/google-ads/default-account";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -55,9 +57,22 @@ export async function GET(req: Request) {
           continue;
         }
         customerId = def ?? undefined;
+      } else {
+        // Tâche globale (owner) : plafond IA interne.
+        const g = await getGlobalBilling();
+        if (!g.allowed) {
+          await markTaskRun(task.id, `ignoré : ${g.reason}`);
+          results.push({ task: task.id, ok: false, detail: `ignoré : ${g.reason}` });
+          continue;
+        }
       }
 
-      const r = await runTask(task, customerId);
+      const [filterRaw, accountInfo] = await Promise.all([
+        getSetting("campaign_filter", task.workspace_id),
+        getDefaultAccountInfo(task.workspace_id ? { workspaceId: task.workspace_id, isOwner: false } : undefined),
+      ]);
+      const campaignFilter = parseCampaignFilter(filterRaw);
+      const r = await runTask(task, customerId, campaignFilter, accountInfo?.name);
       await sendAgentEmail(`🤖 ${task.name}`, r.summary, emailTo);
       await markTaskRun(task.id, "ok");
       await addMonthlyCost(r.usage.costUsd, "agent", task.workspace_id);

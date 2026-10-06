@@ -45,7 +45,7 @@ export default async function Dashboard() {
   );
 
   return (
-    <Shell active="home" token={ctx.mcpToken} headerRight={headerRight} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner}>
+    <Shell active="home" token={ctx.mcpToken} headerRight={headerRight} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}>
       {/* Hero de bienvenue */}
       <div className="hero" style={{ marginBottom: 18 }}>
         <div style={{ position: "relative", zIndex: 1 }}>

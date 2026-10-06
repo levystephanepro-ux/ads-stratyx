@@ -2,6 +2,7 @@
 // La logique de boucle "tool use" vit dans loop.ts (partagée avec le Copilote).
 import { runAgentLoop } from "./loop";
 import { DEFAULT_SYSTEM } from "./missions";
+import { parseCampaignFilter, buildCampaignContext, type CampaignFilter } from "@/lib/campaign-context";
 import type { TokenUsage } from "./cost";
 import type { AgentTask } from "./store";
 
@@ -21,9 +22,11 @@ export async function runTask(task: {
   prompt: string;
   allow_write?: boolean;
   model?: string;
-}, customerId?: string): Promise<AgentResult> {
+}, customerId?: string, campaignFilter?: CampaignFilter | null, accountName?: string | null): Promise<AgentResult> {
+  const campaignCtx = buildCampaignContext(accountName ?? null, customerId ?? null, campaignFilter ?? null);
+  const system = `${DEFAULT_SYSTEM}\n\n${campaignCtx}`;
   const r = await runAgentLoop([{ role: "user", content: task.prompt }], {
-    system: DEFAULT_SYSTEM,
+    system,
     allowWrite: task.allow_write ?? false,
     model: task.model,
     customerId,

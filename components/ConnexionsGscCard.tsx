@@ -59,9 +59,11 @@ export default function ConnexionsGscCard({ connected, email, connectUrl, token 
             )}
           </div>
 
-          {connected && email && (
+          {connected && (
             <p className="subtitle" style={{ margin: '0 0 12px', fontSize: 13 }}>
-              Compte : <strong>{email}</strong>
+              {email
+                ? <>Compte : <strong>{email}</strong></>
+                : "Compte Google connecté"}
             </p>
           )}
 

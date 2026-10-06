@@ -3,7 +3,7 @@ import { getAppUrl } from "@/lib/app-url";
 
 export const dynamic = "force-dynamic";
 
-const SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
+const SCOPE = "https://www.googleapis.com/auth/webmasters.readonly openid email";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);

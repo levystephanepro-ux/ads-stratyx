@@ -9,7 +9,7 @@ export default async function PersonaPage() {
   const ctx = await getDashboardContext();
   requireSub(ctx);
   return (
-    <Shell active="persona" token={ctx.mcpToken} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner}>
+    <Shell active="persona" token={ctx.mcpToken} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}>
       <PersonaBuilder token={ctx.mcpToken} />
     </Shell>
   );

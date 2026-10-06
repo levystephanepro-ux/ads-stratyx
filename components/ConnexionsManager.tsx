@@ -25,12 +25,33 @@ export default function ConnexionsManager({
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDisconnect, setConfirmDisconnect] = useState<string | null>(null);
 
   async function setDefault(customerId: string) {
     setBusy(customerId);
     setError(null);
     try {
       const res = await fetch("/api/connexions/default", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-app-token": token },
+        body: JSON.stringify({ customer_id: customerId }),
+      });
+      const data = await res.json();
+      if (!res.ok) setError(data.error ?? `Erreur ${res.status}`);
+      else router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function disconnect(customerId: string) {
+    setBusy(customerId);
+    setError(null);
+    setConfirmDisconnect(null);
+    try {
+      const res = await fetch("/api/connexions/disconnect", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-app-token": token },
         body: JSON.stringify({ customer_id: customerId }),
@@ -94,7 +115,7 @@ export default function ConnexionsManager({
                     </div>
                   </div>
                 </div>
-                <div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                   {isDefault ? (
                     <span className="pill ok">● Compte par défaut</span>
                   ) : (
@@ -102,13 +123,37 @@ export default function ConnexionsManager({
                       className="btn-ghost"
                       onClick={() => setDefault(a.customerId)}
                       disabled={busy !== null || !dbReady}
-                      title={
-                        dbReady
-                          ? "Cibler ce compte par défaut"
-                          : "Nécessite Supabase (base de réglages)"
-                      }
                     >
                       {busy === a.customerId ? "…" : "Définir par défaut"}
+                    </button>
+                  )}
+                  {confirmDisconnect === a.customerId ? (
+                    <>
+                      <span className="subtitle" style={{ fontSize: 12 }}>Confirmer ?</span>
+                      <button
+                        className="btn-ghost"
+                        style={{ color: "var(--red)", borderColor: "color-mix(in srgb, var(--red) 40%, transparent)", fontSize: 12 }}
+                        onClick={() => disconnect(a.customerId)}
+                        disabled={busy !== null}
+                      >
+                        Oui, déconnecter
+                      </button>
+                      <button
+                        className="btn-ghost"
+                        style={{ fontSize: 12 }}
+                        onClick={() => setConfirmDisconnect(null)}
+                      >
+                        Annuler
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      className="btn-ghost"
+                      style={{ fontSize: 12, opacity: 0.6 }}
+                      onClick={() => setConfirmDisconnect(a.customerId)}
+                      disabled={busy !== null}
+                    >
+                      Déconnecter
                     </button>
                   )}
                 </div>

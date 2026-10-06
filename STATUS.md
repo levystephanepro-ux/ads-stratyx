@@ -37,6 +37,28 @@
 
 ## 🔄 En cours
 
+- [2026-10-06] [cowork] Usage interne + **Diagnostic (phase 1)** : code écrit, typecheck OK, règles testées, **à déployer et tester**
+  1. Lancer `supabase/migrations/0018_audit_reports.sql` dans le SQL Editor Supabase
+     (ignorer `supabase/_obsolete/0018_waste_reports.sql`, version abandonnée, à supprimer)
+  2. Vercel : `STRATYX_INTERNAL_MODE=true`, `OWNER_MONTHLY_BUDGET_USD=5`, vérifier `CRON_SECRET`
+  3. Ouvrir /waste (menu « Diagnostic ») → « Relancer le diagnostic » (mock puis live)
+  4. Comparer aux constats Ades sur D2B (conflits « la garde » et « fenetre bois sur mesure »,
+     extension d'appel refusée, budget limité) puis `npm run types`
+
+## 🗺️ Feuille de route « type Ades » (une phase = déployée et testée avant la suivante)
+
+| Phase | Contenu | État |
+|---|---|---|
+| 1 | Diagnostic 6 catégories + santé /100 + « Par où commencer » + email du matin | ✅ codé, à tester |
+| 2 | Corrections en un clic (négatif, pause mot-clé) avec journal + annulation 30 j | à faire |
+| 3 | Dashboard période vs précédente, part d'impressions, budget du mois | à faire |
+| 4 | Alertes : modèles (compte à l'arrêt, 404, dépense qui s'emballe) + règles perso | à faire |
+| 5 | Journal des modifications (change_event) → Change Impact + compte rendu mensuel + rapport client | à faire |
+| 6 | Forecast + création de campagne en pause (rejoint la suite pré-campagne) | à faire |
+
+Différenciants Stratyx à garder : intentions métier artisans, niveau « à surveiller » pour petits comptes,
+exclusivité territoriale, connecteur MCP Claude Pro.
+
 *(rien en cours)*
 
 ---
@@ -50,6 +72,34 @@
 ---
 
 ## 📝 Journal de session
+
+### 2026-10-06 — Cowork (Diagnostic phase 1)
+- Moteur `lib/audit/` : types, fetch (11 requêtes GAQL isolées, un échec n'arrête pas les autres),
+  rules (règles pures), negatives (conflits négatifs/mots-clés), mock, run (orchestration + stockage)
+- Catégories : Recherches, Mots-clés (sans conversion, QS ≤ 3), Négatifs (conflits campagne / groupe /
+  listes partagées), Budgets (limitée par le budget, campagne sans conversion, perte au classement),
+  Annonces et extensions (refusées / limitées), Réglages et suivi (aucune action de conversion,
+  0 conversion sur 7 j, 0 sur 30 j)
+- Santé /100 : critique −15, important −5, mineur −1, plafond −20 par catégorie
+- Testé sur un scénario reproduisant les constats Ades de D2B : mêmes problèmes trouvés, santé 72
+- Page /waste renommée « Diagnostic » (onglets par catégorie, choix du compte), cron = diagnostic complet
+- `searchRaw()` exporté dans lib/google-ads/client.ts pour les requêtes d'analyse
+
+### 2026-10-06 — Cowork (usage interne + Waste Detector)
+- Inspiré d'Ades Analytics : Waste Detector déterministe (lib/waste/detect.ts), 0 crédit IA
+  - Seuil statistique : P(0 conv | clics, taux du compte) < 5 % → "prouvé"
+  - Niveau "à surveiller" (coût ≥ 1,5 × CPA) pour les petits comptes artisans
+  - Intentions négatives métier : emploi, formation, bricolage, gratuit, achat matériel
+  - Totaux calculés sur l'union des termes (pas de double comptage)
+- `getAllSearchTerms` (lib/google-ads/client.ts) + `MOCK_SEARCH_TERMS` (scénario plombier)
+- Cron quotidien `/api/cron/waste` (5 h UTC), email Resend seulement s'il y a un constat
+- Page `/waste` (owner uniquement) + bouton « Analyser maintenant » + entrée de menu « Gaspillage »
+- Table `waste_reports` (migration 0018, RLS sans policy = service_role uniquement)
+- Mode usage interne (`lib/internal.ts`) : `/register` et `/pricing` redirigés, non-owners sans IA
+- Plafond IA owner `OWNER_MONTHLY_BUDGET_USD` (défaut 5 $), appliqué aussi aux appels sans workspace
+  (token partagé, tâches globales du cron) via `getGlobalBilling()` — avant : illimité
+- Tarif Haiku 4.5 corrigé dans cost.ts (1 $ / 5 $ par M tokens), repli prudent au tarif Sonnet
+- Rien n'écrit dans Google Ads : les négatifs proposés s'appliquent à la main
 
 ### 2026-07-20 — Cowork (setup)
 - Projet monté et analysé

@@ -25,7 +25,7 @@ export default async function CopilotePage({
   });
 
   return (
-    <Shell active="copilote" token={tok} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner}>
+    <Shell active="copilote" token={tok} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}>
       <h1 className="page-title">💬 Copilote</h1>
       <p className="page-lede">
         Discute avec tes campagnes en langage naturel. Le copilote interroge ton

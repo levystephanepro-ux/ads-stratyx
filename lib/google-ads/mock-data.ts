@@ -124,3 +124,18 @@ export const MOCK_METRICS: CampaignMetrics[] = [
   { campaignId: "204", campaignName: "Display · Remarketing", impressions: 88010, clicks: 410, cost: 190.33, conversions: 3, conversionsValue: 2400 },
   { campaignId: "205", campaignName: "Search · Isolation combles", impressions: 21540, clicks: 720, cost: 690.77, conversions: 11, conversionsValue: 13750 },
 ];
+// Termes de recherche factices (Waste Detector en mode mock) — scénario plombier.
+export const MOCK_SEARCH_TERMS = [
+  { campaignId: "1001", campaignName: "Search - Plombier Nice", term: "plombier nice", clicks: 210, cost: 588, conversions: 14 },
+  { campaignId: "1001", campaignName: "Search - Plombier Nice", term: "plombier urgence nice", clicks: 96, cost: 307, conversions: 9 },
+  { campaignId: "1001", campaignName: "Search - Plombier Nice", term: "fuite d'eau nice dépannage", clicks: 41, cost: 131, conversions: 3 },
+  { campaignId: "1001", campaignName: "Search - Plombier Nice", term: "formation plombier nice", clicks: 38, cost: 95, conversions: 0 },
+  { campaignId: "1001", campaignName: "Search - Plombier Nice", term: "cap plombier alternance", clicks: 22, cost: 51, conversions: 0 },
+  { campaignId: "1001", campaignName: "Search - Plombier Nice", term: "salaire plombier", clicks: 17, cost: 34, conversions: 0 },
+  { campaignId: "1001", campaignName: "Search - Plombier Nice", term: "comment déboucher évier soi même", clicks: 64, cost: 141, conversions: 0 },
+  { campaignId: "1001", campaignName: "Search - Plombier Nice", term: "joint robinet leroy merlin", clicks: 29, cost: 58, conversions: 0 },
+  { campaignId: "1002", campaignName: "Search - Chauffe-eau", term: "chauffe eau thermodynamique prix", clicks: 74, cost: 222, conversions: 2 },
+  { campaignId: "1002", campaignName: "Search - Chauffe-eau", term: "chauffe eau thermodynamique avis", clicks: 61, cost: 183, conversions: 0 },
+  { campaignId: "1002", campaignName: "Search - Chauffe-eau", term: "chauffe eau avis forum", clicks: 33, cost: 92, conversions: 0 },
+  { campaignId: "1002", campaignName: "Search - Chauffe-eau", term: "installation chauffe eau cannes", clicks: 12, cost: 88, conversions: 0 },
+];

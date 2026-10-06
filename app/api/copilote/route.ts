@@ -7,9 +7,11 @@ import { NextResponse } from "next/server";
 import { runAgentLoop } from "@/lib/agent/loop";
 import { addMonthlyCost } from "@/lib/agent/cost";
 import { tokenValueOk, getWorkspaceIdFromValue } from "@/lib/api-auth";
-import { getWorkspaceBilling, getWorkspaceOwnerEmail } from "@/lib/billing";
+import { getWorkspaceBilling, getWorkspaceOwnerEmail, getGlobalBilling } from "@/lib/billing";
 import { getSetting } from "@/lib/agent/store";
 import { isOwnerEmail } from "@/lib/owner";
+import { parseCampaignFilter, buildCampaignContext } from "@/lib/campaign-context";
+import { getDefaultAccountInfo } from "@/lib/google-ads/default-account";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -49,6 +51,12 @@ export async function POST(req: Request) {
 
   // Workspace client (token SaaS) : quota + isolation sur SON compte Google Ads.
   const workspaceId = await getWorkspaceIdFromValue(payload.token);
+  if (!workspaceId) {
+    const g = await getGlobalBilling();
+    if (!g.allowed) {
+      return NextResponse.json({ error: g.reason }, { status: 402 });
+    }
+  }
   let customerId: string | undefined;
   if (workspaceId) {
     const billing = await getWorkspaceBilling(workspaceId);
@@ -70,10 +78,22 @@ export async function POST(req: Request) {
     }
   }
 
+  // Contexte campagne : injecté dans le system prompt pour guider l'IA.
+  const [filterRaw, accountInfo] = await Promise.all([
+    getSetting("campaign_filter", workspaceId),
+    getDefaultAccountInfo(workspaceId ? { workspaceId, isOwner: !workspaceId } : undefined),
+  ]);
+  const campaignCtx = buildCampaignContext(
+    accountInfo?.name ?? null,
+    customerId ?? accountInfo?.customerId,
+    parseCampaignFilter(filterRaw),
+  );
+  const system = `${COPILOTE_SYSTEM}\n\n${campaignCtx}`;
+
   try {
     const r = await runAgentLoop(
       history.map((m) => ({ role: m.role, content: m.content })),
-      { system: COPILOTE_SYSTEM, allowWrite: true, customerId },
+      { system, allowWrite: true, customerId },
     );
     await addMonthlyCost(r.usage.costUsd, "copilote", workspaceId);
     return NextResponse.json({

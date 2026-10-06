@@ -35,13 +35,16 @@ export async function setOAuthToken(
 ): Promise<void> {
   await admin()
     .from("oauth_tokens")
-    .upsert({
-      workspace_token: workspaceToken,
-      service,
-      refresh_token: refreshToken,
-      account_email: email ?? null,
-      updated_at: new Date().toISOString(),
-    });
+    .upsert(
+      {
+        workspace_token: workspaceToken,
+        service,
+        refresh_token: refreshToken,
+        account_email: email ?? null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "workspace_token,service" },
+    );
 }
 
 export async function deleteOAuthToken(workspaceToken: string, service: string): Promise<void> {

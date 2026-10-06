@@ -23,6 +23,12 @@ const Ic = {
       <path d="M11 3 9 10h7L8 17"/>
     </svg>
   ),
+  waste: (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 5h14M8 5V3h4v2M5 5l1 12h8l1-12"/>
+      <path d="M8.5 8.5v5M11.5 8.5v5"/>
+    </svg>
+  ),
   templates: (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
       <rect x="2" y="2" width="7" height="7" rx="1.5"/>
@@ -82,12 +88,13 @@ const Ic = {
   ),
 };
 
-type PageKey = "home" | "copilote" | "agent" | "templates" | "connexions" | "persona" | "search-console" | "aide" | "admin";
+type PageKey = "home" | "copilote" | "agent" | "waste" | "templates" | "connexions" | "persona" | "search-console" | "aide" | "admin";
 
 const NAV: { key: PageKey; label: string; ic: keyof typeof Ic; href: string }[] = [
   { key: "home",       label: "Accueil",     ic: "home",       href: "/dashboard" },
   { key: "copilote",   label: "Copilote",    ic: "copilote",   href: "/copilote" },
   { key: "agent",      label: "Agent IA",    ic: "agent",      href: "/agent" },
+  { key: "waste",      label: "Diagnostic",  ic: "waste",      href: "/waste" },
   { key: "templates",  label: "Templates",   ic: "templates",  href: "/templates" },
   { key: "persona",         label: "Persona",          ic: "persona",    href: "/persona" },
   { key: "search-console", label: "Search Console",   ic: "gsc",        href: "/search-console" },
@@ -101,6 +108,7 @@ export default function Shell({
   headerRight,
   trialDaysLeft,
   showAdmin,
+  accountName,
   children,
 }: {
   active: PageKey;
@@ -108,6 +116,7 @@ export default function Shell({
   headerRight?: React.ReactNode;
   trialDaysLeft?: number | null;
   showAdmin?: boolean;
+  accountName?: string | null;
   children: React.ReactNode;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -189,6 +198,23 @@ export default function Shell({
         </nav>
 
         <div className="sidebar-foot">
+          {accountName && (
+            <Link
+              href="/connexions"
+              style={{
+                display: "flex", alignItems: "center", gap: 8, padding: "7px 10px",
+                borderRadius: 8, fontSize: 12, color: "var(--muted)",
+                background: "var(--surface-2)", textDecoration: "none",
+                border: "1px solid var(--border)", marginBottom: 6,
+              }}
+            >
+              <span style={{ fontSize: 14 }}>📊</span>
+              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {accountName}
+              </span>
+              <span style={{ opacity: 0.4, fontSize: 11 }}>▸</span>
+            </Link>
+          )}
           <CreditGauge />
           <ThemeToggle />
           <form action="/api/auth/signout" method="post" style={{ margin: 0 }}>

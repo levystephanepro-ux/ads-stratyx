@@ -5,6 +5,10 @@
     {
       "path": "/api/cron/agent",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/waste",
+      "schedule": "0 5 * * *"
     }
   ]
 }

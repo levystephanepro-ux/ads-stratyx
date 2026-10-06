@@ -22,6 +22,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Usage interne : inscription et tarifs fermés.
+  if (
+    process.env.STRATYX_INTERNAL_MODE === "true" &&
+    (path === "/register" || path.startsWith("/register/") || path === "/pricing")
+  ) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
   if (PUBLIC_PREFIXES.some((p) => path === p || path.startsWith(p + "/"))) {
     return NextResponse.next();
   }

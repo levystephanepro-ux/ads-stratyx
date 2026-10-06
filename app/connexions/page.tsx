@@ -8,6 +8,7 @@ import { getOAuthMeta } from "@/lib/oauth-store";
 import ConnexionsManager, { type ManagedAccount } from "@/components/ConnexionsManager";
 import ConnexionsGscCard from "@/components/ConnexionsGscCard";
 import McpUrlBox from "@/components/McpUrlBox";
+import CampaignSelector from "@/components/CampaignSelector";
 import Shell from "@/components/Shell";
 import { getDashboardContext } from "@/lib/workspace";
 import { requireSub } from "@/lib/subscription";
@@ -24,32 +25,36 @@ export default async function ConnexionsPage() {
   const gscConnected = gscMeta !== null;
   const connectUrl = `/api/auth/gsc/connect?token=${encodeURIComponent(tok)}`;
 
-  // Owner : tous les comptes du MCC. Client : uniquement les comptes reliés
-  // à SON espace (zéro tant que l'équipe n'a pas fait la liaison).
+  // Comptes exclus (déconnectés par l'utilisateur)
+  const rawExcluded = await getSetting("excluded_customer_ids", ctx.workspaceId);
+  const excludedIds: string[] = rawExcluded ? JSON.parse(rawExcluded) : [];
+
+  // Owner : tous les comptes du MCC (sauf exclus). Client : comptes de son espace.
   let accounts: ManagedAccount[] = [];
   let fetchError: string | null = null;
   if (ctx.isOwner) {
     if (isLive() && hasEnvAccount()) {
       try {
-        accounts = await listManagedAccounts(adsConfig.refreshToken);
+        const all = await listManagedAccounts(adsConfig.refreshToken);
+        accounts = all.filter((a) => !excludedIds.includes(a.customerId));
       } catch (e) {
         fetchError = e instanceof Error ? e.message : String(e);
       }
     }
   } else if (ctx.workspaceId) {
-    accounts = (await listWorkspaceAccounts(ctx.workspaceId)).map((a) => ({
-      customerId: a.customerId,
-      name: a.name,
-      currencyCode: null,
-    }));
+    accounts = (await listWorkspaceAccounts(ctx.workspaceId))
+      .filter((a) => !excludedIds.includes(a.customerId))
+      .map((a) => ({ customerId: a.customerId, name: a.name, currencyCode: null }));
   }
 
   const defaultCustomerId =
     (await getSetting("default_customer_id", ctx.workspaceId)) ||
     (ctx.isOwner ? adsConfig.customerId : accounts[0]?.customerId ?? "");
 
+  const defaultAccountName = accounts.find((a) => a.customerId === defaultCustomerId)?.name ?? defaultCustomerId;
+
   return (
-    <Shell active="connexions" token={tok} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner}>
+    <Shell active="connexions" token={tok} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}>
       <h1 className="page-title">🔗 Connexions</h1>
       <p className="page-lede">
         Tes comptes Google Ads (via ton compte manager MCC) et le connecteur Stratyx.
@@ -93,11 +98,37 @@ export default async function ConnexionsPage() {
         />
       )}
 
+      {/* Sélecteur de campagnes — visible dès qu'un compte est relié */}
+      {(ctx.isOwner || accounts.length > 0) && tok && (
+        <>
+          <div className="section-title" style={{ marginTop: 36, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span>Campagnes de travail</span>
+            {defaultAccountName && (
+              <span style={{ fontSize: 12, fontWeight: 400, color: "var(--muted)", letterSpacing: 0 }}>
+                📊 {defaultAccountName}
+              </span>
+            )}
+          </div>
+          <p className="subtitle" style={{ marginBottom: 14, fontSize: 13 }}>
+            Choisis les campagnes sur lesquelles travaillent le copilote et tes agents.
+            Par défaut : toutes les campagnes du compte.
+          </p>
+          <div className="card">
+            <CampaignSelector token={tok} accountName={defaultAccountName} />
+          </div>
+        </>
+      )}
+
       {/* Google Search Console — nécessite un token workspace valide */}
       {tok && (
         <>
-          <div className="section-title" style={{ marginTop: 36 }}>
-            Google Search Console
+          <div className="section-title" style={{ marginTop: 36, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span>Google Search Console</span>
+            {gscConnected && gscMeta?.email && (
+              <span style={{ fontSize: 12, fontWeight: 400, color: "var(--muted)", letterSpacing: 0 }}>
+                🔍 {gscMeta.email}
+              </span>
+            )}
           </div>
           <ConnexionsGscCard
             connected={gscConnected}

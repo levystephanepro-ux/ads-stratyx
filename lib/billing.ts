@@ -9,6 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { planLimits, usdToCredits, type PlanLimits } from "@/lib/plans";
 import { getMonthlyUsage } from "@/lib/agent/cost";
 import { isOwnerEmail } from "@/lib/owner";
+import { INTERNAL_MODE, isAllowedEmail, ownerMonthlyBudgetUsd } from "@/lib/internal";
 
 export interface WorkspaceBilling {
   plan: string;
@@ -42,19 +43,36 @@ export async function getWorkspaceBilling(
 
   if (!ws) return base({ reason: "Espace de travail introuvable." });
 
-  // Workspace du propriétaire de la plateforme : pas de quota.
+  // Workspace du propriétaire : pas d'abonnement, mais un plafond de coût IA
+  // (OWNER_MONTHLY_BUDGET_USD, défaut 5 $) pour éviter toute dérive de facture.
+  let ownerEmail: string | null | undefined;
   try {
     const { data: ownerUser } = await admin.auth.admin.getUserById(ws.owner_id);
-    if (isOwnerEmail(ownerUser.user?.email)) {
-      return base({
-        status: "active",
-        allowed: true,
-        reason: null,
-        limits: { ...planLimits("pro"), maxAgents: 999, monthlyBudgetUsd: Infinity },
-      });
-    }
+    ownerEmail = ownerUser.user?.email;
   } catch {
     // en cas d'échec de lookup, on retombe sur le contrôle standard
+  }
+
+  if (isOwnerEmail(ownerEmail) || (INTERNAL_MODE && isAllowedEmail(ownerEmail))) {
+    const cap = ownerMonthlyBudgetUsd();
+    const { spent } = await getMonthlyUsage(workspaceId);
+    const limits = { ...planLimits("pro"), maxAgents: 999, monthlyBudgetUsd: cap };
+    const allowed = spent < cap;
+    return base({
+      status: "active",
+      allowed,
+      spentUsd: spent,
+      limits,
+      reason: allowed
+        ? null
+        : `Plafond IA interne atteint (${usdToCredits(cap)} crédits ce mois). ` +
+          `Augmente OWNER_MONTHLY_BUDGET_USD sur Vercel si besoin.`,
+    });
+  }
+
+  // Mode usage interne : aucun autre compte ne consomme d'IA.
+  if (INTERNAL_MODE) {
+    return base({ reason: "Accès réservé : Stratyx est en usage interne pour le moment." });
   }
 
   const { data: sub } = await admin
@@ -92,6 +110,30 @@ export async function getWorkspaceBilling(
   }
 
   return { plan, status, limits, spentUsd: spent, allowed, reason };
+}
+
+/**
+ * Contrôle pour les appels SANS workspace (token partagé MCP_SHARED_TOKEN,
+ * tâches globales du cron) : ce sont les appels de l'owner, soumis au même
+ * plafond OWNER_MONTHLY_BUDGET_USD, compté sur le cumul global.
+ */
+export async function getGlobalBilling(): Promise<{ allowed: boolean; reason: string | null; spentUsd: number }> {
+  const cap = ownerMonthlyBudgetUsd();
+  let spent = 0;
+  try {
+    spent = (await getMonthlyUsage(null)).spent;
+  } catch {
+    // Supabase absent (dev) : on laisse passer
+  }
+  const allowed = spent < cap;
+  return {
+    allowed,
+    spentUsd: spent,
+    reason: allowed
+      ? null
+      : `Plafond IA interne atteint (${usdToCredits(cap)} crédits ce mois). ` +
+        `Augmente OWNER_MONTHLY_BUDGET_USD sur Vercel si besoin.`,
+  };
 }
 
 /** Email de l'owner du workspace (destinataire des rapports d'agents). */

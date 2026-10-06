@@ -7,7 +7,7 @@
 // seule source de vérité (principe anti-déprécation), (2) évite la couche de
 // transport de google-ads-api qui échoue derrière certains proxys Windows.
 import { adsConfig, isLive, assertLiveConfig } from "./config";
-import { MOCK_ACCOUNT, MOCK_CAMPAIGNS, MOCK_METRICS } from "./mock-data";
+import { MOCK_ACCOUNT, MOCK_CAMPAIGNS, MOCK_METRICS, MOCK_SEARCH_TERMS } from "./mock-data";
 import type {
   AdsAccount,
   Campaign,
@@ -189,6 +189,41 @@ export async function getSearchTerms(
   return rows.map((r) => ({
     term: r.searchTermView?.searchTerm ?? "",
     campaignName: r.campaign?.name ?? "",
+    clicks: Number(r.metrics?.clicks ?? 0),
+    cost: micros(r.metrics?.costMicros),
+    conversions: Number(r.metrics?.conversions ?? 0),
+  }));
+}
+
+export interface FullSearchTermRow {
+  campaignId: string;
+  campaignName: string;
+  term: string;
+  clicks: number;
+  cost: number;
+  conversions: number;
+}
+
+/** Tous les termes de recherche ayant reçu au moins 1 clic (Waste Detector). */
+export async function getAllSearchTerms(
+  ctx: AdsContext,
+  range: DateRange,
+): Promise<FullSearchTermRow[]> {
+  if (!isLive()) return MOCK_SEARCH_TERMS;
+  const { since, until } = normalizeRange(range);
+  const rows = await search(
+    ctx,
+    `SELECT campaign.id, campaign.name, search_term_view.search_term,
+            metrics.clicks, metrics.cost_micros, metrics.conversions
+     FROM search_term_view
+     WHERE segments.date BETWEEN '${since}' AND '${until}'
+       AND campaign.status != 'REMOVED'
+       AND metrics.clicks > 0`,
+  );
+  return rows.map((r) => ({
+    campaignId: String(r.campaign?.id ?? ""),
+    campaignName: r.campaign?.name ?? "",
+    term: r.searchTermView?.searchTerm ?? "",
     clicks: Number(r.metrics?.clicks ?? 0),
     cost: micros(r.metrics?.costMicros),
     conversions: Number(r.metrics?.conversions ?? 0),
@@ -519,6 +554,15 @@ interface GaqlRow {
     level?: string;
     status?: string;
   };
+}
+
+/** Ligne GAQL brute (champs en camelCase, tels que renvoyés par l'API REST). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type RawRow = Record<string, any>;
+
+/** Requête GAQL libre, pour les modules d'analyse (diagnostic). Live uniquement. */
+export async function searchRaw(ctx: AdsContext, query: string): Promise<RawRow[]> {
+  return (await search(ctx, query)) as unknown as RawRow[];
 }
 
 /** Exécute une requête GAQL (googleAds:search) avec pagination. */

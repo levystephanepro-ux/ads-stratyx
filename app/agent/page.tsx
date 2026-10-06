@@ -24,7 +24,7 @@ export default async function AgentPage() {
   const templateCategories = [...new Set(templates.map((t) => t.category).filter(Boolean))].sort();
 
   return (
-    <Shell active="agent" token={tok} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner}>
+    <Shell active="agent" token={tok} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}>
       <h1 className="page-title">🤖 Agent IA</h1>
       <p className="page-lede">
         Des agents qui exécutent des missions récurrentes tout seuls et t'envoient
