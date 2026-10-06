@@ -6,14 +6,6 @@ import { runAuditForOwner, latestAuditReports } from "@/lib/audit/run";
 import { applyFix, applyUndo, describeFix } from "@/lib/fixes/apply";
 import { listActions, logAction, getAction, markUndone, canUndo } from "@/lib/fixes/store";
 
-/** Relance le diagnostic à la demande (owner uniquement, 0 crédit IA). */
-export async function runAuditNow(): Promise<void> {
-  const ctx = await getDashboardContext();
-  if (!ctx.isOwner) return;
-  await runAuditForOwner();
-  revalidatePath("/waste");
-}
-
 const back = (form: FormData, msg: string) => {
   const q = new URLSearchParams();
   const account = String(form.get("customer_id") ?? ""); if (account) q.set("account", account);
@@ -22,6 +14,29 @@ const back = (form: FormData, msg: string) => {
   const to = String(form.get("back") ?? "") === "journal" ? "/waste/journal" : "/waste";
   return `${to}?${q}`;
 };
+
+/** Relance le diagnostic à la demande (owner uniquement, 0 crédit IA). */
+export async function runAuditNow(form: FormData): Promise<void> {
+  const ctx = await getDashboardContext();
+  if (!ctx.isOwner) return;
+  let msg: string;
+  try {
+    const { accounts } = await runAuditForOwner();
+    const ok = accounts.filter((a) => a.result);
+    const ko = accounts.filter((a) => a.error);
+    const heure = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+    msg = accounts.length === 0
+      ? "err:Aucun compte surveillé (voir Comptes liés)."
+      : ko.length
+        ? `err:Diagnostic relancé à ${heure}, mais ${ko.map((a) => `${a.name} : ${a.error}`).join(" · ")}`
+        : `ok:Diagnostic relancé à ${heure} : ${ok.map((a) => `${a.name} ${a.result!.healthScore}/100, ${a.result!.constats.length} constat(s)`).join(" · ")}`;
+  } catch (e) {
+    msg = `err:${e instanceof Error ? e.message : String(e)}`;
+  }
+  revalidatePath("/waste");
+  redirect(back(form, msg.slice(0, 400)));
+}
+
 
 /**
  * Applique la correction d'un constat. La correction est relue dans le dernier

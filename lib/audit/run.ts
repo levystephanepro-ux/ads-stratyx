@@ -20,6 +20,7 @@ export interface StoredAuditReport {
   customer_id: string;
   account_name: string | null;
   run_date: string;
+  created_at?: string;
   health_score: number;
   total_cost: number;
   conversions: number;
@@ -112,6 +113,7 @@ export async function runAuditForOwner(): Promise<{
             customer_id: acc.customerId,
             account_name: acc.name,
             run_date: new Date().toISOString().slice(0, 10),
+            created_at: new Date().toISOString(), // heure de la dernière lecture
             health_score: result.healthScore,
             total_cost: result.totalCost,
             conversions: result.conversions,
@@ -150,7 +152,7 @@ export async function latestAuditReports(): Promise<StoredAuditReport[]> {
   if (!supa) return [];
   const { data } = await supa
     .from("audit_reports")
-    .select("customer_id, account_name, run_date, health_score, total_cost, conversions, waste_proven, waste_watch, constats, skipped")
+    .select("customer_id, account_name, run_date, created_at, health_score, total_cost, conversions, waste_proven, waste_watch, constats, skipped")
     .is("workspace_id", null)
     .order("run_date", { ascending: false })
     .limit(200);

@@ -6,6 +6,7 @@ import Shell from "@/components/Shell";
 import { getDashboardContext } from "@/lib/workspace";
 import { listActions, canUndo, UNDO_DAYS, type ActionLog } from "@/lib/fixes/store";
 import { undoFixAction } from "../actions";
+import SubmitButton from "@/components/SubmitButton";
 
 export const dynamic = "force-dynamic";
 
@@ -55,7 +56,7 @@ export default async function JournalPage({ searchParams }: { searchParams: SP }
                 <form action={undoFixAction}>
                   <input type="hidden" name="action_id" value={a.id} />
                   <input type="hidden" name="back" value="journal" />
-                  <button type="submit" className="btn-ghost" style={{ padding: "6px 12px", fontSize: 13 }}>Annuler</button>
+                  <SubmitButton className="btn-ghost" pending="Annulation…" style={{ padding: "6px 12px", fontSize: 13 }}>Annuler</SubmitButton>
                 </form>
               )}
             </div>

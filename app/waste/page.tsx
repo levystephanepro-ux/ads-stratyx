@@ -8,6 +8,7 @@ import { getDashboardContext } from "@/lib/workspace";
 import { latestAuditReports } from "@/lib/audit/run";
 import { CATEGORY_LABELS, type AuditCategory, type Constat, type Severity } from "@/lib/audit/types";
 import { runAuditNow, applyFixAction, undoFixAction } from "./actions";
+import SubmitButton from "@/components/SubmitButton";
 import { describeFix } from "@/lib/fixes/apply";
 import { listActions, canUndo, UNDO_DAYS, type ActionLog } from "@/lib/fixes/store";
 
@@ -41,9 +42,10 @@ export default async function DiagnosticPage({ searchParams }: { searchParams: S
 
   const headerRight = (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-      <Link className="btn-ghost" href="/waste/journal">Journal des corrections</Link>
+      <Link className="btn-ghost" href="/waste/journal" style={{ padding: "11px 16px", borderRadius: 10, display: "inline-flex", alignItems: "center" }}>Journal des corrections</Link>
       <form action={runAuditNow}>
-        <button className="btn" type="submit">Relancer le diagnostic</button>
+        <input type="hidden" name="customer_id" value={report?.customer_id ?? ""} />
+        <SubmitButton className="btn" pending="Lecture du compte… (20 à 40 s)">Relancer le diagnostic</SubmitButton>
       </form>
     </div>
   );
@@ -132,7 +134,7 @@ function Report({
         <Kpi label="À confirmer" value={eur(report.waste_watch)} color="#f59e0b" />
         <Kpi label="Dépense 30 j" value={eur(report.total_cost)} sub={`${Math.round(Number(report.conversions))} conversion(s)`} />
         <div className="subtitle" style={{ margin: 0, marginLeft: "auto", fontSize: 12 }}>
-          {report.account_name} · lu le {new Date(report.run_date).toLocaleDateString("fr-FR")}
+          {report.account_name} · lu le {report.created_at ? new Date(report.created_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Paris" }) : new Date(report.run_date).toLocaleDateString("fr-FR")}
         </div>
       </div>
 
@@ -211,7 +213,7 @@ function Row({ c, customerId, cat, enabled, done }: { c: Constat; customerId: st
             <input type="hidden" name="customer_id" value={customerId} />
             <input type="hidden" name="cat" value={cat} />
             <span className="pill ok" style={{ fontSize: 12 }}>✓ Corrigé le {new Date(done.created_at).toLocaleDateString("fr-FR")}</span>
-            <button type="submit" className="btn-ghost" style={{ padding: "5px 10px", fontSize: 12 }}>Annuler</button>
+            <SubmitButton className="btn-ghost" pending="Annulation…" style={{ padding: "5px 10px", fontSize: 12 }}>Annuler</SubmitButton>
           </form>
         ) : c.fix && enabled ? (
           <details style={{ marginTop: 8 }}>
@@ -222,7 +224,7 @@ function Row({ c, customerId, cat, enabled, done }: { c: Constat; customerId: st
               <input type="hidden" name="cat" value={cat} />
               <div style={{ fontSize: 13 }}>{describeFix(c.fix)}</div>
               <div className="subtitle" style={{ margin: "4px 0 8px", fontSize: 12 }}>Appliqué tout de suite dans Google Ads, noté au journal, annulable {UNDO_DAYS} jours.</div>
-              <button type="submit" style={{ padding: "7px 12px", fontSize: 13 }}>Appliquer dans Google Ads</button>
+              <SubmitButton pending="Envoi à Google Ads…" style={{ padding: "7px 12px", fontSize: 13 }}>Appliquer dans Google Ads</SubmitButton>
             </form>
           </details>
         ) : null}
