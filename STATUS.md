@@ -53,7 +53,7 @@
 | 1b | Bibliothèque de scripts : 98/98 (lot 1 en ligne et testé sur D2B, lots 2-3 à tester) | ✅ codé |
 | 2 | Corrections en un clic (négatif, pause mot-clé, retrait d'un négatif bloquant) avec journal + annulation 30 j | ✅ codé, migration 0020 à lancer, à tester |
 | 3 | Dashboard période vs précédente, part d'impressions, budget du mois | ✅ codé, à tester |
-| 4 | Alertes : modèles (compte à l'arrêt, 404, dépense qui s'emballe) + règles perso | à faire |
+| 4 | Alertes : modèles (compte à l'arrêt, dépense qui s'emballe, plus de conversions, CPA en hausse, budget du mois, pages en erreur) + règles perso | ✅ codé, à tester |
 | 5a | Dossiers par client, rapport client (Hebdo/Mensuel/QBR/Annuel, lead gen/e-commerce, clair/sombre, 10 sections, aperçu, lien public /r/token, PDF via impression), compte rendu mensuel (change_event) | ✅ codé, migration 0019 à lancer, à tester |
 | 5b | Page « Comptes liés » (dépense 30 j, santé, surveillance on/off) + Change Impact (décomposition volume/prix/taux, effet de chaque modification avant/après) | ✅ codé, à tester |
 | 6 | Forecast + création de campagne en pause (rejoint la suite pré-campagne) | à faire |
@@ -74,6 +74,13 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 ---
 
 ## 📝 Journal de session
+
+### 2026-10-06 — Cowork (Phase 4 : alertes)
+- `lib/alerts/config.ts` : 6 modèles activables avec seuil + règles perso (indicateur, hier/7 j, >/<, seuil, filtre campagne), stockés en JSON dans app_settings (`alerts_config`), aucune migration.
+- `lib/alerts/run.ts` : `runAlertsForOwner()` sur les comptes surveillés, dernier résultat dans `alerts_last` ; pages vérifiées en GET (15 URL max, 8 s).
+- Cron /api/cron/waste : diagnostic + alertes en parallèle, email si diagnostic important OU alerte, alertes en tête.
+- Page `/alertes` (menu) : dernière vérification, modèles, règles, bouton « Vérifier maintenant ».
+- Tableau de bord : graphique en barres HTML pleine largeur, carte ROAS masquée si la valeur de conversion est négligeable.
 
 ### 2026-10-06 — Cowork (Phase 3 : tableau de bord)
 - `lib/dashboard.ts` (`buildDashboard`) : KPI période vs précédente (7 j, 30 j, ce mois, mois dernier), dépense par jour, part d'impressions Search pondérée (perdue budget / classement, par campagne), rythme du mois (dépensé, projection au rythme des 7 derniers jours, budget mensuel saisi ou plafond Google = budgets quotidiens × jours).

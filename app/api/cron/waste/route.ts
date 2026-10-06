@@ -1,8 +1,9 @@
-// Diagnostic quotidien (Vercel Cron, voir vercel.json).
+// Diagnostic et alertes du matin (Vercel Cron, voir vercel.json).
 // Aucun appel IA : 0 crédit consommé. Email seulement s'il y a quelque chose d'important.
 import { NextResponse } from "next/server";
 import { runAuditForOwner } from "@/lib/audit/run";
 import { sendAgentEmail } from "@/lib/agent/email";
+import { runAlertsForOwner, alertsMarkdown, type AlertsRun } from "@/lib/alerts/run";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -14,13 +15,18 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const r = await runAuditForOwner();
+  const empty: AlertsRun = { ranAt: new Date().toISOString(), accounts: [] };
+  const [r, alerts] = await Promise.all([runAuditForOwner(), runAlertsForOwner().catch(() => empty)]);
+  const nAlerts = alerts.accounts.reduce((n, a) => n + a.alerts.length, 0);
 
   let email = "rien d'important";
-  if (r.needsAttention) {
+  if (r.needsAttention || nAlerts > 0) {
     const worst = Math.min(...r.accounts.map((a) => a.result?.healthScore ?? 100));
+    const subject = nAlerts
+      ? `🚨 ${nAlerts} alerte(s) · diagnostic du matin, santé mini ${worst}/100`
+      : `☀️ Diagnostic du matin · santé mini ${worst}/100`;
     try {
-      await sendAgentEmail(`☀️ Diagnostic du matin · santé mini ${worst}/100`, r.markdown);
+      await sendAgentEmail(subject, [alertsMarkdown(alerts), r.markdown].filter(Boolean).join("\n\n"));
       email = "envoyé";
     } catch (e) {
       email = `non envoyé : ${e instanceof Error ? e.message : String(e)}`;
@@ -30,6 +36,7 @@ export async function GET(req: Request) {
   return NextResponse.json({
     ranAt: new Date().toISOString(),
     email,
+    alerts: alerts.accounts.map((a) => ({ name: a.name, alerts: a.alerts.map((x) => x.title), errors: a.errors })),
     accounts: r.accounts.map((a) => ({
       customerId: a.customerId,
       name: a.name,
