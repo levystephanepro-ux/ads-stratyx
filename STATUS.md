@@ -40,7 +40,7 @@
 - [2026-10-06] [cowork] Usage interne + **Diagnostic (phase 1)** : code écrit, typecheck OK, règles testées, **à déployer et tester**
   1. Lancer `supabase/migrations/0018_audit_reports.sql` dans le SQL Editor Supabase
      (ignorer `supabase/_obsolete/0018_waste_reports.sql`, version abandonnée, à supprimer)
-  2. Vercel : `STRATYX_INTERNAL_MODE=true`, `OWNER_MONTHLY_BUDGET_USD=5`, vérifier `CRON_SECRET`
+  2. Vercel : `STRATYX_INTERNAL_MODE=true`, `OWNER_MONTHLY_BUDGET_EUR=5`, vérifier `CRON_SECRET`
   3. Ouvrir /waste (menu « Diagnostic ») → « Relancer le diagnostic » (mock puis live)
   4. Comparer aux constats Ades sur D2B (conflits « la garde » et « fenetre bois sur mesure »,
      extension d'appel refusée, budget limité) puis `npm run types`
@@ -49,7 +49,8 @@
 
 | Phase | Contenu | État |
 |---|---|---|
-| 1 | Diagnostic 6 catégories + santé /100 + « Par où commencer » + email du matin | ✅ codé, à tester |
+| 1 | Diagnostic 6 catégories + santé /100 + « Par où commencer » + email du matin | ✅ en ligne, testé sur D2B (78/100) |
+| 1b | Bibliothèque de scripts (98 au total, rapports sans IA) : lot 1 = 31 scripts | ✅ codé, à tester |
 | 2 | Corrections en un clic (négatif, pause mot-clé) avec journal + annulation 30 j | à faire |
 | 3 | Dashboard période vs précédente, part d'impressions, budget du mois | à faire |
 | 4 | Alertes : modèles (compte à l'arrêt, 404, dépense qui s'emballe) + règles perso | à faire |
@@ -72,6 +73,13 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 ---
 
 ## 📝 Journal de session
+
+### 2026-10-06 — Cowork (Scripts, lot 1)
+- `lib/scripts/` : types, helpers, format (CSV ; Excel FR), registry, lot1-structure (12), lot1-performance (19)
+- Pages `/scripts` (catalogue, recherche, filtres) et `/scripts/[id]` (compte, 7/30/90 j, tableau, export CSV)
+- Les templates IA existants sont conservés : complémentaires (IA = commentaire, scripts = chiffres)
+- Diagnostic : seuil « à surveiller » des recherches abaissé à 0,5 × CPA (comptes à CPA élevé)
+- Reste : 67 scripts (CPC/CPA, annonces, audiences, PMax, Display/Shopping, rapports, liens cassés, analyse IA)
 
 ### 2026-10-06 — Cowork (Diagnostic phase 1)
 - Moteur `lib/audit/` : types, fetch (11 requêtes GAQL isolées, un échec n'arrête pas les autres),
@@ -96,7 +104,7 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 - Page `/waste` (owner uniquement) + bouton « Analyser maintenant » + entrée de menu « Gaspillage »
 - Table `waste_reports` (migration 0018, RLS sans policy = service_role uniquement)
 - Mode usage interne (`lib/internal.ts`) : `/register` et `/pricing` redirigés, non-owners sans IA
-- Plafond IA owner `OWNER_MONTHLY_BUDGET_USD` (défaut 5 $), appliqué aussi aux appels sans workspace
+- Plafond IA owner `OWNER_MONTHLY_BUDGET_EUR` (en €, converti en $ ; défaut 5 $), appliqué aussi aux appels sans workspace
   (token partagé, tâches globales du cron) via `getGlobalBilling()` — avant : illimité
 - Tarif Haiku 4.5 corrigé dans cost.ts (1 $ / 5 $ par M tokens), repli prudent au tarif Sonnet
 - Rien n'écrit dans Google Ads : les négatifs proposés s'appliquent à la main

@@ -29,6 +29,11 @@ const Ic = {
       <path d="M8.5 8.5v5M11.5 8.5v5"/>
     </svg>
   ),
+  scripts: (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 6 3 10l4 4M13 6l4 4-4 4"/>
+    </svg>
+  ),
   templates: (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
       <rect x="2" y="2" width="7" height="7" rx="1.5"/>
@@ -88,13 +93,14 @@ const Ic = {
   ),
 };
 
-type PageKey = "home" | "copilote" | "agent" | "waste" | "templates" | "connexions" | "persona" | "search-console" | "aide" | "admin";
+type PageKey = "home" | "copilote" | "agent" | "waste" | "scripts" | "templates" | "connexions" | "persona" | "search-console" | "aide" | "admin";
 
 const NAV: { key: PageKey; label: string; ic: keyof typeof Ic; href: string }[] = [
   { key: "home",       label: "Accueil",     ic: "home",       href: "/dashboard" },
   { key: "copilote",   label: "Copilote",    ic: "copilote",   href: "/copilote" },
   { key: "agent",      label: "Agent IA",    ic: "agent",      href: "/agent" },
   { key: "waste",      label: "Diagnostic",  ic: "waste",      href: "/waste" },
+  { key: "scripts",    label: "Scripts",     ic: "scripts",    href: "/scripts" },
   { key: "templates",  label: "Templates",   ic: "templates",  href: "/templates" },
   { key: "persona",         label: "Persona",          ic: "persona",    href: "/persona" },
   { key: "search-console", label: "Search Console",   ic: "gsc",        href: "/search-console" },

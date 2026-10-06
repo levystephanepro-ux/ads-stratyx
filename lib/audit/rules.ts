@@ -22,7 +22,8 @@ function accountStats(data: AuditData) {
 
 // ---------------------------------------------------------------- Recherches
 function searchTermRules(data: AuditData, cpaRef: number, alpha: number) {
-  const report = detectWaste(data.searchTerms, { targetCpa: cpaRef, alpha });
+  // 0,5 × CPA : sur un compte à CPA élevé (menuiserie, rénovation), 1,5 × CPA ne se déclenche jamais.
+  const report = detectWaste(data.searchTerms, { targetCpa: cpaRef, alpha, watchCpaMultiple: 0.5 });
   const constats: Constat[] = report.findings.map((f) => ({
     id: `recherche:${f.category}:${f.key.toLowerCase()}`,
     category: "recherches" as const,

@@ -66,7 +66,7 @@ export async function getWorkspaceBilling(
       reason: allowed
         ? null
         : `Plafond IA interne atteint (${usdToCredits(cap)} crédits ce mois). ` +
-          `Augmente OWNER_MONTHLY_BUDGET_USD sur Vercel si besoin.`,
+          `Augmente OWNER_MONTHLY_BUDGET_EUR sur Vercel si besoin.`,
     });
   }
 
@@ -132,7 +132,7 @@ export async function getGlobalBilling(): Promise<{ allowed: boolean; reason: st
     reason: allowed
       ? null
       : `Plafond IA interne atteint (${usdToCredits(cap)} crédits ce mois). ` +
-        `Augmente OWNER_MONTHLY_BUDGET_USD sur Vercel si besoin.`,
+        `Augmente OWNER_MONTHLY_BUDGET_EUR sur Vercel si besoin.`,
   };
 }
 
