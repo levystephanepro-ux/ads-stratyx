@@ -52,7 +52,7 @@
 | 1 | Diagnostic 6 catégories + santé /100 + « Par où commencer » + email du matin | ✅ en ligne, testé sur D2B (78/100) |
 | 1b | Bibliothèque de scripts : 98/98 (lot 1 en ligne et testé sur D2B, lots 2-3 à tester) | ✅ codé |
 | 2 | Corrections en un clic (négatif, pause mot-clé, retrait d'un négatif bloquant) avec journal + annulation 30 j | ✅ codé, migration 0020 à lancer, à tester |
-| 3 | Dashboard période vs précédente, part d'impressions, budget du mois | à faire |
+| 3 | Dashboard période vs précédente, part d'impressions, budget du mois | ✅ codé, à tester |
 | 4 | Alertes : modèles (compte à l'arrêt, 404, dépense qui s'emballe) + règles perso | à faire |
 | 5a | Dossiers par client, rapport client (Hebdo/Mensuel/QBR/Annuel, lead gen/e-commerce, clair/sombre, 10 sections, aperçu, lien public /r/token, PDF via impression), compte rendu mensuel (change_event) | ✅ codé, migration 0019 à lancer, à tester |
 | 5b | Page « Comptes liés » (dépense 30 j, santé, surveillance on/off) + Change Impact (décomposition volume/prix/taux, effet de chaque modification avant/après) | ✅ codé, à tester |
@@ -74,6 +74,12 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 ---
 
 ## 📝 Journal de session
+
+### 2026-10-06 — Cowork (Phase 3 : tableau de bord)
+- `lib/dashboard.ts` (`buildDashboard`) : KPI période vs précédente (7 j, 30 j, ce mois, mois dernier), dépense par jour, part d'impressions Search pondérée (perdue budget / classement, par campagne), rythme du mois (dépensé, projection au rythme des 7 derniers jours, budget mensuel saisi ou plafond Google = budgets quotidiens × jours).
+- Budget mensuel par compte : clé `monthly_budget:<id>` dans app_settings, formulaire sur l'accueil.
+- `components/DashboardPerf.tsx` sur /dashboard (owner, mode live). Section « Templates populaires » retirée (lien /templates supprimé).
+- Diagnostic : bouton qui montre le calcul en cours, bandeau de résultat, heure de lecture (created_at mis à jour à chaque relance).
 
 ### 2026-10-06 — Cowork (Phase 2 : corrections en un clic)
 - `Constat.fix` (lib/audit/types.ts) : add_negatives (recherches), pause_keyword (mots-clés sans conversion prouvés), remove_negative (négatif de campagne/groupe qui bloque un mot-clé ; jamais les listes partagées).
