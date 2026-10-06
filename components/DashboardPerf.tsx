@@ -41,19 +41,26 @@ function Card({ label, value, delta, hint }: { label: string; value: string; del
 
 function Bars({ daily }: { daily: Dashboard["daily"] }) {
   if (daily.length < 2) return null;
-  const W = 600, H = 90, max = Math.max(...daily.map((d) => d.cost), 1), bw = W / daily.length;
+  const max = Math.max(...daily.map((d) => d.cost), 1);
   return (
-    <svg viewBox={`0 0 ${W} ${H + 14}`} style={{ width: "100%", height: 110, display: "block" }} role="img" aria-label="Dépense et conversions par jour">
-      {daily.map((d, i) => {
-        const h = (d.cost / max) * H;
-        return (
-          <g key={d.date}>
-            <rect x={i * bw + 1} y={H - h} width={Math.max(1, bw - 2)} height={h} rx={2} fill="var(--accent)" opacity={0.55}><title>{`${frDate(d.date)} : ${eur(d.cost)}, ${n1(d.conv)} conv.`}</title></rect>
-            {d.conv > 0 && <circle cx={i * bw + bw / 2} cy={H + 8} r={Math.min(5, 2 + d.conv)} fill="var(--green)" />}
-          </g>
-        );
-      })}
-    </svg>
+    <div role="img" aria-label="Dépense et conversions par jour">
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 90 }}>
+        {daily.map((d) => (
+          <div key={d.date} title={`${frDate(d.date)} : ${eur(d.cost)}, ${n1(d.conv)} conv.`}
+            style={{ flex: 1, minWidth: 2, height: `${Math.max(2, (d.cost / max) * 100)}%`, background: "var(--accent)", opacity: 0.6, borderRadius: "3px 3px 0 0" }} />
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 3, height: 12, marginTop: 4 }}>
+        {daily.map((d) => (
+          <div key={d.date} style={{ flex: 1, minWidth: 2, display: "flex", justifyContent: "center" }}>
+            {d.conv > 0 && <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--green)" }} />}
+          </div>
+        ))}
+      </div>
+      <div className="subtitle" style={{ display: "flex", justifyContent: "space-between", margin: 0, fontSize: 11 }}>
+        <span>{frDate(daily[0].date)}</span><span>max {eur(max)}/jour</span><span>{frDate(daily[daily.length - 1].date)}</span>
+      </div>
+    </div>
   );
 }
 
@@ -70,7 +77,8 @@ export default function DashboardPerf({ d, account, accounts, period }: {
   const pctProj = ref ? Math.min(1, p.projection / ref) : 0;
   const pctTime = p.daysElapsed / p.daysInMonth;
   const ecart = p.target ? p.projection - p.target : null;
-  const ecom = d.now.value > 0;
+  // lead gen : Google met souvent 1 € par conversion par défaut ; ROAS affiché seulement si la valeur pèse
+  const ecom = d.now.value > 0 && d.now.value >= d.now.cost * 0.1;
 
   return (
     <section style={{ marginBottom: 26 }}>
