@@ -3,12 +3,12 @@
   "framework": "nextjs",
   "crons": [
     {
-      "path": "/api/cron/agent",
-      "schedule": "0 7 * * *"
-    },
-    {
       "path": "/api/cron/waste",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/weekly",
+      "schedule": "0 6 * * 1"
     }
   ]
 }

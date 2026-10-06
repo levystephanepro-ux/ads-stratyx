@@ -37,7 +37,7 @@ function db() {
   });
 }
 
-async function ownerAccounts(): Promise<{ customerId: string; name: string }[]> {
+export async function ownerAccounts(): Promise<{ customerId: string; name: string }[]> {
   if (!isLive()) return [{ customerId: MOCK_ACCOUNT.customerId, name: MOCK_ACCOUNT.descriptiveName }];
   if (!hasEnvAccount()) return [];
   const list = await listManagedAccounts(adsConfig.refreshToken);

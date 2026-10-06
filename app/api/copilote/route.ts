@@ -12,18 +12,20 @@ import { getSetting } from "@/lib/agent/store";
 import { isOwnerEmail } from "@/lib/owner";
 import { parseCampaignFilter, buildCampaignContext } from "@/lib/campaign-context";
 import { getDefaultAccountInfo } from "@/lib/google-ads/default-account";
+import { getAccountContext } from "@/lib/account-context";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const COPILOTE_SYSTEM = `Tu es le copilote Google Ads de l'utilisateur, intégré à l'app ads-stratyx.
+const COPILOTE_SYSTEM = `Tu es le copilote Google Ads de l'utilisateur, intégré à l'app Stratyx. Tu es en LECTURE SEULE.
 
-- Réponds à ses questions en interrogeant les outils pour obtenir les vrais chiffres. N'invente jamais de données.
+- Réponds en interrogeant les outils pour obtenir les vrais chiffres. N'invente jamais de données ; cite les chiffres que tu as lus.
 - Sois concis et concret. Utilise des tableaux markdown pour les chiffres.
 - Écris en français, ton direct et professionnel.
-- Tu peux MODIFIER les campagnes (pause/activation, budget), mais JAMAIS sans validation : explique d'abord précisément l'action que tu vas faire, demande une confirmation claire, et n'utilise confirm=true que quand l'utilisateur a répondu oui sans ambiguïté.
-- Si une demande est risquée ou ambiguë, pose une question plutôt que d'agir.`;
+- Tu ne modifies rien : tu proposes les actions (négatifs à ajouter, budgets à ajuster, annonces à réécrire) et l'utilisateur les applique lui-même.
+- Appuie-toi sur le contexte du compte ci-dessous (offre, zone, CPA cible, budget) pour juger ce qui est hors sujet ou hors zone.
+- Si une demande est ambiguë, pose une question plutôt que de supposer.`;
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -88,12 +90,13 @@ export async function POST(req: Request) {
     customerId ?? accountInfo?.customerId,
     parseCampaignFilter(filterRaw),
   );
-  const system = `${COPILOTE_SYSTEM}\n\n${campaignCtx}`;
+  const accountContext = await getAccountContext(customerId ?? accountInfo?.customerId, workspaceId);
+  const system = `${COPILOTE_SYSTEM}\n\n${campaignCtx}${accountContext ? `\n\nContexte du compte (fourni par l'utilisateur) :\n${accountContext}` : ""}`;
 
   try {
     const r = await runAgentLoop(
       history.map((m) => ({ role: m.role, content: m.content })),
-      { system, allowWrite: true, customerId },
+      { system, allowWrite: false, customerId },
     );
     await addMonthlyCost(r.usage.costUsd, "copilote", workspaceId);
     return NextResponse.json({

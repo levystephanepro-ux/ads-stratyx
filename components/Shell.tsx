@@ -98,10 +98,8 @@ type PageKey = "home" | "copilote" | "agent" | "waste" | "scripts" | "templates"
 const NAV: { key: PageKey; label: string; ic: keyof typeof Ic; href: string }[] = [
   { key: "home",       label: "Accueil",     ic: "home",       href: "/dashboard" },
   { key: "copilote",   label: "Copilote",    ic: "copilote",   href: "/copilote" },
-  { key: "agent",      label: "Agent IA",    ic: "agent",      href: "/agent" },
   { key: "waste",      label: "Diagnostic",  ic: "waste",      href: "/waste" },
   { key: "scripts",    label: "Scripts",     ic: "scripts",    href: "/scripts" },
-  { key: "templates",  label: "Templates",   ic: "templates",  href: "/templates" },
   { key: "persona",         label: "Persona",          ic: "persona",    href: "/persona" },
   { key: "search-console", label: "Search Console",   ic: "gsc",        href: "/search-console" },
   { key: "connexions",      label: "Connexions",       ic: "connexions", href: "/connexions" },
@@ -184,9 +182,9 @@ export default function Shell({
 
         <nav className="sidebar-nav">
           <div className="nav-group-label">Navigation</div>
-          {NAV.slice(0, 3).map(navLink)}
+          {NAV.slice(0, 2).map(navLink)}
           <div className="nav-group-label" style={{ marginTop: 18 }}>Outils</div>
-          {NAV.slice(3).map(navLink)}
+          {NAV.slice(2).map(navLink)}
           {showAdmin && (
             <>
               <div className="nav-group-label" style={{ marginTop: 18 }}>Gestion</div>

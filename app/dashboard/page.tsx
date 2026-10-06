@@ -63,15 +63,15 @@ export default async function Dashboard() {
             Ravi de te revoir. 👋
           </h1>
           <p className="subtitle" style={{ margin: "0 0 20px", fontSize: 15, maxWidth: 560 }}>
-            Pilote tes Google Ads : discute avec tes campagnes, lance des agents qui
-            bossent 24/7, ou pioche un prompt prêt à l'emploi.
+            Tes comptes relus chaque matin : le diagnostic dit par où commencer,
+            les scripts donnent les chiffres, le copilote répond à tes questions.
           </p>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <Link className="btn" href={`/copilote${q}&q=${encodeURIComponent(AUDIT_PROMPT)}`}>
               Lancer un audit avec Stratyx →
             </Link>
-            <Link className="btn btn-ghost" href={`/agent${q}`}>
-              Voir mes agents
+            <Link className="btn btn-ghost" href="/waste">
+              Ouvrir le diagnostic
             </Link>
           </div>
         </div>
@@ -93,13 +93,13 @@ export default async function Dashboard() {
             <div>
               <div style={{ fontWeight: 600, fontSize: 16 }}>Copilote</div>
               <div className="subtitle" style={{ fontSize: 13 }}>
-                Analyse, optimise, pilote par conversation.
+                Une question, une réponse lue dans tes données.
               </div>
             </div>
           </div>
         </Link>
         <Link
-          href={`/templates${q}`}
+          href="/waste"
           className="card interactive tpl-card"
           style={{
             color: "inherit",
@@ -108,26 +108,26 @@ export default async function Dashboard() {
           }}
         >
           <div className="tpl-head">
-            <div className="tpl-ic">📋</div>
+            <div className="tpl-ic">🩺</div>
             <div>
-              <div style={{ fontWeight: 600, fontSize: 16 }}>Templates</div>
+              <div style={{ fontWeight: 600, fontSize: 16 }}>Diagnostic</div>
               <div className="subtitle" style={{ fontSize: 13 }}>
-                40+ prompts prêts à l'emploi, modifiables.
+                Santé /100 et par où commencer, chaque matin.
               </div>
             </div>
           </div>
         </Link>
         <Link
-          href={`/agent${q}`}
+          href="/scripts"
           className="card interactive tpl-card"
           style={{ color: "inherit" }}
         >
           <div className="tpl-head">
-            <div className="tpl-ic">🤖</div>
+            <div className="tpl-ic">📑</div>
             <div>
-              <div style={{ fontWeight: 600, fontSize: 16 }}>Agent IA</div>
+              <div style={{ fontWeight: 600, fontSize: 16 }}>Scripts</div>
               <div className="subtitle" style={{ fontSize: 13 }}>
-                Des missions qui tournent toutes seules 24/7.
+                98 rapports chiffrés, sans crédit IA.
               </div>
             </div>
           </div>

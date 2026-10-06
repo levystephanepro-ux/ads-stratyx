@@ -54,7 +54,7 @@
 | 2 | Corrections en un clic (négatif, pause mot-clé) avec journal + annulation 30 j | à faire |
 | 3 | Dashboard période vs précédente, part d'impressions, budget du mois | à faire |
 | 4 | Alertes : modèles (compte à l'arrêt, 404, dépense qui s'emballe) + règles perso | à faire |
-| 5 | Journal des modifications (change_event) → Change Impact + compte rendu mensuel + rapport client | à faire |
+| 5 | Rapports clients façon Ades : page « Comptes liés » (dépense 30 j, surveillance on/off), dossiers par client, rapport client (modèles Hebdo/Mensuel/QBR/Annuel, lead gen/e-commerce, sections à cocher, aperçu, PDF ou lien), compte rendu mensuel (change_event), Change Impact | à faire |
 | 6 | Forecast + création de campagne en pause (rejoint la suite pré-campagne) | à faire |
 
 Différenciants Stratyx à garder : intentions métier artisans, niveau « à surveiller » pour petits comptes,
@@ -73,6 +73,15 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 ---
 
 ## 📝 Journal de session
+
+### 2026-10-06 — Cowork (Copilote simplifié façon Ades)
+- Copilote en LECTURE SEULE (allowWrite: false) + system prompt revu ; bibliothèque de 8 prompts en cartes,
+  exemples de questions, historique des conversations (localStorage, par compte), « Enrichir l'agent »
+  (contexte du compte : `lib/account-context.ts`, API `/api/copilote/context`, réglage `account_context:<customerId>`)
+- Menu : « Agent IA » et « Templates » masqués (routes et données conservées) ; accueil renvoie vers Diagnostic et Scripts
+- Missions quotidiennes coupées : cron `/api/cron/agent` retiré de vercel.json
+- Rapport du lundi : `lib/weekly.ts` + cron `/api/cron/weekly` (lundi 6 h UTC), l'IA rédige à partir des scripts
+  « Le point de la période » et « Match des campagnes » + priorités du diagnostic (~1 crédit/compte)
 
 ### 2026-10-06 — Cowork (Scripts, lots 2 et 3 : 98/98)
 - lot2.ts (34) : CPC/CPA, mots-clés, recherches, rapports, enchères ; lot3.ts (33) : annonces, conversions,

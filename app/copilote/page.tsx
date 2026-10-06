@@ -26,10 +26,9 @@ export default async function CopilotePage({
 
   return (
     <Shell active="copilote" token={tok} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}>
-      <h1 className="page-title">💬 Copilote</h1>
+      <h1 className="page-title">Copilote</h1>
       <p className="page-lede">
-        Discute avec tes campagnes en langage naturel. Le copilote interroge ton
-        compte en direct et peut proposer des actions (avec ta confirmation).
+        Une question en français : la réponse est lue dans ton compte Google Ads, en direct. Lecture seule.
       </p>
 
       {anthropicMissing ? (
@@ -48,6 +47,7 @@ export default async function CopilotePage({
           token={tok}
           initialQuestion={q ?? ""}
           accountName={accountInfo?.name}
+          customerId={accountInfo?.customerId}
         />
       )}
     </Shell>

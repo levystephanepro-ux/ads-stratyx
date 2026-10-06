@@ -596,3 +596,8 @@ select { cursor: pointer; }
     padding: 20px 16px 80px;
   }
 }
+
+/* Copilote : historique à gauche, chat à droite ; empilé sur mobile */
+@media (max-width: 760px) {
+  .copilote-layout { grid-template-columns: 1fr !important; }
+}
