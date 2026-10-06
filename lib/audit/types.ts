@@ -1,5 +1,6 @@
 // Types du moteur de diagnostic. Tout est calculé sans IA (0 crédit) à partir
-// des données lues via l'API Google Ads. Rien n'est jamais modifié dans le compte.
+// des données lues via l'API Google Ads. Le diagnostic ne modifie rien : une
+// correction (fix) n'est appliquée que sur clic, journalisée et annulable 30 jours.
 
 export type AuditCategory =
   | "recherches"
@@ -35,7 +36,17 @@ export interface Constat {
   action: string;
   /** Texte prêt à coller dans Google Ads (négatifs, etc.), facultatif. */
   paste?: string;
+  /** Correction applicable en un clic (absente si risquée ou impossible). */
+  fix?: Fix;
 }
+
+export type MatchType = "EXACT" | "PHRASE" | "BROAD";
+
+/** Corrections en un clic. Chacune a son annulation (voir lib/fixes/apply.ts). */
+export type Fix =
+  | { type: "add_negatives"; campaigns: { id: string; name: string }[]; negatives: { text: string; matchType: MatchType }[] }
+  | { type: "pause_keyword"; adGroupId: string; criterionId: string; label: string; campaign: string; adGroup: string }
+  | { type: "remove_negative"; resourceName: string; level: "campaign" | "ad_group"; parentId: string; text: string; matchType: string; where: string };
 
 export interface AuditResult {
   healthScore: number;
@@ -58,6 +69,8 @@ export interface AuditData {
     campaignId: string;
     adGroup: string;
     adGroupId: string;
+    /** Identifiant du critère (pour la mise en pause en un clic). */
+    criterionId?: string;
     text: string;
     matchType: "EXACT" | "PHRASE" | "BROAD" | string;
     qualityScore: number | null;
@@ -73,6 +86,8 @@ export interface AuditData {
     campaign: string;
     adGroupId?: string;
     sharedSet?: string;
+    /** resource_name du critère (négatifs de campagne et de groupe). */
+    resourceName?: string;
     text: string;
     matchType: "EXACT" | "PHRASE" | "BROAD" | string;
   }[];

@@ -41,7 +41,7 @@ export async function fetchAuditData(
     await Promise.all([
       q("Termes de recherche", () => getAllSearchTerms(ctx, { since, until }), []),
       q("Mots-clés", () => searchRaw(ctx, `
-        SELECT campaign.id, campaign.name, ad_group.id, ad_group.name,
+        SELECT campaign.id, campaign.name, ad_group.id, ad_group.name, ad_group_criterion.criterion_id,
                ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type,
                ad_group_criterion.quality_info.quality_score
         FROM ad_group_criterion
@@ -54,12 +54,12 @@ export async function fetchAuditData(
         FROM keyword_view
         WHERE ${during} AND campaign.status = 'ENABLED' AND ad_group_criterion.status = 'ENABLED'`), [] as RawRow[]),
       q("Négatifs de campagne", () => searchRaw(ctx, `
-        SELECT campaign.id, campaign.name, campaign_criterion.keyword.text, campaign_criterion.keyword.match_type
+        SELECT campaign.id, campaign.name, campaign_criterion.resource_name, campaign_criterion.keyword.text, campaign_criterion.keyword.match_type
         FROM campaign_criterion
         WHERE campaign_criterion.type = 'KEYWORD' AND campaign_criterion.negative = TRUE
           AND campaign.status = 'ENABLED'`), [] as RawRow[]),
       q("Négatifs de groupe", () => searchRaw(ctx, `
-        SELECT campaign.id, campaign.name, ad_group.id, ad_group_criterion.keyword.text,
+        SELECT campaign.id, campaign.name, ad_group.id, ad_group_criterion.resource_name, ad_group_criterion.keyword.text,
                ad_group_criterion.keyword.match_type
         FROM ad_group_criterion
         WHERE ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.negative = TRUE
@@ -125,6 +125,7 @@ export async function fetchAuditData(
       campaignId: String(r.campaign?.id ?? ""),
       adGroup: r.adGroup?.name ?? "",
       adGroupId: String(r.adGroup?.id ?? ""),
+      criterionId: r.adGroupCriterion?.criterionId ? String(r.adGroupCriterion.criterionId) : undefined,
       text,
       matchType,
       qualityScore: qs === undefined || qs === null ? null : Number(qs),
@@ -148,6 +149,7 @@ export async function fetchAuditData(
       level: "campaign" as const,
       campaignId: String(r.campaign?.id ?? ""),
       campaign: r.campaign?.name ?? "",
+      resourceName: r.campaignCriterion?.resourceName,
       text: r.campaignCriterion?.keyword?.text ?? "",
       matchType: r.campaignCriterion?.keyword?.matchType ?? "BROAD",
     })),
@@ -156,6 +158,7 @@ export async function fetchAuditData(
       campaignId: String(r.campaign?.id ?? ""),
       campaign: r.campaign?.name ?? "",
       adGroupId: String(r.adGroup?.id ?? ""),
+      resourceName: r.adGroupCriterion?.resourceName,
       text: r.adGroupCriterion?.keyword?.text ?? "",
       matchType: r.adGroupCriterion?.keyword?.matchType ?? "BROAD",
     })),

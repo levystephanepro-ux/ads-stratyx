@@ -1,7 +1,7 @@
 // Règles du diagnostic : fonctions pures, testables, sans IA.
 import { detectWaste, formatNegatives, pZeroConversions } from "@/lib/waste/detect";
-import { negativeConflicts } from "./negatives";
-import type { AuditCategory, AuditData, AuditResult, Constat, Severity } from "./types";
+import { negativeConflicts, negativeBlocks } from "./negatives";
+import type { AuditCategory, AuditData, AuditResult, Constat, Fix, Severity } from "./types";
 
 export interface AuditOptions {
   /** CPA cible (€). Sinon CPA moyen du compte. */
@@ -24,6 +24,19 @@ function accountStats(data: AuditData) {
 function searchTermRules(data: AuditData, cpaRef: number, alpha: number) {
   // 0,5 × CPA : sur un compte à CPA élevé (menuiserie, rénovation), 1,5 × CPA ne se déclenche jamais.
   const report = detectWaste(data.searchTerms, { targetCpa: cpaRef, alpha, watchCpaMultiple: 0.5 });
+  // nom (ou id) de campagne → id, pour appliquer les négatifs au bon endroit
+  const campId = new Map<string, string>();
+  data.searchTerms.forEach((t) => { campId.set(t.campaignName || t.campaignId, t.campaignId); });
+  const negFix = (f: (typeof report.findings)[number]): Fix | undefined => {
+    if (!f.negatives.length) return undefined;
+    const campaigns = f.campaigns.map((n) => ({ id: campId.get(n) ?? "", name: n })).filter((c) => /^\d+$/.test(c.id));
+    if (!campaigns.length) return undefined;
+    // Sécurité : jamais de négatif qui bloquerait un mot-clé actif de ces campagnes.
+    const ids = new Set(campaigns.map((c) => c.id));
+    const blocks = f.negatives.some((n) =>
+      data.keywords.some((k) => ids.has(k.campaignId) && negativeBlocks(n.text, n.matchType, k.text)));
+    return blocks ? undefined : { type: "add_negatives", campaigns, negatives: f.negatives };
+  };
   const constats: Constat[] = report.findings.map((f) => ({
     id: `recherche:${f.category}:${f.key.toLowerCase()}`,
     category: "recherches" as const,
@@ -40,6 +53,7 @@ function searchTermRules(data: AuditData, cpaRef: number, alpha: number) {
         ? "Ajoute le négatif proposé."
         : "Trop tôt pour conclure : surveille, ou exclus si l'intention est clairement hors cible.",
     paste: formatNegatives(f.negatives),
+    fix: negFix(f),
   }));
   return { constats, proven: report.wasteProven, watch: report.wasteWatch };
 }
@@ -61,6 +75,9 @@ function keywordRules(data: AuditData, cvr: number, cpaRef: number, alpha: numbe
           campaign: k.campaign,
           amount: k.cost,
           action: "Mets-le en pause ou resserre la correspondance, puis vérifie les recherches qu'il déclenche.",
+          fix: k.criterionId
+            ? { type: "pause_keyword", adGroupId: k.adGroupId, criterionId: k.criterionId, label, campaign: k.campaign, adGroup: k.adGroup }
+            : undefined,
         });
       } else if (k.cost >= cpaRef * 0.5) {
         out.push({

@@ -455,12 +455,22 @@ export async function updateCampaignBudget(
   ]);
 }
 
+/** Mutate générique (corrections en un clic) : renvoie les resource_name créés ou modifiés. */
+export async function mutateRaw(
+  ctx: AdsContext,
+  resource: "campaignCriteria" | "adGroupCriteria",
+  operations: unknown[],
+): Promise<string[]> {
+  const j = await mutate(ctx, resource, operations);
+  return ((j?.results ?? []) as { resourceName?: string }[]).map((r) => r.resourceName ?? "");
+}
+
 /** POST bas niveau vers un endpoint :mutate. */
 async function mutate(
   ctx: AdsContext,
   resource: string,
   operations: unknown[],
-): Promise<void> {
+): Promise<{ results?: unknown[] }> {
   assertLiveConfig();
   const refresh = ctx.refreshToken ?? adsConfig.refreshToken;
   if (!refresh) throw new Error("Aucun refresh_token pour cette écriture.");
@@ -478,6 +488,7 @@ async function mutate(
   );
   const j = await res.json();
   if (!res.ok) throw new Error(gaError(j));
+  return j;
 }
 
 // ---------------------------------------------------------------------------

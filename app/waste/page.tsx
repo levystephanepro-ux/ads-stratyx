@@ -1,12 +1,15 @@
 // Diagnostic : santé du compte /100 et constats classés par priorité.
-// Calcul sans IA (0 crédit), lecture seule : rien n'est modifié dans Google Ads.
+// Calcul sans IA (0 crédit). Rien n'est modifié dans Google Ads sans clic :
+// les corrections en un clic sont journalisées et annulables 30 jours.
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import Shell from "@/components/Shell";
 import { getDashboardContext } from "@/lib/workspace";
 import { latestAuditReports } from "@/lib/audit/run";
 import { CATEGORY_LABELS, type AuditCategory, type Constat, type Severity } from "@/lib/audit/types";
-import { runAuditNow } from "./actions";
+import { runAuditNow, applyFixAction, undoFixAction } from "./actions";
+import { describeFix } from "@/lib/fixes/apply";
+import { listActions, canUndo, UNDO_DAYS, type ActionLog } from "@/lib/fixes/store";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -19,7 +22,7 @@ const SEV: Record<Severity, { label: string; color: string }> = {
 };
 const scoreColor = (s: number) => (s >= 80 ? "var(--green)" : s >= 60 ? "#f59e0b" : "var(--red)");
 
-type SP = Promise<{ account?: string; cat?: string }>;
+type SP = Promise<{ account?: string; cat?: string; msg?: string }>;
 
 export default async function DiagnosticPage({ searchParams }: { searchParams: SP }) {
   const ctx = await getDashboardContext();
@@ -30,11 +33,21 @@ export default async function DiagnosticPage({ searchParams }: { searchParams: S
   const report = reports.find((r) => r.customer_id === sp.account) ?? reports[0] ?? null;
   const cat = (sp.cat && sp.cat in CATEGORY_LABELS ? sp.cat : "tout") as AuditCategory | "tout";
 
+  let actions: ActionLog[] = []; let logError: string | null = null;
+  if (report) {
+    try { actions = await listActions(report.customer_id, 300); }
+    catch (e) { logError = e instanceof Error ? e.message : String(e); }
+  }
+
   const headerRight = (
-    <form action={runAuditNow}>
-      <button className="btn" type="submit">Relancer le diagnostic</button>
-    </form>
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <Link className="btn-ghost" href="/waste/journal">Journal des corrections</Link>
+      <form action={runAuditNow}>
+        <button className="btn" type="submit">Relancer le diagnostic</button>
+      </form>
+    </div>
   );
+  const msg = sp.msg ? { ok: sp.msg.startsWith("ok:"), text: sp.msg.replace(/^(ok|err):/, "") } : null;
 
   const href = (account: string, c: string) =>
     `/waste?account=${encodeURIComponent(account)}${c !== "tout" ? `&cat=${c}` : ""}`;
@@ -43,8 +56,19 @@ export default async function DiagnosticPage({ searchParams }: { searchParams: S
     <Shell active="waste" token={ctx.mcpToken} headerRight={headerRight} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}>
       <h1 style={{ margin: "0 0 6px" }}>Diagnostic</h1>
       <p className="subtitle" style={{ marginTop: 0 }}>
-        Tes comptes relus chaque matin. Calcul sans IA, aucun crédit consommé, rien n&apos;est modifié dans Google Ads.
+        Tes comptes relus chaque matin. Calcul sans IA, aucun crédit consommé. Rien n&apos;est modifié dans Google Ads sans ton clic,
+        et chaque correction s&apos;annule pendant {UNDO_DAYS} jours.
       </p>
+      {msg && (
+        <div className="card" style={{ borderColor: msg.ok ? "var(--green)" : "var(--red)", margin: "10px 0" }}>
+          {msg.ok ? "✓ " : ""}{msg.text}
+        </div>
+      )}
+      {logError && (
+        <div className="card" style={{ borderColor: "#f59e0b", margin: "10px 0", fontSize: 13 }}>
+          Corrections en un clic indisponibles : lance la migration 0020_action_log.sql dans Supabase. ({logError.slice(0, 120)})
+        </div>
+      )}
 
       {!report ? (
         <div className="card" style={{ marginTop: 18 }}>
@@ -52,7 +76,7 @@ export default async function DiagnosticPage({ searchParams }: { searchParams: S
           {ctx.mode === "mock" && " (Mode démo : données factices.)"}
         </div>
       ) : (
-        <Report report={report} reports={reports} cat={cat} href={href} />
+        <Report report={report} reports={reports} cat={cat} href={href} actions={logError ? null : actions} />
       )}
     </Shell>
   );
@@ -63,7 +87,9 @@ function Report({
   reports,
   cat,
   href,
+  actions,
 }: {
+  actions: ActionLog[] | null;
   report: Awaited<ReturnType<typeof latestAuditReports>>[number];
   reports: Awaited<ReturnType<typeof latestAuditReports>>;
   cat: AuditCategory | "tout";
@@ -137,7 +163,10 @@ function Report({
         {shown.length === 0 ? (
           <p className="subtitle" style={{ margin: 0, padding: 16 }}>Rien à signaler ici.</p>
         ) : (
-          shown.map((c) => <Row key={c.id} c={c} />)
+          shown.map((c) => (
+            <Row key={c.id} c={c} customerId={report.customer_id} cat={cat}
+              enabled={actions !== null} done={actions?.find((a) => a.constat_id === c.id && canUndo(a)) ?? null} />
+          ))
         )}
       </div>
 
@@ -160,7 +189,7 @@ function Kpi({ label, value, color, sub }: { label: string; value: string; color
   );
 }
 
-function Row({ c }: { c: Constat }) {
+function Row({ c, customerId, cat, enabled, done }: { c: Constat; customerId: string; cat: string; enabled: boolean; done: ActionLog | null }) {
   const sev = SEV[c.severity];
   return (
     <div style={{ display: "flex", gap: 14, padding: "14px 16px", borderTop: "1px solid var(--border)", alignItems: "flex-start" }}>
@@ -176,6 +205,27 @@ function Row({ c }: { c: Constat }) {
             {c.paste}
           </code>
         )}
+        {done ? (
+          <form action={undoFixAction} style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 8, flexWrap: "wrap" }}>
+            <input type="hidden" name="action_id" value={done.id} />
+            <input type="hidden" name="customer_id" value={customerId} />
+            <input type="hidden" name="cat" value={cat} />
+            <span className="pill ok" style={{ fontSize: 12 }}>✓ Corrigé le {new Date(done.created_at).toLocaleDateString("fr-FR")}</span>
+            <button type="submit" className="btn-ghost" style={{ padding: "5px 10px", fontSize: 12 }}>Annuler</button>
+          </form>
+        ) : c.fix && enabled ? (
+          <details style={{ marginTop: 8 }}>
+            <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--accent)" }}>Corriger en un clic</summary>
+            <form action={applyFixAction} style={{ marginTop: 8, padding: 10, borderRadius: 8, background: "var(--surface-2)" }}>
+              <input type="hidden" name="customer_id" value={customerId} />
+              <input type="hidden" name="constat_id" value={c.id} />
+              <input type="hidden" name="cat" value={cat} />
+              <div style={{ fontSize: 13 }}>{describeFix(c.fix)}</div>
+              <div className="subtitle" style={{ margin: "4px 0 8px", fontSize: 12 }}>Appliqué tout de suite dans Google Ads, noté au journal, annulable {UNDO_DAYS} jours.</div>
+              <button type="submit" style={{ padding: "7px 12px", fontSize: 13 }}>Appliquer dans Google Ads</button>
+            </form>
+          </details>
+        ) : null}
       </div>
       <div style={{ textAlign: "right", flexShrink: 0 }}>
         <div style={{ fontSize: 12, color: sev.color, fontWeight: 600 }}>{sev.label}</div>

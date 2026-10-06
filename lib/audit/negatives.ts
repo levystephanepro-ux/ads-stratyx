@@ -62,6 +62,18 @@ export function negativeConflicts(data: AuditData): Constat[] {
           `dans « ${kw.adGroup} ». ${kw.impressions} impression(s) en 30 jours.`,
         campaign: kw.campaign,
         amount: null,
+        fix:
+          neg.level !== "shared" && neg.resourceName
+            ? {
+                type: "remove_negative",
+                resourceName: neg.resourceName,
+                level: neg.level,
+                parentId: neg.level === "ad_group" ? (neg.adGroupId ?? "") : neg.campaignId,
+                text: neg.text,
+                matchType: neg.matchType,
+                where: neg.level === "ad_group" ? `du groupe « ${kw.adGroup} »` : `de la campagne « ${kw.campaign} »`,
+              }
+            : undefined,
         action: same
           ? "Garde l'un des deux : retire le négatif si ce mot-clé doit diffuser, sinon mets le mot-clé en pause."
           : "Retire ou resserre ce négatif (en exact par exemple) pour laisser diffuser le mot-clé.",

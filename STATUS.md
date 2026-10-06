@@ -51,7 +51,7 @@
 |---|---|---|
 | 1 | Diagnostic 6 catégories + santé /100 + « Par où commencer » + email du matin | ✅ en ligne, testé sur D2B (78/100) |
 | 1b | Bibliothèque de scripts : 98/98 (lot 1 en ligne et testé sur D2B, lots 2-3 à tester) | ✅ codé |
-| 2 | Corrections en un clic (négatif, pause mot-clé) avec journal + annulation 30 j | à faire |
+| 2 | Corrections en un clic (négatif, pause mot-clé, retrait d'un négatif bloquant) avec journal + annulation 30 j | ✅ codé, migration 0020 à lancer, à tester |
 | 3 | Dashboard période vs précédente, part d'impressions, budget du mois | à faire |
 | 4 | Alertes : modèles (compte à l'arrêt, 404, dépense qui s'emballe) + règles perso | à faire |
 | 5a | Dossiers par client, rapport client (Hebdo/Mensuel/QBR/Annuel, lead gen/e-commerce, clair/sombre, 10 sections, aperçu, lien public /r/token, PDF via impression), compte rendu mensuel (change_event) | ✅ codé, migration 0019 à lancer, à tester |
@@ -74,6 +74,13 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 ---
 
 ## 📝 Journal de session
+
+### 2026-10-06 — Cowork (Phase 2 : corrections en un clic)
+- `Constat.fix` (lib/audit/types.ts) : add_negatives (recherches), pause_keyword (mots-clés sans conversion prouvés), remove_negative (négatif de campagne/groupe qui bloque un mot-clé ; jamais les listes partagées).
+- Sécurité : un négatif proposé n'est jamais applicable s'il bloquerait un mot-clé actif ; la correction est relue dans le dernier diagnostic enregistré, pas dans le formulaire ; owner uniquement ; double application refusée.
+- `lib/fixes/apply.ts` (mutate campaignCriteria/adGroupCriteria + annulation), `lib/fixes/store.ts`, migration `0020_action_log.sql`.
+- UI : « Corriger en un clic » sous chaque constat du Diagnostic, « Corrigé le … · Annuler », page `/waste/journal`.
+- fetch.ts lit désormais criterion_id et resource_name : relancer le diagnostic pour voir les boutons.
 
 ### 2026-10-06 — Cowork (Phase 5b : Comptes liés + Change Impact)
 - `/comptes` : tous les comptes du MCC, dépense et conversions 30 j, dernière dépense, note santé, bouton surveillance (clé `monitoring:<id>` dans app_settings, activée par défaut).
