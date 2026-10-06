@@ -13,7 +13,7 @@ import { suggestGeo, keywordIdeas, accountCvr, forecast, COUNTRIES, LANGUAGES, t
 import { createCampaignAction, proposeStructureAction } from "./actions";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 180; // structure IA (Opus) : jusqu'à ~90 s ; Fluid compute (Hobby : 300 s max)
 
 type SP = Promise<{
   account?: string; mots?: string; url?: string; lieux?: string; budget?: string; k?: string | string[];

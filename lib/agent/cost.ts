@@ -6,6 +6,9 @@ const PRICING: Record<string, { input: number; output: number }> = {
   "claude-sonnet-4-6":         { input: 3.00, output: 15.00 },
   "claude-sonnet-4-5":         { input: 3.00, output: 15.00 },
   "claude-sonnet-5-5":         { input: 3.00, output: 15.00 },
+  // Opus : tarif volontairement prudent (surestimé) pour protéger le plafond, à ajuster
+  "claude-opus-5-5":           { input: 15.00, output: 75.00 },
+  "claude-opus-4-6":           { input: 15.00, output: 75.00 },
 };
 
 const FALLBACK = { input: 3.00, output: 15.00 }; // prudent : tarif Sonnet

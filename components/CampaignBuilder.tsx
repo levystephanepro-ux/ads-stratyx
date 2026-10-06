@@ -3,10 +3,10 @@
 // proposition par l'IA, vérification et création EN PAUSE dans Google Ads.
 import { useState, useTransition } from "react";
 import type { AdGroupSpec, CampaignSpec } from "@/lib/planner/create";
-import type { Structure, StructureInput } from "@/lib/planner/ai";
+import type { BuilderTier, Structure, StructureInput } from "@/lib/planner/ai";
 import type { ActionResult } from "@/app/previsions/actions";
 
-type Propose = (input: Omit<StructureInput, "accountContext"> & { customerId: string }) => Promise<{ ok: boolean; message: string; structure?: Structure }>;
+type Propose = (input: Omit<StructureInput, "accountContext"> & { customerId: string; tier?: BuilderTier }) => Promise<{ ok: boolean; message: string; structure?: Structure }>;
 type Create = (customerId: string, accountName: string, spec: CampaignSpec, mode: "check" | "create") => Promise<ActionResult>;
 
 const lab = { display: "block", fontSize: 12, color: "var(--muted)", margin: "10px 0 4px" } as const;
@@ -40,6 +40,7 @@ export default function CampaignBuilder({ customerId, accountName, languageId, g
   const [groups, setGroups] = useState<GroupDraft[]>([toDraft(initial.group)]);
   const [negatives, setNegatives] = useState("");
   const [notes, setNotes] = useState("");
+  const [tier, setTier] = useState<BuilderTier>("sonnet");
   const [msg, setMsg] = useState<{ ok: boolean; lines: string[] } | null>(null);
   const [created, setCreated] = useState(false);
   const [busy, setBusy] = useState<"" | "ia" | "check" | "create">("");
@@ -57,7 +58,7 @@ export default function CampaignBuilder({ customerId, accountName, languageId, g
   const runIA = () => {
     setBusy("ia"); setMsg(null);
     start(async () => {
-      const r = await propose({ ...aiInput, url: url || aiInput.url, customerId });
+      const r = await propose({ ...aiInput, url: url || aiInput.url, customerId, tier });
       if (r.ok && r.structure) {
         setGroups(r.structure.groups.map(toDraft));
         setNegatives(r.structure.negatives.join("\n"));
@@ -85,9 +86,15 @@ export default function CampaignBuilder({ customerId, accountName, languageId, g
           <strong>Construire la campagne</strong>
           <p className="subtitle" style={{ margin: "2px 0 0", fontSize: 13 }}>Créée EN PAUSE : rien ne diffuse avant que tu l&apos;actives dans Google Ads.</p>
         </div>
-        <button type="button" onClick={runIA} disabled={!!busy} style={{ whiteSpace: "nowrap" }}>
-          {busy === "ia" ? "L'IA prépare la structure… (20 à 60 s)" : "✦ Proposer la structure avec l'IA"}
-        </button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <select value={tier} onChange={(e) => setTier(e.target.value as BuilderTier)} disabled={!!busy} style={{ ...sel, width: "auto" }} title="Modèle d'IA">
+            <option value="sonnet">Sonnet (recommandé, ~0,07 €)</option>
+            <option value="opus">Opus (plus fin, ~0,35 €)</option>
+          </select>
+          <button type="button" onClick={runIA} disabled={!!busy} style={{ whiteSpace: "nowrap" }}>
+            {busy === "ia" ? "L'IA prépare la structure… (20 à 90 s)" : "✦ Proposer la structure avec l'IA"}
+          </button>
+        </div>
       </div>
       {notes && <p style={{ fontSize: 13, margin: "10px 0 0", padding: "8px 12px", borderRadius: 8, background: "var(--surface-2)" }}>{notes}</p>}
 

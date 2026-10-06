@@ -27,8 +27,13 @@ export interface Structure {
   notes: string;
 }
 
-const MODEL = process.env.BUILDER_MODEL ?? "claude-sonnet-4-6";
-const FALLBACK_MODEL = "claude-haiku-4-5-20251001";
+// Toujours Sonnet ou Opus (jamais Haiku) : la rédaction des annonces compte.
+// Chaque niveau a une liste de repli si la clé n'a pas accès au modèle le plus récent.
+export type BuilderTier = "sonnet" | "opus";
+const CHAINS: Record<BuilderTier, string[]> = {
+  sonnet: [process.env.BUILDER_MODEL ?? "claude-sonnet-5-5", "claude-sonnet-4-6"],
+  opus: [process.env.BUILDER_MODEL_OPUS ?? "claude-opus-5-5", "claude-opus-4-6", "claude-sonnet-5-5"],
+};
 
 function prompt(i: StructureInput): string {
   const kw = i.ideas.map((x) => `${x.selected ? "*" : " "} ${x.text} | ${x.searches} rech./mois | CPC ${x.cpcLow ?? "?"}-${x.cpcHigh ?? "?"} €`).join("\n");
@@ -80,16 +85,20 @@ export function sanitize(raw: unknown): Structure {
   return { campaignName: clean(r.campaignName).slice(0, 120), groups, negatives, notes: clean(r.notes).slice(0, 600) };
 }
 
-export async function proposeStructure(input: StructureInput): Promise<{ structure: Structure; costUsd: number; model: string }> {
+export async function proposeStructure(input: StructureInput, tier: BuilderTier = "sonnet"): Promise<{ structure: Structure; costUsd: number; model: string }> {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  const call = (model: string) => client.messages.create({ model, max_tokens: 6000, messages: [{ role: "user", content: prompt(input) }] });
-  let model = MODEL;
-  let res;
-  try { res = await call(model); }
-  catch (e) {
-    // modèle indisponible sur la clé : repli sur Haiku
-    if (/model|not_found|404/i.test(String(e))) { model = FALLBACK_MODEL; res = await call(model); } else throw e;
+  const call = (model: string) => client.messages.create({ model, max_tokens: 8000, messages: [{ role: "user", content: prompt(input) }] });
+  let model = "";
+  let res: Awaited<ReturnType<typeof call>> | null = null;
+  let lastErr: unknown = null;
+  for (const m of [...new Set(CHAINS[tier])]) {
+    try { model = m; res = await call(m); break; }
+    catch (e) {
+      lastErr = e;
+      if (!/model|not_found|404/i.test(String(e))) throw e; // autre erreur : on ne change pas de modèle
+    }
   }
+  if (!res) throw new Error(`Aucun modèle ${tier} disponible sur la clé API : ${String(lastErr).slice(0, 200)}`);
   const usage = calcCost(model, res.usage.input_tokens, res.usage.output_tokens);
   await addMonthlyCost(usage.costUsd, "copilote", null).catch(() => undefined);
   const text = res.content.map((b) => (b.type === "text" ? b.text : "")).join("");

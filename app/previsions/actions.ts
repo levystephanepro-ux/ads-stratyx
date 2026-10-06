@@ -4,13 +4,13 @@ import { isLive } from "@/lib/google-ads/config";
 import { getGlobalBilling } from "@/lib/billing";
 import { getAccountContext } from "@/lib/account-context";
 import { createPausedSearchCampaign, validateSpec, type CampaignSpec } from "@/lib/planner/create";
-import { proposeStructure, type Structure, type StructureInput } from "@/lib/planner/ai";
+import { proposeStructure, type BuilderTier, type Structure, type StructureInput } from "@/lib/planner/ai";
 import { logAction } from "@/lib/fixes/store";
 
 export interface ActionResult { ok: boolean; messages: string[]; created?: string }
 
 /** Proposition de structure par l'IA (groupes, annonces, négatifs). */
-export async function proposeStructureAction(input: Omit<StructureInput, "accountContext"> & { customerId: string }):
+export async function proposeStructureAction(input: Omit<StructureInput, "accountContext"> & { customerId: string; tier?: BuilderTier }):
   Promise<{ ok: boolean; message: string; structure?: Structure }> {
   const ctx = await getDashboardContext();
   if (!ctx.isOwner) return { ok: false, message: "Accès réservé." };
@@ -19,9 +19,10 @@ export async function proposeStructureAction(input: Omit<StructureInput, "accoun
   if (!billing.allowed) return { ok: false, message: billing.reason ?? "Plafond IA atteint." };
   try {
     const accountContext = await getAccountContext(input.customerId, null);
-    const { structure, costUsd } = await proposeStructure({ ...input, ideas: input.ideas.slice(0, 120), accountContext });
+    const { customerId: _c, tier, ...rest } = input; void _c;
+    const { structure, costUsd, model } = await proposeStructure({ ...rest, ideas: rest.ideas.slice(0, 120), accountContext }, tier === "opus" ? "opus" : "sonnet");
     const rate = Number((process.env.EUR_TO_USD ?? "1.15").replace(",", ".")) || 1.15;
-    return { ok: true, structure, message: `${structure.groups.length} groupe(s) proposé(s) · coût IA ${(costUsd / rate).toLocaleString("fr-FR", { maximumFractionDigits: 3 })} €. Relis tout avant de créer.` };
+    return { ok: true, structure, message: `${structure.groups.length} groupe(s) proposé(s) par ${model} · coût IA estimé ${(costUsd / rate).toLocaleString("fr-FR", { maximumFractionDigits: 3 })} €. Relis tout avant de créer.` };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : String(e) };
   }
