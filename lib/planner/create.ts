@@ -16,6 +16,8 @@ export interface CampaignSpec {
   descriptions: string[];
   path1?: string;
   path2?: string;
+  /** id languageConstant (défaut 1002 = français) */
+  languageId?: string;
 }
 
 /** Contrôles avant envoi : renvoie la liste des problèmes (vide = OK). */
@@ -57,7 +59,7 @@ export async function createPausedSearchCampaign(customerId: string, s: Campaign
       ...bidding,
     } } },
     ...s.geoIds.map((g) => ({ campaignCriterionOperation: { create: { campaign, location: { geoTargetConstant: `geoTargetConstants/${g}` } } } })),
-    { campaignCriterionOperation: { create: { campaign, language: { languageConstant: LANG_FR } } } },
+    { campaignCriterionOperation: { create: { campaign, language: { languageConstant: s.languageId && /^\d+$/.test(s.languageId) ? `languageConstants/${s.languageId}` : LANG_FR } } } },
     { adGroupOperation: { create: {
       resourceName: adGroup, campaign, name: "Groupe 1", status: "ENABLED", type: "SEARCH_STANDARD",
       ...(s.bidding === "MANUAL_CPC" && s.maxCpc ? { cpcBidMicros: micros(s.maxCpc) } : {}),

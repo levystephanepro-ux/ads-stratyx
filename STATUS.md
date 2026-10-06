@@ -80,6 +80,8 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 - `lib/planner/ideas.ts` : lieux, idées de mots-clés (FR, Search), taux de conv. du compte 90 j, `forecast()` (CPC = milieu fourchette haut de page pondéré, CTR 6 %, conv. = taux du compte ou 5 %).
 - `lib/planner/create.ts` : campagne Search EN PAUSE en un mutate atomique (budget, campagne, lieux, langue FR, groupe, mots-clés, RSA), `validateSpec`, mode « Vérifier sans créer » (validateOnly).
 - Page `/previsions` (menu) + `components/CampaignForm.tsx` (useActionState, la saisie est conservée). Création journalisée (action_log), annulable (campagne retirée).
+- Prévisions façon Forecast d'Ades : budget mensuel, pays, langue, objectif leads/ventes, panier moyen, marge, % leads → clients, frais d'agence ; tableau de rentabilité (clients, marge, résultat net, ROI) et seuil de rentabilité ; bouton « Scanner la page » (mots-clés tirés de l'URL seule).
+- Alertes : test des pages en navigateur, 2 essais de 12 s ; seules 404/410/5xx sont critiques ; « injoignable » signalé seulement deux passages de suite (pare-feu des hébergeurs).
 - Jauge sidebar : pour l'owner, « IA ce mois : x € / plafond € » (workspace + appels globaux), via /api/usage.
 
 ### 2026-10-06 — Cowork (Phase 4 : alertes)

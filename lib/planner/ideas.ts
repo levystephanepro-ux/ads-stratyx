@@ -4,13 +4,29 @@ import { adsPost, searchRaw } from "@/lib/google-ads/client";
 
 export const LANG_FR = "languageConstants/1002";
 
+/** Pays proposés (id geoTargetConstant, code ISO pour la recherche de villes). */
+export const COUNTRIES = [
+  { id: "2250", code: "FR", label: "France" },
+  { id: "2056", code: "BE", label: "Belgique" },
+  { id: "2756", code: "CH", label: "Suisse" },
+  { id: "2442", code: "LU", label: "Luxembourg" },
+  { id: "2124", code: "CA", label: "Canada" },
+];
+export const LANGUAGES = [
+  { id: "1002", label: "Français" },
+  { id: "1000", label: "Anglais" },
+  { id: "1001", label: "Allemand" },
+  { id: "1004", label: "Italien" },
+  { id: "1010", label: "Néerlandais" },
+];
+
 export interface Geo { id: string; name: string; type: string; canonical: string }
 export interface Idea { text: string; searches: number; competition: string; low: number | null; high: number | null }
 
-export async function suggestGeo(names: string[]): Promise<Geo[]> {
+export async function suggestGeo(names: string[], countryCode = "FR"): Promise<Geo[]> {
   const clean = names.map((n) => n.trim()).filter(Boolean).slice(0, 5);
   if (!clean.length) return [];
-  const j = await adsPost(null, "geoTargetConstants:suggest", { locale: "fr", countryCode: "FR", locationNames: { names: clean } });
+  const j = await adsPost(null, "geoTargetConstants:suggest", { locale: "fr", countryCode, locationNames: { names: clean } });
   const out: Geo[] = [];
   const seen = new Set<string>();
   for (const s of (j.geoTargetConstantSuggestions ?? []) as { geoTargetConstant?: { id?: string; name?: string; targetType?: string; canonicalName?: string } }[]) {
@@ -21,11 +37,11 @@ export async function suggestGeo(names: string[]): Promise<Geo[]> {
   return out;
 }
 
-export async function keywordIdeas(customerId: string, seeds: string[], geoIds: string[], url?: string): Promise<Idea[]> {
+export async function keywordIdeas(customerId: string, seeds: string[], geoIds: string[], url?: string, languageId = "1002"): Promise<Idea[]> {
   const keywords = seeds.map((s) => s.trim()).filter(Boolean).slice(0, 20);
   if (!keywords.length && !url) return [];
   const body: Record<string, unknown> = {
-    language: LANG_FR,
+    language: `languageConstants/${languageId}`,
     geoTargetConstants: (geoIds.length ? geoIds : ["2250"]).map((g) => `geoTargetConstants/${g}`),
     includeAdultKeywords: false,
     keywordPlanNetwork: "GOOGLE_SEARCH",

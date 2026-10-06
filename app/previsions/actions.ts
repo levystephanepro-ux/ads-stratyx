@@ -32,6 +32,7 @@ export async function createCampaignAction(_prev: CreateState, form: FormData): 
     descriptions: lines(values.descriptions ?? ""),
     path1: (values.path1 ?? "").trim() || undefined,
     path2: (values.path2 ?? "").trim() || undefined,
+    languageId: values.lang || undefined,
   };
   const problems = validateSpec(spec);
   if (problems.length) return { ok: false, messages: problems, values };

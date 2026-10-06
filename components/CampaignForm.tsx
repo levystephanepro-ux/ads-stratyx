@@ -28,6 +28,7 @@ export default function CampaignForm({ action, initial, geos }: {
       </p>
       <input type="hidden" name="customer_id" value={v("customer_id")} />
       <input type="hidden" name="account_name" value={v("account_name")} />
+      <input type="hidden" name="lang" value={v("lang")} />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10 }}>
         <div><span style={lab}>Nom de la campagne</span><input name="name" defaultValue={v("name")} required /></div>
