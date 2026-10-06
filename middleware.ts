@@ -13,6 +13,7 @@ const PUBLIC_PREFIXES = [
   "/api/mcp",
   "/api/cron",
   "/api/stripe/webhook",
+  "/r", // liens publics des rapports clients
 ];
 
 export async function middleware(request: NextRequest) {

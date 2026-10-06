@@ -54,7 +54,8 @@
 | 2 | Corrections en un clic (négatif, pause mot-clé) avec journal + annulation 30 j | à faire |
 | 3 | Dashboard période vs précédente, part d'impressions, budget du mois | à faire |
 | 4 | Alertes : modèles (compte à l'arrêt, 404, dépense qui s'emballe) + règles perso | à faire |
-| 5 | Rapports clients façon Ades : page « Comptes liés » (dépense 30 j, surveillance on/off), dossiers par client, rapport client (modèles Hebdo/Mensuel/QBR/Annuel, lead gen/e-commerce, sections à cocher, aperçu, PDF ou lien), compte rendu mensuel (change_event), Change Impact | à faire |
+| 5a | Dossiers par client, rapport client (Hebdo/Mensuel/QBR/Annuel, lead gen/e-commerce, clair/sombre, 10 sections, aperçu, lien public /r/token, PDF via impression), compte rendu mensuel (change_event) | ✅ codé, migration 0019 à lancer, à tester |
+| 5b | Page « Comptes liés » (dépense 30 j, surveillance on/off) + Change Impact | à faire |
 | 6 | Forecast + création de campagne en pause (rejoint la suite pré-campagne) | à faire |
 
 Différenciants Stratyx à garder : intentions métier artisans, niveau « à surveiller » pour petits comptes,
@@ -73,6 +74,13 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 ---
 
 ## 📝 Journal de session
+
+### 2026-10-06 — Cowork (Phase 5a : rapports clients)
+- Migration `0019_client_reports.sql` : tables `report_folders` et `client_reports` (RLS sans policy, accès service_role).
+- `lib/reports/` : periods.ts (Hier, 7 j, semaine dernière, 14 j, ce mois, 30 j, mois dernier, 60 j, 90 j), data.ts (`buildReport`, 0 crédit IA), changes.ts (change_event regroupé en phrases, 30 j max), store.ts.
+- `components/ReportView.tsx` (rendu partagé éditeur / lien public), styles `.rv*` dans globals.css (clair/sombre + impression).
+- Pages : `/rapports` (dossiers), `/rapports/[id]` (éditeur + aperçu), `/rapports/compte-rendu`, `/r/[token]` (public, noindex, période modifiable par le client si cochée).
+- middleware : `/r` en accès public. Menu : entrée « Rapports ».
 
 ### 2026-10-06 — Cowork (Copilote simplifié façon Ades)
 - Copilote en LECTURE SEULE (allowWrite: false) + system prompt revu ; bibliothèque de 8 prompts en cartes,

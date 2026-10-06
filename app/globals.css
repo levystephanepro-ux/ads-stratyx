@@ -601,3 +601,46 @@ select { cursor: pointer; }
 @media (max-width: 760px) {
   .copilote-layout { grid-template-columns: 1fr !important; }
 }
+
+/* ===== Rapport client (aperçu, lien public, PDF) ===== */
+.rv { --rv-bg:#ffffff; --rv-fg:#14142b; --rv-muted:#6b6b85; --rv-card:#f6f5fb; --rv-border:#e4e2f0; --rv-accent:#5b3df5; --rv-good:#0f9d6b; --rv-bad:#d92d4b;
+  background:var(--rv-bg); color:var(--rv-fg); border-radius:16px; padding:40px 44px; font-size:14px; line-height:1.5; max-width:980px; margin:0 auto; }
+.rv[data-theme="dark"] { --rv-bg:#13131f; --rv-fg:#ececf2; --rv-muted:#9a9ab0; --rv-card:#1c1c2b; --rv-border:#2a2a3d; --rv-accent:#a78bfa; }
+.rv-kicker { text-transform:uppercase; letter-spacing:.08em; font-size:12px; color:var(--rv-muted); font-weight:600; }
+.rv-title { font-size:30px; margin:6px 0 6px; letter-spacing:-.02em; }
+.rv-meta { color:var(--rv-muted); font-size:13px; padding-bottom:22px; border-bottom:1px solid var(--rv-border); }
+.rv-intro, .rv-text { white-space:pre-wrap; margin:18px 0; }
+.rv section { margin-top:34px; break-inside:avoid; }
+.rv-h2 { display:flex; align-items:center; gap:12px; font-size:22px; margin:0 0 14px; }
+.rv-num { width:30px; height:30px; border-radius:50%; background:var(--rv-accent); color:#fff; display:inline-grid; place-items:center; font-size:14px; flex-shrink:0; }
+.rv-lead { font-size:22px; line-height:1.35; margin:0 0 18px; }
+.rv-lead strong { color:var(--rv-accent); }
+.rv-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:12px; }
+.rv-grid2 { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:12px; }
+.rv-card { background:var(--rv-card); border:1px solid var(--rv-border); border-radius:12px; padding:14px 16px; break-inside:avoid; }
+.rv-row { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.rv-label { text-transform:uppercase; font-size:11px; letter-spacing:.06em; color:var(--rv-muted); font-weight:600; }
+.rv-big { font-size:26px; font-weight:700; margin:4px 0 0; }
+.rv-sub { color:var(--rv-muted); font-size:12px; margin:2px 0 0; }
+.rv-delta { font-size:11px; font-weight:700; padding:2px 7px; border-radius:999px; background:color-mix(in srgb, var(--rv-bad) 14%, transparent); color:var(--rv-bad); white-space:nowrap; }
+.rv-delta[data-good="1"] { background:color-mix(in srgb, var(--rv-good) 14%, transparent); color:var(--rv-good); }
+.rv-spark, .rv-chart { width:100%; display:block; margin-top:8px; }
+.rv-spark { height:46px; } .rv-chart { height:160px; }
+.rv-spark-area { fill:color-mix(in srgb, var(--rv-accent) 14%, transparent); stroke:none; }
+.rv-spark-line { fill:none; stroke:var(--rv-accent); stroke-width:2; vector-effect:non-scaling-stroke; }
+.rv-chart-max { font-size:11px; color:var(--rv-muted); margin-top:4px; }
+.rv-axis { display:flex; justify-content:space-between; font-size:11px; color:var(--rv-muted); }
+.rv-table { width:100%; border-collapse:collapse; font-size:13px; }
+.rv-table th { text-align:right; font-size:11px; text-transform:uppercase; color:var(--rv-muted); padding:8px 10px; border-bottom:1px solid var(--rv-border); }
+.rv-table td { text-align:right; padding:8px 10px; border-bottom:1px solid var(--rv-border); }
+.rv-table th:first-child, .rv-table td:first-child { text-align:left; }
+.rv-list { padding-left:0; list-style:none; margin:0; } .rv-list li { padding:8px 0; border-bottom:1px solid var(--rv-border); }
+.rv-ol { list-style:decimal; padding-left:20px; }
+.rv-date { color:var(--rv-muted); font-size:12px; } .rv-tag { font-size:11px; padding:1px 7px; border-radius:999px; background:var(--rv-card); border:1px solid var(--rv-border); }
+.rv-foot { margin-top:36px; padding-top:14px; border-top:1px solid var(--rv-border); color:var(--rv-muted); font-size:12px; }
+@media (max-width: 640px) { .rv { padding:22px 16px; } .rv-title { font-size:24px; } .rv-lead { font-size:18px; } }
+@media print {
+  body { background:#fff !important; }
+  .no-print, .sidebar, header.topbar, nav { display:none !important; }
+  .rv { max-width:none; padding:0; border-radius:0; }
+}
