@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 type P = Promise<{ id: string }>;
-type SP = Promise<{ account?: string; days?: string }>;
+type SP = Promise<{ account?: string; days?: string; run?: string }>;
 
 export default async function ScriptRunPage({ params, searchParams }: { params: P; searchParams: SP }) {
   const ctx = await getDashboardContext();
@@ -33,7 +33,9 @@ export default async function ScriptRunPage({ params, searchParams }: { params: 
   let error: string | null = null;
   if (!isLive()) error = "Mode démo : les scripts lisent un vrai compte Google Ads (ADS_DATA_MODE=live).";
   else if (!account) error = "Aucun compte Google Ads disponible.";
-  else {
+  else if (script.confirm && sp.run !== "1") {
+    // exécution sur clic seulement (lent ou payant)
+  } else {
     try {
       out = await script.run({ customerId: account }, range);
     } catch (e) {
@@ -63,6 +65,12 @@ export default async function ScriptRunPage({ params, searchParams }: { params: 
           <a className="btn-ghost" href={csv} download={`${script.id}-${range.until}.csv`} style={{ padding: "6px 12px", borderRadius: 8 }}>Exporter CSV</a>
         )}
       </div>
+
+      {script.confirm && sp.run !== "1" && !error && (
+        <div className="card">
+          <Link className="btn" href={`${href(account, days)}&run=1`}>{script.confirm}</Link>
+        </div>
+      )}
 
       {error ? (
         <div className="card" style={{ borderColor: "var(--red)" }}>{error}</div>

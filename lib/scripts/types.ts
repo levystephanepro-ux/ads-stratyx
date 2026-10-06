@@ -65,5 +65,7 @@ export interface ScriptDef {
   frequency: Frequency;
   channels: string;
   columns: Column[];
+  /** Exécution sur clic seulement (lent, ou consomme des crédits IA). Texte du bouton. */
+  confirm?: string;
   run: (ctx: AdsContext, range: ScriptRange) => Promise<ScriptOutput>;
 }

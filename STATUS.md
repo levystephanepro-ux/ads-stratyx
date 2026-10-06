@@ -50,7 +50,7 @@
 | Phase | Contenu | État |
 |---|---|---|
 | 1 | Diagnostic 6 catégories + santé /100 + « Par où commencer » + email du matin | ✅ en ligne, testé sur D2B (78/100) |
-| 1b | Bibliothèque de scripts (98 au total, rapports sans IA) : lot 1 = 31 scripts | ✅ codé, à tester |
+| 1b | Bibliothèque de scripts : 98/98 (lot 1 en ligne et testé sur D2B, lots 2-3 à tester) | ✅ codé |
 | 2 | Corrections en un clic (négatif, pause mot-clé) avec journal + annulation 30 j | à faire |
 | 3 | Dashboard période vs précédente, part d'impressions, budget du mois | à faire |
 | 4 | Alertes : modèles (compte à l'arrêt, 404, dépense qui s'emballe) + règles perso | à faire |
@@ -73,6 +73,12 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 ---
 
 ## 📝 Journal de session
+
+### 2026-10-06 — Cowork (Scripts, lots 2 et 3 : 98/98)
+- lot2.ts (34) : CPC/CPA, mots-clés, recherches, rapports, enchères ; lot3.ts (33) : annonces, conversions,
+  audiences, PMax, Display/Shopping, géographie, tendances 4 semaines, liens cassés, analyse IA des recherches
+- `confirm` sur ScriptDef : exécution sur clic seulement (liens cassés = lent ; analyse IA = crédits, plafond owner vérifié)
+- Négatifs bloquants vérifié sur D2B : 0 conflit correct (négatif « la garde » retiré depuis le matin)
 
 ### 2026-10-06 — Cowork (Scripts, lot 1)
 - `lib/scripts/` : types, helpers, format (CSV ; Excel FR), registry, lot1-structure (12), lot1-performance (19)
