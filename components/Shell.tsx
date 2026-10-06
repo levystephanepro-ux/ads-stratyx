@@ -29,6 +29,11 @@ const Ic = {
       <path d="M8.5 8.5v5M11.5 8.5v5"/>
     </svg>
   ),
+  previsions: (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 16l4-5 3 3 6-8"/><path d="M13 6h3v3"/>
+    </svg>
+  ),
   alertes: (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
       <path d="M5 8a5 5 0 0 1 10 0c0 5 2 6 2 6H3s2-1 2-6"/><path d="M8.5 17a1.6 1.6 0 0 0 3 0"/>
@@ -108,7 +113,7 @@ const Ic = {
   ),
 };
 
-type PageKey = "home" | "copilote" | "agent" | "waste" | "scripts" | "rapports" | "comptes" | "alertes" | "templates" | "connexions" | "persona" | "search-console" | "aide" | "admin";
+type PageKey = "home" | "copilote" | "agent" | "waste" | "scripts" | "rapports" | "comptes" | "alertes" | "previsions" | "templates" | "connexions" | "persona" | "search-console" | "aide" | "admin";
 
 const NAV: { key: PageKey; label: string; ic: keyof typeof Ic; href: string }[] = [
   { key: "home",       label: "Accueil",     ic: "home",       href: "/dashboard" },
@@ -117,6 +122,7 @@ const NAV: { key: PageKey; label: string; ic: keyof typeof Ic; href: string }[] 
   { key: "scripts",    label: "Scripts",     ic: "scripts",    href: "/scripts" },
   { key: "rapports",   label: "Rapports",    ic: "rapports",   href: "/rapports" },
   { key: "alertes",    label: "Alertes",     ic: "alertes",    href: "/alertes" },
+  { key: "previsions", label: "Prévisions",  ic: "previsions", href: "/previsions" },
   { key: "comptes",    label: "Comptes liés", ic: "comptes",   href: "/comptes" },
   { key: "persona",         label: "Persona",          ic: "persona",    href: "/persona" },
   { key: "search-console", label: "Search Console",   ic: "gsc",        href: "/search-console" },

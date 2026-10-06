@@ -56,7 +56,7 @@
 | 4 | Alertes : modèles (compte à l'arrêt, dépense qui s'emballe, plus de conversions, CPA en hausse, budget du mois, pages en erreur) + règles perso | ✅ codé, à tester |
 | 5a | Dossiers par client, rapport client (Hebdo/Mensuel/QBR/Annuel, lead gen/e-commerce, clair/sombre, 10 sections, aperçu, lien public /r/token, PDF via impression), compte rendu mensuel (change_event) | ✅ codé, migration 0019 à lancer, à tester |
 | 5b | Page « Comptes liés » (dépense 30 j, santé, surveillance on/off) + Change Impact (décomposition volume/prix/taux, effet de chaque modification avant/après) | ✅ codé, à tester |
-| 6 | Forecast + création de campagne en pause (rejoint la suite pré-campagne) | à faire |
+| 6 | Prévisions (planificateur de mots-clés, estimation par budget) + création de campagne Search en pause | ✅ codé, à tester |
 
 Différenciants Stratyx à garder : intentions métier artisans, niveau « à surveiller » pour petits comptes,
 exclusivité territoriale, connecteur MCP Claude Pro.
@@ -74,6 +74,13 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 ---
 
 ## 📝 Journal de session
+
+### 2026-10-06 — Cowork (Phase 6 : Prévisions + jauge IA)
+- `adsPost()` dans client.ts (POST générique : generateKeywordIdeas, geoTargetConstants:suggest, googleAds:mutate).
+- `lib/planner/ideas.ts` : lieux, idées de mots-clés (FR, Search), taux de conv. du compte 90 j, `forecast()` (CPC = milieu fourchette haut de page pondéré, CTR 6 %, conv. = taux du compte ou 5 %).
+- `lib/planner/create.ts` : campagne Search EN PAUSE en un mutate atomique (budget, campagne, lieux, langue FR, groupe, mots-clés, RSA), `validateSpec`, mode « Vérifier sans créer » (validateOnly).
+- Page `/previsions` (menu) + `components/CampaignForm.tsx` (useActionState, la saisie est conservée). Création journalisée (action_log), annulable (campagne retirée).
+- Jauge sidebar : pour l'owner, « IA ce mois : x € / plafond € » (workspace + appels globaux), via /api/usage.
 
 ### 2026-10-06 — Cowork (Phase 4 : alertes)
 - `lib/alerts/config.ts` : 6 modèles activables avec seuil + règles perso (indicateur, hier/7 j, >/<, seuil, filtre campagne), stockés en JSON dans app_settings (`alerts_config`), aucune migration.

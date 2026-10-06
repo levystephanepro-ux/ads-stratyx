@@ -46,7 +46,9 @@ export type MatchType = "EXACT" | "PHRASE" | "BROAD";
 export type Fix =
   | { type: "add_negatives"; campaigns: { id: string; name: string }[]; negatives: { text: string; matchType: MatchType }[] }
   | { type: "pause_keyword"; adGroupId: string; criterionId: string; label: string; campaign: string; adGroup: string }
-  | { type: "remove_negative"; resourceName: string; level: "campaign" | "ad_group"; parentId: string; text: string; matchType: string; where: string };
+  | { type: "remove_negative"; resourceName: string; level: "campaign" | "ad_group"; parentId: string; text: string; matchType: string; where: string }
+  /** Journal seulement (Prévisions) : création d'une campagne Search en pause. */
+  | { type: "create_campaign"; name: string; dailyBudget: number; keywords: number };
 
 export interface AuditResult {
   healthScore: number;

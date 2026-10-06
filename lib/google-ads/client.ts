@@ -455,10 +455,32 @@ export async function updateCampaignBudget(
   ]);
 }
 
+/**
+ * POST générique sur l'API (hors search/mutate de ressource) : planificateur de
+ * mots-clés, suggestions de lieux, googleAds:mutate atomique. `path` est relatif
+ * à la version, ex. « customers/123:generateKeywordIdeas ».
+ */
+export async function adsPost(ctx: { refreshToken?: string | null } | null, path: string, body: unknown): Promise<RawRow> {
+  assertLiveConfig();
+  const refresh = ctx?.refreshToken ?? adsConfig.refreshToken;
+  if (!refresh) throw new Error("Aucun refresh_token.");
+  const token = await getAccessToken(refresh);
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+    "developer-token": adsConfig.developerToken,
+    "Content-Type": "application/json",
+  };
+  if (adsConfig.loginCustomerId) headers["login-customer-id"] = adsConfig.loginCustomerId;
+  const res = await fetch(`https://googleads.googleapis.com/${adsConfig.apiVersion}/${path}`, { method: "POST", headers, body: JSON.stringify(body) });
+  const j = await res.json();
+  if (!res.ok) throw new Error(gaError(j));
+  return j;
+}
+
 /** Mutate générique (corrections en un clic) : renvoie les resource_name créés ou modifiés. */
 export async function mutateRaw(
   ctx: AdsContext,
-  resource: "campaignCriteria" | "adGroupCriteria",
+  resource: "campaignCriteria" | "adGroupCriteria" | "campaigns",
   operations: unknown[],
 ): Promise<string[]> {
   const j = await mutate(ctx, resource, operations);

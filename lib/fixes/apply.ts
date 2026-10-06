@@ -7,7 +7,8 @@ import type { Fix } from "@/lib/audit/types";
 export type Undo =
   | { type: "remove_criteria"; resource: "campaignCriteria" | "adGroupCriteria"; resourceNames: string[] }
   | { type: "enable_keyword"; resourceName: string }
-  | { type: "recreate_negative"; level: "campaign" | "ad_group"; parentId: string; text: string; matchType: string };
+  | { type: "recreate_negative"; level: "campaign" | "ad_group"; parentId: string; text: string; matchType: string }
+  | { type: "remove_campaign"; resourceName: string };
 
 const fmt = (t: string, m: string) => (m === "EXACT" ? `[${t}]` : m === "PHRASE" ? `"${t}"` : t);
 
@@ -23,6 +24,8 @@ export function describeFix(fix: Fix): string {
       return `Mettre en pause le mot-clé ${fix.label} (« ${fix.campaign} » › « ${fix.adGroup} »).`;
     case "remove_negative":
       return `Retirer le négatif ${fmt(fix.text, fix.matchType)} ${fix.where}.`;
+    case "create_campaign":
+      return `Créer la campagne Search « ${fix.name} » en pause (${fix.dailyBudget} €/jour, ${fix.keywords} mot(s)-clé(s)).`;
   }
 }
 
@@ -51,6 +54,8 @@ export async function applyFix(customerId: string, fix: Fix): Promise<Undo> {
       if (live) await mutateRaw(ctx, resource, [{ remove: fix.resourceName }]);
       return { type: "recreate_negative", level: fix.level, parentId: fix.parentId, text: fix.text, matchType: fix.matchType };
     }
+    case "create_campaign":
+      throw new Error("La création de campagne passe par la page Prévisions.");
   }
 }
 
@@ -63,6 +68,9 @@ export async function applyUndo(customerId: string, undo: Undo): Promise<void> {
       return;
     case "enable_keyword":
       await mutateRaw(ctx, "adGroupCriteria", [{ update: { resourceName: undo.resourceName, status: "ENABLED" }, updateMask: "status" }]);
+      return;
+    case "remove_campaign":
+      await mutateRaw(ctx, "campaigns", [{ remove: undo.resourceName }]);
       return;
     case "recreate_negative":
       if (undo.level === "ad_group") {
