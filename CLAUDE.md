@@ -25,7 +25,7 @@
 | Auth | Supabase SSR |
 | DB | Supabase (PostgreSQL) |
 | IA | Anthropic SDK (`@anthropic-ai/sdk`) |
-| Ads | Google Ads API v21 (`google-ads-api`) |
+| Ads | Google Ads API v23 (REST, version via `GOOGLE_ADS_API_VERSION`) |
 | SEO | Google Search Console API |
 | Billing | Stripe |
 | Deploy | Vercel |
@@ -117,7 +117,7 @@ SUPABASE_SERVICE_ROLE_KEY         # Clé serveur (jamais exposée)
 NEXT_PUBLIC_APP_URL               # URL app (localhost ou prod)
 MCP_SHARED_TOKEN                  # Token sécurité MCP
 ADS_DATA_MODE                     # mock | live
-GOOGLE_ADS_API_VERSION            # v21
+GOOGLE_ADS_API_VERSION            # v23 (v21 fermée oct. 2026)
 GOOGLE_ADS_DEVELOPER_TOKEN
 GOOGLE_ADS_OAUTH_CLIENT_ID
 GOOGLE_ADS_OAUTH_CLIENT_SECRET

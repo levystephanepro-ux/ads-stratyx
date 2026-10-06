@@ -7,6 +7,7 @@ import {
   getCampaignMetrics,
   getSearchTerms,
   listAdGroups,
+  listAds,
   listManagedAccounts,
   setCampaignStatus,
   updateCampaignBudget,
@@ -96,6 +97,25 @@ export const MCP_TOOLS: McpTool[] = [
       type: "object",
       properties: {
         customer_id: { type: "string", description: "ID du compte (facultatif)." },
+        since: { type: "string", description: "Début ISO YYYY-MM-DD (défaut -30j)." },
+        until: { type: "string", description: "Fin ISO YYYY-MM-DD (défaut aujourd'hui)." },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "get_ads",
+    description:
+      "Annonces d'un compte (RSA surtout) : titres, descriptions, épinglage " +
+      "(pinning), chemins d'URL, URL finale, ad strength, statut de validation, " +
+      "plus impressions, clics, coût et conversions sur la période. Sert à auditer " +
+      "le contenu des annonces. Filtre facultatif par campaign_id (recommandé sur " +
+      "les gros comptes).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        customer_id: { type: "string", description: "ID du compte (facultatif)." },
+        campaign_id: { type: "string", description: "ID de campagne pour filtrer (facultatif)." },
         since: { type: "string", description: "Début ISO YYYY-MM-DD (défaut -30j)." },
         until: { type: "string", description: "Fin ISO YYYY-MM-DD (défaut aujourd'hui)." },
       },
@@ -207,6 +227,14 @@ export async function callTool(
       return adGroupsTool(
         ws,
         args.customer_id as string | undefined,
+        args.since as string | undefined,
+        args.until as string | undefined,
+      );
+    case "get_ads":
+      return adsTool(
+        ws,
+        args.customer_id as string | undefined,
+        args.campaign_id as string | undefined,
         args.since as string | undefined,
         args.until as string | undefined,
       );
@@ -389,6 +417,64 @@ async function adGroupsTool(
     text:
       `Groupes d'annonces — compte ${ctx.customerId} · ${range.since} → ${range.until}\n\n` +
       `| Ad group | Campagne | Statut | Coût | Conv. |\n|---|---|---|---|---|\n${rows}`,
+  };
+}
+
+const PIN_LABEL: Record<string, string> = {
+  HEADLINE_1: "📌 T1",
+  HEADLINE_2: "📌 T2",
+  HEADLINE_3: "📌 T3",
+  DESCRIPTION_1: "📌 D1",
+  DESCRIPTION_2: "📌 D2",
+};
+
+async function adsTool(
+  ws: WorkspaceContext,
+  customerId?: string,
+  campaignId?: string,
+  since?: string,
+  until?: string,
+): Promise<ToolResult> {
+  const ctx = resolveContext(ws, customerId);
+  const range = { since: since ?? daysAgo(30), until: until ?? daysAgo(0) };
+  const ads = await listAds(ctx, range, campaignId);
+  const acc = await getAccount(ctx);
+  const cur = acc.currencyCode;
+  if (ads.length === 0) {
+    return {
+      text:
+        `Aucune annonce active ou en pause (compte ${ctx.customerId}` +
+        `${campaignId ? `, campagne ${campaignId}` : ""}).`,
+    };
+  }
+
+  const fmtAssets = (list: { text: string; pinnedField: string | null }[]) =>
+    list.length
+      ? list
+          .map((a) => `- ${a.text} (${a.text.length} car.)` +
+            (a.pinnedField ? ` ${PIN_LABEL[a.pinnedField] ?? a.pinnedField}` : ""))
+          .join("\n")
+      : "- —";
+
+  const blocks = ads.map((a) => {
+    const ctr = a.impressions ? a.clicks / a.impressions : 0;
+    const path = [a.path1, a.path2].filter(Boolean).join("/");
+    return (
+      `### ${a.campaignName} › ${a.adGroupName} — annonce ${a.adId}\n` +
+      `Type ${a.adType} · Statut ${a.status} · Ad strength **${a.adStrength}** · ` +
+      `Validation ${a.approvalStatus}\n` +
+      `Impr. ${int(a.impressions)} · Clics ${int(a.clicks)} · CTR ${pct(ctr)} · ` +
+      `Coût ${eur(a.cost, cur)} · Conv. ${int(a.conversions)}\n` +
+      `URL : ${a.finalUrls[0] ?? "—"}${path ? ` · Chemin : /${path}` : ""}\n\n` +
+      `**Titres (${a.headlines.length}/15)**\n${fmtAssets(a.headlines)}\n\n` +
+      `**Descriptions (${a.descriptions.length}/4)**\n${fmtAssets(a.descriptions)}`
+    );
+  });
+
+  return {
+    text:
+      `Annonces — compte ${ctx.customerId} · ${range.since} → ${range.until} ` +
+      `(${ads.length}, triées par coût)\n\n${blocks.join("\n\n---\n\n")}`,
   };
 }
 

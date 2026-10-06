@@ -13,8 +13,8 @@ export const adsConfig = {
   /** "mock" = données factices (aucun accès requis) · "live" = vrais appels API. */
   mode: (process.env.ADS_DATA_MODE as AdsDataMode) ?? "mock",
 
-  /** Version de l'API Google Ads, ex. "v21". Jamais codée ailleurs. */
-  apiVersion: process.env.GOOGLE_ADS_API_VERSION ?? "v21",
+  /** Version de l'API Google Ads, ex. "v23". Jamais codée ailleurs. */
+  apiVersion: process.env.GOOGLE_ADS_API_VERSION ?? "v23",
 
   developerToken: process.env.GOOGLE_ADS_DEVELOPER_TOKEN ?? "",
   oauthClientId: process.env.GOOGLE_ADS_OAUTH_CLIENT_ID ?? "",

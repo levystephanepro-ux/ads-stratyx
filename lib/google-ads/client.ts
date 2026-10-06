@@ -231,6 +231,148 @@ export async function listAdGroups(
 }
 
 // ---------------------------------------------------------------------------
+// Lecture des annonces (RSA) : textes, pinning, ad strength, validation
+// ---------------------------------------------------------------------------
+
+export interface AdTextAsset {
+  text: string;
+  /** "HEADLINE_1", "DESCRIPTION_2"… ou null si non épinglé. */
+  pinnedField: string | null;
+}
+
+export interface AdRow {
+  adId: string;
+  adType: string;
+  status: string;
+  adStrength: string;
+  approvalStatus: string;
+  campaignId: string;
+  campaignName: string;
+  adGroupName: string;
+  headlines: AdTextAsset[];
+  descriptions: AdTextAsset[];
+  path1: string;
+  path2: string;
+  finalUrls: string[];
+  impressions: number;
+  clicks: number;
+  cost: number;
+  conversions: number;
+}
+
+const MOCK_ADS: AdRow[] = [
+  {
+    adId: "700000000001",
+    adType: "RESPONSIVE_SEARCH_AD",
+    status: "ENABLED",
+    adStrength: "GOOD",
+    approvalStatus: "APPROVED",
+    campaignId: "100000001",
+    campaignName: "Démo — Search",
+    adGroupName: "Démo — Groupe 1",
+    headlines: [
+      { text: "Devis gratuit sous 48h", pinnedField: "HEADLINE_1" },
+      { text: "Artisan local certifié", pinnedField: null },
+      { text: "Intervention rapide", pinnedField: null },
+    ],
+    descriptions: [
+      { text: "Un expert vous rappelle sous 24h. Devis détaillé et sans engagement.", pinnedField: null },
+      { text: "Garantie décennale. Plus de 500 chantiers réalisés dans le Var.", pinnedField: null },
+    ],
+    path1: "devis",
+    path2: "gratuit",
+    finalUrls: ["https://example.com"],
+    impressions: 1200,
+    clicks: 84,
+    cost: 96.4,
+    conversions: 6,
+  },
+];
+
+/**
+ * Liste les annonces d'un compte avec leur contenu et leurs perfs sur la période.
+ * Deux requêtes : le contenu (toutes les annonces non supprimées, même sans
+ * impression) puis les métriques, fusionnées par ID d'annonce. Une seule requête
+ * avec segments.date masquerait les annonces sans diffusion sur la période.
+ */
+export async function listAds(
+  ctx: AdsContext,
+  range: DateRange,
+  campaignId?: string,
+): Promise<AdRow[]> {
+  if (!isLive()) {
+    return campaignId ? MOCK_ADS.filter((a) => a.campaignId === campaignId) : MOCK_ADS;
+  }
+  const { since, until } = normalizeRange(range);
+  const campaignFilter = campaignId ? ` AND campaign.id = ${Number(campaignId)}` : "";
+
+  const contentRows = await search(
+    ctx,
+    `SELECT ad_group_ad.ad.id, ad_group_ad.ad.type, ad_group_ad.status,
+            ad_group_ad.ad_strength, ad_group_ad.policy_summary.approval_status,
+            ad_group_ad.ad.responsive_search_ad.headlines,
+            ad_group_ad.ad.responsive_search_ad.descriptions,
+            ad_group_ad.ad.responsive_search_ad.path1,
+            ad_group_ad.ad.responsive_search_ad.path2,
+            ad_group_ad.ad.final_urls,
+            ad_group.name, campaign.id, campaign.name
+     FROM ad_group_ad
+     WHERE ad_group_ad.status != 'REMOVED'
+       AND campaign.status != 'REMOVED'${campaignFilter}`,
+  );
+
+  const metricRows = await search(
+    ctx,
+    `SELECT ad_group_ad.ad.id, metrics.impressions, metrics.clicks,
+            metrics.cost_micros, metrics.conversions
+     FROM ad_group_ad
+     WHERE segments.date BETWEEN '${since}' AND '${until}'
+       AND ad_group_ad.status != 'REMOVED'
+       AND campaign.status != 'REMOVED'${campaignFilter}`,
+  );
+  const metricsById = new Map<string, NonNullable<GaqlRow["metrics"]>>();
+  for (const r of metricRows) {
+    const id = String(r.adGroupAd?.ad?.id ?? "");
+    if (id && r.metrics) metricsById.set(id, r.metrics);
+  }
+
+  const toAssets = (list?: { text?: string; pinnedField?: string }[]): AdTextAsset[] =>
+    (list ?? []).map((a) => ({
+      text: a.text ?? "",
+      pinnedField: a.pinnedField && a.pinnedField !== "UNSPECIFIED" ? a.pinnedField : null,
+    }));
+
+  return contentRows
+    .map((r) => {
+      const aga = r.adGroupAd ?? {};
+      const ad = aga.ad ?? {};
+      const rsa = ad.responsiveSearchAd ?? {};
+      const id = String(ad.id ?? "");
+      const m = metricsById.get(id);
+      return {
+        adId: id,
+        adType: String(ad.type ?? "UNKNOWN"),
+        status: String(aga.status ?? ""),
+        adStrength: String(aga.adStrength ?? "UNSPECIFIED"),
+        approvalStatus: String(aga.policySummary?.approvalStatus ?? "UNKNOWN"),
+        campaignId: String(r.campaign?.id ?? ""),
+        campaignName: r.campaign?.name ?? "",
+        adGroupName: r.adGroup?.name ?? "",
+        headlines: toAssets(rsa.headlines),
+        descriptions: toAssets(rsa.descriptions),
+        path1: rsa.path1 ?? "",
+        path2: rsa.path2 ?? "",
+        finalUrls: ad.finalUrls ?? [],
+        impressions: Number(m?.impressions ?? 0),
+        clicks: Number(m?.clicks ?? 0),
+        cost: micros(m?.costMicros),
+        conversions: Number(m?.conversions ?? 0),
+      };
+    })
+    .sort((a, b) => b.cost - a.cost);
+}
+
+// ---------------------------------------------------------------------------
 // Écriture (mutate) — pause/activation de campagne, budget
 // ---------------------------------------------------------------------------
 
@@ -339,6 +481,22 @@ interface GaqlRow {
   campaign?: { id?: string; name?: string; status?: string; advertisingChannelType?: string };
   campaignBudget?: { amountMicros?: string; resourceName?: string };
   adGroup?: { id?: string; name?: string; status?: string };
+  adGroupAd?: {
+    status?: string;
+    adStrength?: string;
+    policySummary?: { approvalStatus?: string };
+    ad?: {
+      id?: string;
+      type?: string;
+      finalUrls?: string[];
+      responsiveSearchAd?: {
+        headlines?: { text?: string; pinnedField?: string }[];
+        descriptions?: { text?: string; pinnedField?: string }[];
+        path1?: string;
+        path2?: string;
+      };
+    };
+  };
   searchTermView?: { searchTerm?: string };
   metrics?: {
     impressions?: string;
