@@ -5,7 +5,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { calcCost, addMonthlyCost } from "@/lib/agent/cost";
 import { getGlobalBilling } from "@/lib/billing";
 import { isLive } from "@/lib/google-ads/config";
-import { ownerAccounts, latestAuditReports } from "@/lib/audit/run";
+import { monitoredAccounts, latestAuditReports } from "@/lib/audit/run";
 import { getScript } from "@/lib/scripts/registry";
 import { makeRange } from "@/lib/scripts/helpers";
 import { formatCell } from "@/lib/scripts/format";
@@ -24,7 +24,7 @@ async function scriptAsText(id: string, customerId: string) {
 
 export async function runWeeklyReports(): Promise<{ account: string; ok: boolean; detail: string; markdown?: string }[]> {
   if (!isLive()) return [{ account: "démo", ok: false, detail: "mode démo : rapport désactivé" }];
-  const accounts = await ownerAccounts();
+  const accounts = await monitoredAccounts();
   const audits = await latestAuditReports();
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const results = [];

@@ -55,7 +55,7 @@
 | 3 | Dashboard période vs précédente, part d'impressions, budget du mois | à faire |
 | 4 | Alertes : modèles (compte à l'arrêt, 404, dépense qui s'emballe) + règles perso | à faire |
 | 5a | Dossiers par client, rapport client (Hebdo/Mensuel/QBR/Annuel, lead gen/e-commerce, clair/sombre, 10 sections, aperçu, lien public /r/token, PDF via impression), compte rendu mensuel (change_event) | ✅ codé, migration 0019 à lancer, à tester |
-| 5b | Page « Comptes liés » (dépense 30 j, surveillance on/off) + Change Impact | à faire |
+| 5b | Page « Comptes liés » (dépense 30 j, santé, surveillance on/off) + Change Impact (décomposition volume/prix/taux, effet de chaque modification avant/après) | ✅ codé, à tester |
 | 6 | Forecast + création de campagne en pause (rejoint la suite pré-campagne) | à faire |
 
 Différenciants Stratyx à garder : intentions métier artisans, niveau « à surveiller » pour petits comptes,
@@ -74,6 +74,12 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 ---
 
 ## 📝 Journal de session
+
+### 2026-10-06 — Cowork (Phase 5b : Comptes liés + Change Impact)
+- `/comptes` : tous les comptes du MCC, dépense et conversions 30 j, dernière dépense, note santé, bouton surveillance (clé `monitoring:<id>` dans app_settings, activée par défaut).
+- `monitoredAccounts()` dans lib/audit/run.ts : utilisé par le diagnostic du matin et le rapport du lundi (comptes coupés ignorés).
+- `/rapports/impact` + lib/reports/impact.ts : Δ dépense = effet clics + effet CPC, Δ conversions = effet clics + effet taux (décomposition exacte), écarts par campagne, effet de chaque modification (7 ou 14 j avant/après, verdict).
+- Correctifs éditeur de rapport : formulaire non collant, cases à cocher 16 px, sauts de page PDF.
 
 ### 2026-10-06 — Cowork (Phase 5a : rapports clients)
 - Migration `0019_client_reports.sql` : tables `report_folders` et `client_reports` (RLS sans policy, accès service_role).

@@ -25,7 +25,7 @@ export default async function RapportsPage() {
 
   return (
     <Shell active="rapports" token={ctx.mcpToken} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}
-      headerRight={<Link className="btn-ghost" href="/rapports/compte-rendu">Compte rendu du mois</Link>}>
+      headerRight={<div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><Link className="btn-ghost" href="/rapports/impact">Change Impact</Link><Link className="btn-ghost" href="/rapports/compte-rendu">Compte rendu du mois</Link></div>}>
       <h1 style={{ margin: "0 0 6px" }}>Rapports</h1>
       <p className="subtitle" style={{ marginTop: 0 }}>Un dossier par client. Chaque rapport se partage par lien (toujours à jour) ou en PDF.</p>
       {dbError && <div className="card" style={{ borderColor: "var(--red)", margin: "12px 0" }}>Base non prête : lance la migration 0019_client_reports.sql dans Supabase. ({dbError})</div>}

@@ -29,6 +29,11 @@ const Ic = {
       <path d="M8.5 8.5v5M11.5 8.5v5"/>
     </svg>
   ),
+  comptes: (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2.5" y="4" width="15" height="12" rx="2"/><path d="M2.5 8h15M6 12h3"/>
+    </svg>
+  ),
   rapports: (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
       <path d="M5 2h7l4 4v12H5z"/><path d="M12 2v4h4M8 11h5M8 14h5"/>
@@ -98,7 +103,7 @@ const Ic = {
   ),
 };
 
-type PageKey = "home" | "copilote" | "agent" | "waste" | "scripts" | "rapports" | "templates" | "connexions" | "persona" | "search-console" | "aide" | "admin";
+type PageKey = "home" | "copilote" | "agent" | "waste" | "scripts" | "rapports" | "comptes" | "templates" | "connexions" | "persona" | "search-console" | "aide" | "admin";
 
 const NAV: { key: PageKey; label: string; ic: keyof typeof Ic; href: string }[] = [
   { key: "home",       label: "Accueil",     ic: "home",       href: "/dashboard" },
@@ -106,6 +111,7 @@ const NAV: { key: PageKey; label: string; ic: keyof typeof Ic; href: string }[] 
   { key: "waste",      label: "Diagnostic",  ic: "waste",      href: "/waste" },
   { key: "scripts",    label: "Scripts",     ic: "scripts",    href: "/scripts" },
   { key: "rapports",   label: "Rapports",    ic: "rapports",   href: "/rapports" },
+  { key: "comptes",    label: "Comptes liés", ic: "comptes",   href: "/comptes" },
   { key: "persona",         label: "Persona",          ic: "persona",    href: "/persona" },
   { key: "search-console", label: "Search Console",   ic: "gsc",        href: "/search-console" },
   { key: "connexions",      label: "Connexions",       ic: "connexions", href: "/connexions" },

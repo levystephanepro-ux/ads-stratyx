@@ -6,6 +6,7 @@ import { listManagedAccounts } from "@/lib/google-ads/client";
 import { MOCK_ACCOUNT } from "@/lib/google-ads/mock-data";
 import { fetchAuditData, last30Days } from "./fetch";
 import { runAudit } from "./rules";
+import { getSetting, setSetting } from "@/lib/agent/store";
 import type { AuditResult, Constat } from "./types";
 
 export interface AccountAudit {
@@ -44,6 +45,25 @@ export async function ownerAccounts(): Promise<{ customerId: string; name: strin
   return list.map((a) => ({ customerId: a.customerId, name: a.name }));
 }
 
+// Surveillance par compte (page « Comptes liés ») : activée par défaut,
+// « off » dans app_settings la coupe pour le diagnostic et le rapport du lundi.
+export const monitoringKey = (customerId: string) => `monitoring:${customerId}`;
+
+export async function isMonitored(customerId: string): Promise<boolean> {
+  return (await getSetting(monitoringKey(customerId))) !== "off";
+}
+
+export async function setMonitored(customerId: string, on: boolean): Promise<void> {
+  await setSetting(monitoringKey(customerId), on ? "on" : "off");
+}
+
+/** Comptes de l'owner dont la surveillance est active. */
+export async function monitoredAccounts(): Promise<{ customerId: string; name: string }[]> {
+  const all = await ownerAccounts();
+  const flags = await Promise.all(all.map((a) => isMonitored(a.customerId)));
+  return all.filter((_, i) => flags[i]);
+}
+
 function targetCpaFromEnv(): number | undefined {
   const t = Number(process.env.WASTE_TARGET_CPA ?? "");
   return Number.isFinite(t) && t > 0 ? t : undefined;
@@ -75,7 +95,7 @@ export async function runAuditForOwner(): Promise<{
   needsAttention: boolean;
 }> {
   const range = last30Days();
-  const accounts = await ownerAccounts();
+  const accounts = await monitoredAccounts();
   const supa = db();
   const out: AccountAudit[] = [];
 
