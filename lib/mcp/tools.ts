@@ -334,9 +334,16 @@ async function performanceTool(
 ): Promise<ToolResult> {
   const ctx = resolveContext(ws, customerId);
   const range = { since: since ?? daysAgo(30), until: until ?? daysAgo(0) };
-  const metrics = await getCampaignMetrics(ctx, range);
-  const acc = await getAccount(ctx);
+  const [metrics, acc, camps] = await Promise.all([
+    getCampaignMetrics(ctx, range),
+    getAccount(ctx),
+    listCampaigns(ctx).catch(() => []),
+  ]);
   const cur = acc.currencyCode;
+  // Statut ACTUEL de chaque campagne : une campagne en pause peut avoir dépensé
+  // pendant la période, il ne faut pas la présenter comme active.
+  const STATUS: Record<string, string> = { ENABLED: "Active", PAUSED: "En pause", REMOVED: "Supprimée" };
+  const statusOf = new Map(camps.map((c) => [c.id, STATUS[c.status] ?? c.status]));
 
   let tImpr = 0,
     tClicks = 0,
@@ -355,7 +362,7 @@ async function performanceTool(
       const cpc = m.clicks ? m.cost / m.clicks : 0;
       const cpa = m.conversions ? m.cost / m.conversions : 0;
       const roas = m.cost ? m.conversionsValue / m.cost : 0;
-      return `| ${m.campaignName} | ${int(m.impressions)} | ${int(m.clicks)} | ${pct(ctr)} | ${eur(cpc, cur)} | ${eur(m.cost, cur)} | ${int(m.conversions)} | ${m.conversions ? eur(cpa, cur) : "—"} | ${m.cost ? roas.toFixed(2) + "×" : "—"} |`;
+      return `| ${m.campaignName} | ${statusOf.get(m.campaignId) ?? "?"} | ${int(m.impressions)} | ${int(m.clicks)} | ${pct(ctr)} | ${eur(cpc, cur)} | ${eur(m.cost, cur)} | ${int(m.conversions)} | ${m.conversions ? eur(cpa, cur) : "—"} | ${m.cost ? roas.toFixed(2) + "×" : "—"} |`;
     })
     .join("\n");
 
@@ -365,8 +372,9 @@ async function performanceTool(
   return {
     text:
       `Performance — compte ${ctx.customerId} · ${range.since} → ${range.until}\n\n` +
-      `| Campagne | Impr. | Clics | CTR | CPC | Coût | Conv. | CPA | ROAS |\n` +
-      `|---|---|---|---|---|---|---|---|---|\n${rows}\n\n` +
+      `Statut = statut ACTUEL (une campagne « En pause » a pu dépenser pendant la période avant sa mise en pause).\n\n` +
+      `| Campagne | Statut actuel | Impr. | Clics | CTR | CPC | Coût | Conv. | CPA | ROAS |\n` +
+      `|---|---|---|---|---|---|---|---|---|---|\n${rows}\n\n` +
       `**Total** — Coût ${eur(tCost, cur)} · Conv. ${int(tConv)} · ` +
       `Valeur ${eur(tValue, cur)} · CPA ${eur(totCpa, cur)} · ROAS ${totRoas.toFixed(2)}×`,
   };
