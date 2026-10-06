@@ -94,13 +94,13 @@ export default async function ReportEditor({ params, searchParams }: { params: P
       {sp.saved && <div className="pill ok no-print" style={{ marginBottom: 10 }}>Enregistré</div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 360px) minmax(0, 1fr)", gap: 16, alignItems: "start" }} className="copilote-layout">
-        <form action={saveReportAction} className="card no-print" style={{ position: "sticky", top: 12 }}>
+        <form action={saveReportAction} className="card no-print">
           <input type="hidden" name="id" value={existing?.id ?? ""} />
           <span style={lab}>Modèle</span>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {TEMPLATES.map((t) => (
               <label key={t.key} className={`pill ${r.template === t.key ? "ok" : ""}`} style={{ cursor: "pointer" }}>
-                <input type="radio" name="template" value={t.key} defaultChecked={r.template === t.key} style={{ marginRight: 4 }} />{t.label}
+                <input type="radio" name="template" value={t.key} defaultChecked={r.template === t.key} style={{ marginRight: 6, marginTop: 0, verticalAlign: "-3px" }} />{t.label}
               </label>
             ))}
           </div>
@@ -135,11 +135,11 @@ export default async function ReportEditor({ params, searchParams }: { params: P
           <textarea name="optimisations" defaultValue={r.optimisations} rows={3} placeholder="Ce que tu as changé et ce que tu proposes." style={field} />
 
           <span style={lab}>Sections du rapport</span>
-          <label style={{ display: "flex", gap: 6, fontSize: 13 }}><input type="checkbox" name="compare" defaultChecked={r.compare} /> Comparer à la période précédente</label>
-          <label style={{ display: "flex", gap: 6, fontSize: 13, marginTop: 4 }}><input type="checkbox" name="client_period" defaultChecked={r.client_period} /> Le client peut changer la période</label>
+          <label style={{ display: "flex", gap: 8, fontSize: 13, cursor: "pointer" }}><input type="checkbox" name="compare" defaultChecked={r.compare} /> Comparer à la période précédente</label>
+          <label style={{ display: "flex", gap: 8, fontSize: 13, marginTop: 6, cursor: "pointer" }}><input type="checkbox" name="client_period" defaultChecked={r.client_period} /> Le client peut changer la période</label>
           <div style={{ display: "grid", gap: 6, marginTop: 8 }}>
             {SECTIONS.map((s) => (
-              <label key={s.key} style={{ display: "flex", gap: 8, padding: "8px 10px", borderRadius: 8, border: "1px solid var(--border)", fontSize: 13 }}>
+              <label key={s.key} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "8px 10px", borderRadius: 8, border: "1px solid var(--border)", fontSize: 13, cursor: "pointer" }}>
                 <input type="checkbox" name={`s_${s.key}`} defaultChecked={r.sections.includes(s.key)} />
                 <span><strong>{s.label}</strong><br /><span className="subtitle" style={{ fontSize: 12, margin: 0 }}>{s.hint}</span></span>
               </label>

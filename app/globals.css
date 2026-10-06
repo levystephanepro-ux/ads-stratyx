@@ -91,6 +91,16 @@ input {
 input:focus {
   border-color: var(--accent);
 }
+input[type="checkbox"],
+input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  margin: 2px 0 0;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
 
 button,
 .btn {
@@ -610,7 +620,9 @@ select { cursor: pointer; }
 .rv-title { font-size:30px; margin:6px 0 6px; letter-spacing:-.02em; }
 .rv-meta { color:var(--rv-muted); font-size:13px; padding-bottom:22px; border-bottom:1px solid var(--rv-border); }
 .rv-intro, .rv-text { white-space:pre-wrap; margin:18px 0; }
-.rv section { margin-top:34px; break-inside:avoid; }
+.rv section { margin-top:34px; }
+.rv h2 { break-after:avoid; page-break-after:avoid; }
+.rv tr, .rv li { break-inside:avoid; }
 .rv-h2 { display:flex; align-items:center; gap:12px; font-size:22px; margin:0 0 14px; }
 .rv-num { width:30px; height:30px; border-radius:50%; background:var(--rv-accent); color:#fff; display:inline-grid; place-items:center; font-size:14px; flex-shrink:0; }
 .rv-lead { font-size:22px; line-height:1.35; margin:0 0 18px; }
@@ -643,4 +655,5 @@ select { cursor: pointer; }
   body { background:#fff !important; }
   .no-print, .sidebar, header.topbar, nav { display:none !important; }
   .rv { max-width:none; padding:0; border-radius:0; }
+  .copilote-layout { display:block !important; }
 }
