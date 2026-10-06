@@ -3,115 +3,10 @@ import { useState } from "react";
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 import CreditGauge from "@/components/CreditGauge";
+import { Icons } from "@/components/Icons";
 
-// ── Icônes SVG inline ────────────────────────────────────────────────────────
-const Ic = {
-  home: (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 9.5 10 3l7 6.5V17a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5Z"/>
-      <path d="M7 18v-6h6v6"/>
-    </svg>
-  ),
-  copilote: (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M2 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7l-4 3V5Z"/>
-      <path d="M6.5 8.5h7M6.5 11h4.5"/>
-    </svg>
-  ),
-  agent: (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M11 3 9 10h7L8 17"/>
-    </svg>
-  ),
-  waste: (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 5h14M8 5V3h4v2M5 5l1 12h8l1-12"/>
-      <path d="M8.5 8.5v5M11.5 8.5v5"/>
-    </svg>
-  ),
-  previsions: (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 16l4-5 3 3 6-8"/><path d="M13 6h3v3"/>
-    </svg>
-  ),
-  alertes: (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M5 8a5 5 0 0 1 10 0c0 5 2 6 2 6H3s2-1 2-6"/><path d="M8.5 17a1.6 1.6 0 0 0 3 0"/>
-    </svg>
-  ),
-  comptes: (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2.5" y="4" width="15" height="12" rx="2"/><path d="M2.5 8h15M6 12h3"/>
-    </svg>
-  ),
-  rapports: (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M5 2h7l4 4v12H5z"/><path d="M12 2v4h4M8 11h5M8 14h5"/>
-    </svg>
-  ),
-  scripts: (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M7 6 3 10l4 4M13 6l4 4-4 4"/>
-    </svg>
-  ),
-  templates: (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="2" width="7" height="7" rx="1.5"/>
-      <rect x="11" y="2" width="7" height="7" rx="1.5"/>
-      <rect x="2" y="11" width="7" height="7" rx="1.5"/>
-      <rect x="11" y="11" width="7" height="7" rx="1.5"/>
-    </svg>
-  ),
-  persona: (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="10" cy="7" r="3.5"/>
-      <path d="M2.5 17c0-3.314 3.358-6 7.5-6s7.5 2.686 7.5 6"/>
-    </svg>
-  ),
-  gsc: (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="10" cy="10" r="7.5"/>
-      <path d="M10 6v4l2.5 2.5"/>
-      <path d="M6.5 3.5A7.5 7.5 0 0 0 3 9"/>
-    </svg>
-  ),
-  connexions: (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="4.5" cy="10" r="2"/>
-      <circle cx="15.5" cy="4.5" r="2"/>
-      <circle cx="15.5" cy="15.5" r="2"/>
-      <path d="m6.5 10 7-4M6.5 10l7 4"/>
-    </svg>
-  ),
-  aide: (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="10" cy="10" r="7.5"/>
-      <path d="M10 14v-1"/>
-      <path d="M10 10.5a2 2 0 1 1 0-4 2 2 0 0 1 0 4v1.5"/>
-    </svg>
-  ),
-  admin: (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M10 2 4 4.5v4c0 4.1 2.6 7.3 6 8.5 3.4-1.2 6-4.4 6-8.5v-4L10 2Z"/>
-      <path d="m7.5 9.5 2 2 3.5-3.5"/>
-    </svg>
-  ),
-  logout: (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M8 17H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h4M13 14l3-4-3-4M16 10H8"/>
-    </svg>
-  ),
-  menu: (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-      <path d="M3 5h14M3 10h14M3 15h14"/>
-    </svg>
-  ),
-  close: (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-      <path d="M5 5l10 10M15 5 5 15"/>
-    </svg>
-  ),
-};
+// Icônes : Lucide (components/Icons.tsx)
+const Ic = Icons;
 
 type PageKey = "home" | "copilote" | "agent" | "waste" | "scripts" | "rapports" | "comptes" | "alertes" | "previsions" | "templates" | "connexions" | "persona" | "search-console" | "aide" | "admin";
 
@@ -236,7 +131,7 @@ export default function Shell({
                 border: "1px solid var(--border)", marginBottom: 6,
               }}
             >
-              <span style={{ fontSize: 14 }}>📊</span>
+              <span style={{ width: 16, height: 16, display: "inline-flex" }}>{Icons.chart}</span>
               <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {accountName}
               </span>

@@ -20,7 +20,7 @@ export default async function AdminPage() {
 
   return (
     <Shell active="admin" token={ctx.mcpToken} showAdmin trialDaysLeft={ctx.trialDaysLeft}>
-      <h1 className="page-title">🛠️ Admin</h1>
+      <h1 className="page-title">Admin</h1>
       <p className="page-lede">
         Tes clients, leurs plans et leur consommation. Relie les comptes Google
         Ads et active les abonnements en un clic — plus besoin de SQL.

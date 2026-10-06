@@ -12,6 +12,7 @@ import CampaignSelector from "@/components/CampaignSelector";
 import Shell from "@/components/Shell";
 import { getDashboardContext } from "@/lib/workspace";
 import { requireSub } from "@/lib/subscription";
+import { Icons } from "@/components/Icons";
 
 export const dynamic = "force-dynamic";
 
@@ -55,7 +56,7 @@ export default async function ConnexionsPage() {
 
   return (
     <Shell active="connexions" token={tok} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}>
-      <h1 className="page-title">🔗 Connexions</h1>
+      <h1 className="page-title">Connexions</h1>
       <p className="page-lede">
         Tes comptes Google Ads (via ton compte manager MCC) et le connecteur Stratyx.
       </p>
@@ -105,7 +106,7 @@ export default async function ConnexionsPage() {
             <span>Campagnes de travail</span>
             {defaultAccountName && (
               <span style={{ fontSize: 12, fontWeight: 400, color: "var(--muted)", letterSpacing: 0 }}>
-                📊 {defaultAccountName}
+                <span style={{ width: 14, height: 14, display: "inline-flex", verticalAlign: "-3px", marginRight: 6 }}>{Icons.chart}</span>{defaultAccountName}
               </span>
             )}
           </div>
@@ -126,7 +127,7 @@ export default async function ConnexionsPage() {
             <span>Google Search Console</span>
             {gscConnected && gscMeta?.email && (
               <span style={{ fontSize: 12, fontWeight: 400, color: "var(--muted)", letterSpacing: 0 }}>
-                🔍 {gscMeta.email}
+                <span style={{ width: 14, height: 14, display: "inline-flex", verticalAlign: "-3px", marginRight: 6 }}>{Icons.gsc}</span>{gscMeta.email}
               </span>
             )}
           </div>

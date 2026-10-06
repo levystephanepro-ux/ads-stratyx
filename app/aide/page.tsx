@@ -1,11 +1,12 @@
 import Shell from "@/components/Shell";
 import { getDashboardContext } from "@/lib/workspace";
+import { Icons } from "@/components/Icons";
 
 export const dynamic = "force-dynamic";
 
 const SECTIONS = [
   {
-    icon: "🔐",
+    icon: "admin",
     title: "Connexion & Compte",
     items: [
       {
@@ -27,7 +28,7 @@ const SECTIONS = [
     ],
   },
   {
-    icon: "💬",
+    icon: "copilote",
     title: "Copilote IA",
     items: [
       {
@@ -49,7 +50,7 @@ const SECTIONS = [
     ],
   },
   {
-    icon: "🤖",
+    icon: "agent",
     title: "Agent IA",
     items: [
       {
@@ -71,7 +72,7 @@ const SECTIONS = [
     ],
   },
   {
-    icon: "📋",
+    icon: "rapports",
     title: "Templates",
     items: [
       {
@@ -89,7 +90,7 @@ const SECTIONS = [
     ],
   },
   {
-    icon: "🔗",
+    icon: "connexions",
     title: "Connexions",
     items: [
       {
@@ -111,7 +112,7 @@ const SECTIONS = [
     ],
   },
   {
-    icon: "👤",
+    icon: "persona",
     title: "Persona",
     items: [
       {
@@ -125,7 +126,7 @@ const SECTIONS = [
     ],
   },
   {
-    icon: "📊",
+    icon: "chart",
     title: "Search Console",
     items: [
       {
@@ -143,7 +144,7 @@ const SECTIONS = [
     ],
   },
   {
-    icon: "💳",
+    icon: "layers",
     title: "Abonnement & Tarif",
     items: [
       {
@@ -182,7 +183,7 @@ export default async function AidePage() {
               alignItems: "center",
               gap: 12,
             }}>
-              <span style={{ fontSize: 22 }}>{section.icon}</span>
+              <span style={{ width: 22, height: 22, display: "inline-flex", color: "var(--accent)" }}>{Icons[section.icon as keyof typeof Icons]}</span>
               <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{section.title}</h2>
             </div>
             <div style={{ display: "grid", gap: 0 }}>

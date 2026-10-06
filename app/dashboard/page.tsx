@@ -5,6 +5,7 @@ import { getDashboardContext } from "@/lib/workspace";
 import { requireSub } from "@/lib/subscription";
 import Shell from "@/components/Shell";
 import UsageWidget from "@/components/UsageWidget";
+import { Icons } from "@/components/Icons";
 import { getDefaultAccountInfo, getAccountsInfo } from "@/lib/google-ads/default-account";
 import { isLive } from "@/lib/google-ads/config";
 import { buildDashboard, type Dashboard as DashData } from "@/lib/dashboard";
@@ -56,12 +57,12 @@ export default async function Dashboard({ searchParams }: { searchParams: SP }) 
             </div>
             {accountInfo && (
               <div className="pill" style={{ fontSize: 13 }}>
-                🏢 {accountInfo.name}
+                <span style={{ width: 14, height: 14, display: "inline-flex", verticalAlign: "-2px", marginRight: 4 }}>{Icons.building}</span>{accountInfo.name}
               </div>
             )}
           </div>
           <h1 style={{ fontSize: 32, margin: "0 0 8px", letterSpacing: "-0.02em" }}>
-            Ravi de te revoir. 👋
+            Ravi de te revoir.
           </h1>
           <p className="subtitle" style={{ margin: "0 0 20px", fontSize: 15, maxWidth: 560 }}>
             Tes comptes relus chaque matin : le diagnostic dit par où commencer,
@@ -93,7 +94,7 @@ export default async function Dashboard({ searchParams }: { searchParams: SP }) 
           }}
         >
           <div className="tpl-head">
-            <div className="tpl-ic">💬</div>
+            <div className="tpl-ic">{Icons.copilote}</div>
             <div>
               <div style={{ fontWeight: 600, fontSize: 16 }}>Copilote</div>
               <div className="subtitle" style={{ fontSize: 13 }}>
@@ -112,7 +113,7 @@ export default async function Dashboard({ searchParams }: { searchParams: SP }) 
           }}
         >
           <div className="tpl-head">
-            <div className="tpl-ic">🩺</div>
+            <div className="tpl-ic">{Icons.waste}</div>
             <div>
               <div style={{ fontWeight: 600, fontSize: 16 }}>Diagnostic</div>
               <div className="subtitle" style={{ fontSize: 13 }}>
@@ -127,7 +128,7 @@ export default async function Dashboard({ searchParams }: { searchParams: SP }) 
           style={{ color: "inherit" }}
         >
           <div className="tpl-head">
-            <div className="tpl-ic">📑</div>
+            <div className="tpl-ic">{Icons.scripts}</div>
             <div>
               <div style={{ fontWeight: 600, fontSize: 16 }}>Scripts</div>
               <div className="subtitle" style={{ fontSize: 13 }}>

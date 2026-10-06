@@ -1,21 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Icons } from "@/components/Icons";
+
+// Thème clair par défaut ; le choix « sombre » est mémorisé dans le navigateur.
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [theme, setTheme] = useState<"dark" | "light">("light");
 
   useEffect(() => {
-    const saved = localStorage.getItem("ads-theme");
-    if (saved === "light" || saved === "dark") setTheme(saved);
-    else if (document.documentElement.getAttribute("data-theme") === "light") setTheme("light");
+    try {
+      const saved = localStorage.getItem("ads-theme");
+      if (saved === "light" || saved === "dark") setTheme(saved);
+    } catch { /* stockage indisponible */ }
   }, []);
 
   function toggle() {
     const next = theme === "dark" ? "light" : "dark";
     setTheme(next);
     document.documentElement.setAttribute("data-theme", next);
-    localStorage.setItem("ads-theme", next);
+    try { localStorage.setItem("ads-theme", next); } catch { /* ignoré */ }
   }
 
   return (
@@ -31,7 +35,7 @@ export default function ThemeToggle() {
         fontWeight: 500,
       }}
     >
-      <span className="side-ic">{theme === "dark" ? "☀️" : "🌙"}</span>
+      <span className="side-ic">{theme === "dark" ? Icons.sun : Icons.moon}</span>
       <span>{theme === "dark" ? "Thème clair" : "Thème sombre"}</span>
     </button>
   );

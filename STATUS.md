@@ -75,6 +75,11 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 
 ## 📝 Journal de session
 
+### 2026-10-06 — Cowork (Design clair + icônes)
+- Thème clair par défaut (fond blanc/gris très clair, cartes avec ombre légère, menu latéral violet dégradé façon Ades) ; sombre en option (choix mémorisé `ads-theme`).
+- Variables `--side-*` dans globals.css ; le menu redéfinit --text/--muted/--border/--surface-2 pour ses composants (jauge, compte, thème).
+- Icônes Lucide (ISC) en SVG inline : `components/Icons.tsx` (menu, accueil, thème, aide, connexions) ; emojis retirés des titres et cartes.
+
 ### 2026-10-06 — Cowork (Phase 6 : Prévisions + jauge IA)
 - `adsPost()` dans client.ts (POST générique : generateKeywordIdeas, geoTargetConstants:suggest, googleAds:mutate).
 - `lib/planner/ideas.ts` : lieux, idées de mots-clés (FR, Search), taux de conv. du compte 90 j, `forecast()` (CPC = milieu fourchette haut de page pondéré, CTR 6 %, conv. = taux du compte ou 5 %).
