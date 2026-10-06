@@ -11,6 +11,7 @@ import {
   listManagedAccounts,
   setCampaignStatus,
   updateCampaignBudget,
+  searchRaw,
   type AdsContext,
 } from "@/lib/google-ads/client";
 import { isLive } from "@/lib/google-ads/config";
@@ -123,6 +124,22 @@ export const MCP_TOOLS: McpTool[] = [
     },
   },
   {
+    name: "list_keywords",
+    description:
+      "Liste les mots-clés ACTIFS (texte, correspondance, groupe, Quality Score, coût et conversions sur la période) " +
+      "ET tous les mots-clés négatifs (campagne, groupe, listes partagées). À appeler AVANT de proposer un négatif, " +
+      "pour vérifier qu'il ne bloque aucun mot-clé actif.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        customer_id: { type: "string", description: "ID du compte (facultatif)." },
+        since: { type: "string", description: "Date de début ISO YYYY-MM-DD." },
+        until: { type: "string", description: "Date de fin ISO YYYY-MM-DD." },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "set_campaign_status",
     description:
       "ÉCRITURE : met une campagne en pause ou l'active. Action réelle sur le compte. " +
@@ -215,6 +232,8 @@ export async function callTool(
         args.since as string | undefined,
         args.until as string | undefined,
       );
+    case "list_keywords":
+      return keywordsTool(ws, args.customer_id as string | undefined, args.since as string | undefined, args.until as string | undefined);
     case "get_search_terms":
       return searchTermsTool(
         ws,
@@ -524,5 +543,53 @@ async function updateBudgetTool(
   await updateCampaignBudget(ctx, campaignId, budget);
   return {
     text: `✅ Budget de la campagne ${campaignId} réglé à ${eur(budget, acc.currencyCode)} (compte ${ctx.customerId}).`,
+  };
+}
+
+async function keywordsTool(ws: WorkspaceContext, customerId?: string, since?: string, until?: string): Promise<ToolResult> {
+  if (!isLive()) return { text: "Mode démo : liste des mots-clés indisponible." };
+  const ctx = resolveContext(ws, customerId);
+  const range = { since: since ?? daysAgo(30), until: until ?? daysAgo(1) };
+  const MT: Record<string, string> = { EXACT: "exact", PHRASE: "expression", BROAD: "large" };
+  const fmt = (t: string, m: string) => (m === "EXACT" ? `[${t}]` : m === "PHRASE" ? `"${t}"` : t);
+  const [kws, perf, campNeg, agNeg, links, shared] = await Promise.all([
+    searchRaw(ctx, `SELECT campaign.name, ad_group.id, ad_group.name, ad_group_criterion.criterion_id, ad_group_criterion.keyword.text,
+        ad_group_criterion.keyword.match_type, ad_group_criterion.quality_info.quality_score
+      FROM ad_group_criterion WHERE campaign.status = 'ENABLED' AND ad_group.status = 'ENABLED' AND ad_group_criterion.status = 'ENABLED'
+        AND ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.negative = FALSE`),
+    searchRaw(ctx, `SELECT ad_group.id, ad_group_criterion.criterion_id, metrics.cost_micros, metrics.clicks, metrics.conversions
+      FROM keyword_view WHERE segments.date BETWEEN '${range.since}' AND '${range.until}'`),
+    searchRaw(ctx, `SELECT campaign.name, campaign_criterion.keyword.text, campaign_criterion.keyword.match_type FROM campaign_criterion
+      WHERE campaign.status = 'ENABLED' AND campaign_criterion.type = 'KEYWORD' AND campaign_criterion.negative = TRUE`),
+    searchRaw(ctx, `SELECT campaign.name, ad_group.name, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type FROM ad_group_criterion
+      WHERE campaign.status = 'ENABLED' AND ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.negative = TRUE`),
+    searchRaw(ctx, `SELECT campaign.name, shared_set.id, shared_set.name FROM campaign_shared_set
+      WHERE campaign.status = 'ENABLED' AND shared_set.type = 'NEGATIVE_KEYWORDS' AND campaign_shared_set.status = 'ENABLED'`),
+    searchRaw(ctx, `SELECT shared_set.id, shared_criterion.keyword.text, shared_criterion.keyword.match_type FROM shared_criterion
+      WHERE shared_set.type = 'NEGATIVE_KEYWORDS' AND shared_criterion.type = 'KEYWORD'`),
+  ]);
+  const p = new Map<string, { cost: number; clicks: number; conv: number }>();
+  perf.forEach((r) => {
+    const k = `${r.adGroup?.id}|${r.adGroupCriterion?.criterionId}`;
+    const x = p.get(k) ?? { cost: 0, clicks: 0, conv: 0 };
+    x.cost += Number(r.metrics?.costMicros ?? 0) / 1e6; x.clicks += Number(r.metrics?.clicks ?? 0); x.conv += Number(r.metrics?.conversions ?? 0);
+    p.set(k, x);
+  });
+  const kwRows = kws.map((r) => {
+    const x = p.get(`${r.adGroup?.id}|${r.adGroupCriterion?.criterionId}`) ?? { cost: 0, clicks: 0, conv: 0 };
+    return `| ${fmt(r.adGroupCriterion?.keyword?.text ?? "", r.adGroupCriterion?.keyword?.matchType)} | ${MT[r.adGroupCriterion?.keyword?.matchType] ?? ""} | ${r.campaign?.name} › ${r.adGroup?.name} | ${r.adGroupCriterion?.qualityInfo?.qualityScore ?? "–"} | ${eur(x.cost)} | ${int(x.clicks)} | ${int(x.conv)} |`;
+  }).join("\n");
+  const setNames = new Map<string, string[]>();
+  links.forEach((l) => setNames.set(String(l.sharedSet?.id), [...(setNames.get(String(l.sharedSet?.id)) ?? []), `${l.sharedSet?.name} → ${l.campaign?.name}`]));
+  const negRows = [
+    ...campNeg.map((r) => `| ${fmt(r.campaignCriterion?.keyword?.text ?? "", r.campaignCriterion?.keyword?.matchType)} | campagne ${r.campaign?.name} |`),
+    ...agNeg.map((r) => `| ${fmt(r.adGroupCriterion?.keyword?.text ?? "", r.adGroupCriterion?.keyword?.matchType)} | groupe ${r.campaign?.name} › ${r.adGroup?.name} |`),
+    ...shared.filter((r) => setNames.has(String(r.sharedSet?.id))).map((r) => `| ${fmt(r.sharedCriterion?.keyword?.text ?? "", r.sharedCriterion?.keyword?.matchType)} | liste ${setNames.get(String(r.sharedSet?.id))!.join(", ")} |`),
+  ].join("\n");
+  return {
+    text:
+      `Mots-clés actifs — compte ${ctx.customerId} · ${range.since} → ${range.until}\n\n` +
+      `| Mot-clé | Corresp. | Campagne › groupe | QS | Coût | Clics | Conv. |\n|---|---|---|---|---|---|---|\n${kwRows || "| (aucun) |"}\n\n` +
+      `Mots-clés négatifs\n\n| Négatif | Posé sur |\n|---|---|\n${negRows || "| (aucun) |"}`,
   };
 }

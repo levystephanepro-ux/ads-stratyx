@@ -129,21 +129,21 @@ export default function Copilote({
       body: JSON.stringify({ token, customerId, context }),
     }).catch(() => {});
     setContextState("saved");
-    setTimeout(() => setContextState(""), 2000);
+    setTimeout(() => { setContextState(""); setShowContext(false); }, 900);
   }
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 240px) minmax(0, 1fr)", gap: 16, alignItems: "start" }} className="copilote-layout">
       {/* Colonne gauche : conversations */}
-      <aside>
+      <aside style={{ minWidth: 0 }}>
         <button className="btn-ghost" style={{ width: "100%", marginBottom: 12 }} onClick={newConversation}>+ Nouvelle conversation</button>
         {history.length > 0 && <div className="subtitle" style={{ fontSize: 11, textTransform: "uppercase", margin: "0 0 6px" }}>Conversations</div>}
         <div style={{ display: "grid", gap: 4 }}>
           {history.map((c) => (
             <button key={c.id} onClick={() => { setCurrent(c.id); setMessages(c.messages); setError(null); }}
-              style={{ textAlign: "left", background: c.id === current ? "var(--surface-2)" : "transparent", border: "none", borderRadius: 8, padding: "8px 10px", color: "var(--text)", cursor: "pointer" }}>
+              style={{ display: "block", width: "100%", minWidth: 0, overflow: "hidden", textAlign: "left", background: c.id === current ? "var(--surface-2)" : "transparent", border: "none", borderRadius: 8, padding: "8px 10px", color: "var(--text)", cursor: "pointer", font: "inherit", fontWeight: 400 }}>
               <div style={{ fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.title}</div>
-              <div className="subtitle" style={{ fontSize: 11, margin: 0 }}>{c.date} · {c.messages.filter((m) => m.role === "user").length} question(s)</div>
+              <div className="subtitle" style={{ fontSize: 11, margin: "2px 0 0", whiteSpace: "nowrap" }}>{c.date} · {c.messages.filter((m) => m.role === "user").length} question(s)</div>
             </button>
           ))}
         </div>
