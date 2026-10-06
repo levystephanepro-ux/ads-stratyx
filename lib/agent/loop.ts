@@ -48,6 +48,23 @@ export interface LoopResult {
   usage: TokenUsage;
 }
 
+/**
+ * Le modèle ne connaît pas la date du jour : sans elle, il calcule « les 90 derniers
+ * jours » dans une mauvaise année et les outils renvoient des zéros. On l'injecte.
+ */
+function withToday(system: string): string {
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setUTCDate(today.getUTCDate() - 1);
+  return (
+    `Date du jour : ${iso(today)} (hier : ${iso(yesterday)}). Calcule toutes les périodes à partir de cette date ` +
+    `(ex. « 30 derniers jours » = du ${iso(new Date(yesterday.getTime() - 29 * 864e5))} au ${iso(yesterday)}), ` +
+    `et passe toujours since/until explicitement aux outils. Si un outil renvoie uniquement des zéros, vérifie d'abord les dates utilisées avant de conclure à une panne.\n\n` +
+    system
+  );
+}
+
 export async function runAgentLoop(
   inputMessages: Anthropic.MessageParam[],
   opts: LoopOptions,
@@ -96,7 +113,7 @@ export async function runAgentLoop(
     const res = await client.messages.create({
       model,
       max_tokens: opts.maxTokens ?? 2048,
-      system: opts.system,
+      system: withToday(opts.system),
       messages,
       tools,
     });
