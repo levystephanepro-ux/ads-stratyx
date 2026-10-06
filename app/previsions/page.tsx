@@ -1,16 +1,16 @@
 // Prévisions (façon Forecast d'Ades) : volumes et CPC du planificateur Google,
 // estimation clics / leads / coût selon le budget mensuel, rentabilité (panier,
 // marge, closing, frais d'agence), puis création d'une campagne Search en pause.
-// Sans IA, aucun crédit.
+// La simulation est sans IA ; la structure de campagne peut être proposée par l'IA (payant, plafond owner).
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import Shell from "@/components/Shell";
-import CampaignForm from "@/components/CampaignForm";
+import CampaignBuilder from "@/components/CampaignBuilder";
 import { getDashboardContext } from "@/lib/workspace";
 import { getAccountsInfo } from "@/lib/google-ads/default-account";
 import { isLive } from "@/lib/google-ads/config";
 import { suggestGeo, keywordIdeas, accountCvr, forecast, COUNTRIES, LANGUAGES, type Geo, type Idea, type Forecast } from "@/lib/planner/ideas";
-import { createCampaignAction } from "./actions";
+import { createCampaignAction, proposeStructureAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -85,12 +85,22 @@ export default async function PrevisionsPage({ searchParams }: { searchParams: S
 
   const geoLabel = (g: Geo) => `${g.name}${g.type ? ` (${g.type.toLowerCase().replace("_", " ")})` : ""}`;
   const firstKw = selected.slice(0, 4).map((i) => cap(i.text)).filter((t) => t.length <= 30);
-  const initial: Record<string, string> = {
-    customer_id: account, account_name: accName, lang: lang.id,
+  const initial = {
     name: `Search · ${cap(seeds[0] ?? selected[0]?.text ?? "nouvelle campagne")}${lieux[0] ? ` · ${lieux[0]}` : ""}`.slice(0, 120),
-    budget: String(daily), keywords: selected.map((i) => i.text).join("\n"), match: "PHRASE", url,
-    headlines: [...firstKw, ...(lieux[0] && `Artisan à ${lieux[0]}`.length <= 30 ? [`Artisan à ${lieux[0]}`] : []), "Devis gratuit sous 48 h", "Contactez-nous"].join("\n"),
-    descriptions: "À REMPLACER : ce que vous faites, pour qui, et ce qui vous distingue.\nÀ REMPLACER : l'appel à l'action (devis gratuit, appel, visite).",
+    budget: String(daily), url,
+    group: {
+      name: "Groupe 1",
+      keywords: selected.map((i) => i.text),
+      headlines: [...firstKw, ...(lieux[0] && `Artisan à ${lieux[0]}`.length <= 30 ? [`Artisan à ${lieux[0]}`] : []), "Devis gratuit sous 48 h", "Contactez-nous"],
+      descriptions: ["À REMPLACER : ce que vous faites, pour qui, et ce qui vous distingue.", "À REMPLACER : l'appel à l'action (devis gratuit, appel, visite)."],
+    },
+  };
+  const selSet = new Set(selected.map((i) => i.text));
+  const aiInput = {
+    url, objectif: objectif as "leads" | "ventes", country: country.label, language: lang.label,
+    places: lieux.length ? geos.map((g) => g.name) : [], monthlyBudget: monthly,
+    panier, marge, closing,
+    ideas: ideas.map((i) => ({ text: i.text, searches: i.searches, cpcLow: i.low, cpcHigh: i.high, selected: selSet.has(i.text) })),
   };
   const convLabel = objectif === "ventes" ? "Ventes" : "Leads";
 
@@ -98,7 +108,7 @@ export default async function PrevisionsPage({ searchParams }: { searchParams: S
     <Shell active="previsions" token={ctx.mcpToken} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}>
       <h1 style={{ margin: "0 0 4px" }}>Prévisions</h1>
       <p className="subtitle" style={{ marginTop: 0 }}>
-        Simuler avant de dépenser : recherches, clics, coût et rentabilité de la campagne, puis création en pause. Sans IA, aucun crédit.
+        Simuler avant de dépenser : recherches, clics, coût et rentabilité de la campagne, puis structure proposée par l&apos;IA et création en pause.
       </p>
 
       <form method="get" className="card" style={{ marginBottom: 14 }}>
@@ -206,7 +216,9 @@ export default async function PrevisionsPage({ searchParams }: { searchParams: S
             </div>
           </form>
 
-          <CampaignForm action={createCampaignAction} initial={initial} geos={geos.map((g) => ({ id: g.id, label: geoLabel(g) }))} />
+          <CampaignBuilder customerId={account} accountName={accName} languageId={lang.id}
+            geos={geos.map((g) => ({ id: g.id, label: geoLabel(g) }))} initial={initial} aiInput={aiInput}
+            propose={proposeStructureAction} create={createCampaignAction} />
           <p className="subtitle" style={{ fontSize: 12, marginTop: 8 }}>Après création : ajoute les extensions (appel, liens, accroches), tes négatifs habituels et les horaires dans Google Ads avant d&apos;activer. <Link href="/waste/journal">Journal des corrections</Link></p>
         </>
       )}

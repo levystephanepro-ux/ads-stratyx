@@ -1,56 +1,70 @@
 "use server";
 import { getDashboardContext } from "@/lib/workspace";
 import { isLive } from "@/lib/google-ads/config";
+import { getGlobalBilling } from "@/lib/billing";
+import { getAccountContext } from "@/lib/account-context";
 import { createPausedSearchCampaign, validateSpec, type CampaignSpec } from "@/lib/planner/create";
+import { proposeStructure, type Structure, type StructureInput } from "@/lib/planner/ai";
 import { logAction } from "@/lib/fixes/store";
 
-export interface CreateState { ok: boolean | null; messages: string[]; values: Record<string, string>; created?: string }
+export interface ActionResult { ok: boolean; messages: string[]; created?: string }
 
-const lines = (v: string) => v.split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
-const num = (v: string) => Number(v.replace(/\s/g, "").replace(",", "."));
-
-export async function createCampaignAction(_prev: CreateState, form: FormData): Promise<CreateState> {
-  const values: Record<string, string> = {};
-  for (const [k, v] of form.entries()) if (typeof v === "string" && k !== "g") values[k] = v;
-  values.g = form.getAll("g").map(String).join(",");
+/** Proposition de structure par l'IA (groupes, annonces, négatifs). */
+export async function proposeStructureAction(input: Omit<StructureInput, "accountContext"> & { customerId: string }):
+  Promise<{ ok: boolean; message: string; structure?: Structure }> {
   const ctx = await getDashboardContext();
-  if (!ctx.isOwner) return { ok: false, messages: ["Accès réservé."], values };
-  if (!isLive()) return { ok: false, messages: ["Mode démo : la création passe par un vrai compte Google Ads."], values };
-
-  const customerId = values.customer_id ?? "";
-  if (!/^\d{6,12}$/.test(customerId)) return { ok: false, messages: ["Compte invalide."], values };
-  const spec: CampaignSpec = {
-    name: (values.name ?? "").trim(),
-    dailyBudget: num(values.budget ?? ""),
-    bidding: (["MAXIMIZE_CLICKS", "MAXIMIZE_CONVERSIONS", "MANUAL_CPC"].includes(values.bidding) ? values.bidding : "MAXIMIZE_CLICKS") as CampaignSpec["bidding"],
-    maxCpc: values.maxcpc ? num(values.maxcpc) : null,
-    geoIds: form.getAll("g").map(String).filter((g) => /^\d+$/.test(g)),
-    keywords: [...new Set(lines(values.keywords ?? "").map((k) => k.replace(/^[\["]+|[\]"]+$/g, "").toLowerCase()))],
-    matchType: (["PHRASE", "EXACT", "BROAD"].includes(values.match) ? values.match : "PHRASE") as CampaignSpec["matchType"],
-    finalUrl: (values.url ?? "").trim(),
-    headlines: lines(values.headlines ?? ""),
-    descriptions: lines(values.descriptions ?? ""),
-    path1: (values.path1 ?? "").trim() || undefined,
-    path2: (values.path2 ?? "").trim() || undefined,
-    languageId: values.lang || undefined,
-  };
-  const problems = validateSpec(spec);
-  if (problems.length) return { ok: false, messages: problems, values };
-
-  const check = values.mode === "check";
+  if (!ctx.isOwner) return { ok: false, message: "Accès réservé." };
+  if (!process.env.ANTHROPIC_API_KEY) return { ok: false, message: "ANTHROPIC_API_KEY manquante sur Vercel." };
+  const billing = await getGlobalBilling();
+  if (!billing.allowed) return { ok: false, message: billing.reason ?? "Plafond IA atteint." };
   try {
-    const r = await createPausedSearchCampaign(customerId, spec, check);
-    if (check) return { ok: true, messages: ["Google Ads a validé la campagne : rien n'a été créé. Clique sur « Créer en pause » pour la créer."], values };
+    const accountContext = await getAccountContext(input.customerId, null);
+    const { structure, costUsd } = await proposeStructure({ ...input, ideas: input.ideas.slice(0, 120), accountContext });
+    const rate = Number((process.env.EUR_TO_USD ?? "1.15").replace(",", ".")) || 1.15;
+    return { ok: true, structure, message: `${structure.groups.length} groupe(s) proposé(s) · coût IA ${(costUsd / rate).toLocaleString("fr-FR", { maximumFractionDigits: 3 })} €. Relis tout avant de créer.` };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** Vérifie (validateOnly) ou crée la campagne en pause. */
+export async function createCampaignAction(customerId: string, accountName: string, spec: CampaignSpec, mode: "check" | "create"): Promise<ActionResult> {
+  const ctx = await getDashboardContext();
+  if (!ctx.isOwner) return { ok: false, messages: ["Accès réservé."] };
+  if (!isLive()) return { ok: false, messages: ["Mode démo : la création passe par un vrai compte Google Ads."] };
+  if (!/^\d{6,12}$/.test(customerId)) return { ok: false, messages: ["Compte invalide."] };
+
+  const clean: CampaignSpec = {
+    ...spec,
+    name: spec.name.trim(),
+    geoIds: spec.geoIds.filter((g) => /^\d+$/.test(g)),
+    finalUrl: spec.finalUrl.trim(),
+    negatives: [...new Set(spec.negatives.map((n) => n.trim().toLowerCase()).filter(Boolean))],
+    groups: spec.groups.map((g) => ({
+      ...g,
+      keywords: [...new Set(g.keywords.map((k) => k.trim().toLowerCase().replace(/^[\["]+|[\]"]+$/g, "")).filter(Boolean))],
+      headlines: g.headlines.map((h) => h.trim()).filter(Boolean),
+      descriptions: g.descriptions.map((d) => d.trim()).filter(Boolean),
+      path1: g.path1?.trim() || undefined, path2: g.path2?.trim() || undefined,
+    })),
+  };
+  const problems = validateSpec(clean);
+  if (problems.length) return { ok: false, messages: problems };
+
+  try {
+    const r = await createPausedSearchCampaign(customerId, clean, mode === "check");
+    if (mode === "check") return { ok: true, messages: ["Google Ads a validé la campagne : rien n'a été créé. Clique sur « Créer en pause » pour la créer."] };
+    const nKw = clean.groups.reduce((n, g) => n + g.keywords.length, 0);
     await logAction({
-      workspace_id: ctx.workspaceId, customer_id: customerId, account_name: values.account_name || null, constat_id: null,
+      workspace_id: ctx.workspaceId, customer_id: customerId, account_name: accountName || null, constat_id: null,
       title: "Nouvelle campagne (Prévisions)",
-      summary: `Campagne Search « ${spec.name} » créée en pause (${spec.dailyBudget} €/jour, ${spec.keywords.length} mot(s)-clé(s)).`,
-      fix: { type: "create_campaign", name: spec.name, dailyBudget: spec.dailyBudget, keywords: spec.keywords.length },
+      summary: `Campagne Search « ${clean.name} » créée en pause : ${clean.groups.length} groupe(s), ${nKw} mot(s)-clé(s), ${clean.negatives.length} négatif(s), ${clean.dailyBudget} €/jour.`,
+      fix: { type: "create_campaign", name: clean.name, dailyBudget: clean.dailyBudget, keywords: nKw },
       undo: r.campaign ? { type: "remove_campaign", resourceName: r.campaign } : null,
       status: "done", error: null, author: ctx.email,
     }).catch(() => undefined);
-    return { ok: true, created: r.campaign ?? undefined, messages: [`Campagne « ${spec.name} » créée EN PAUSE. Relis-la dans Google Ads (extensions, horaires, exclusions), puis active-la. Annulable depuis le Journal des corrections.`], values };
+    return { ok: true, created: r.campaign ?? "ok", messages: [`Campagne « ${clean.name} » créée EN PAUSE. Relis-la dans Google Ads (extensions, horaires), puis active-la. Annulable depuis le Journal des corrections.`] };
   } catch (e) {
-    return { ok: false, messages: [e instanceof Error ? e.message : String(e)], values };
+    return { ok: false, messages: [e instanceof Error ? e.message : String(e)] };
   }
 }
