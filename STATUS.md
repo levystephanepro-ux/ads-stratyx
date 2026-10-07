@@ -212,3 +212,10 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 ---
 
 *Template : ajouter une ligne dans "Journal de session" à chaque ouverture*
+
+## Journal : Fiche client + questionnaire de découverte
+- Migration 0021_clients.sql (table clients : réponses, statut, share_token).
+- lib/clients/{questions,store}.ts, pages /clients, /clients/[id], lien public /q/[token] (middleware PUBLIC_PREFIXES), menu Clients.
+- Les réponses sont écrites dans account_context:<customerId> (bloc [Questionnaire client], texte libre conservé) : Copilote et Prévisions les lisent. Limite du contexte planner passée à 4000 caractères.
+- Hébergement : on reste sur Vercel Hobby pendant la construction (usage seul). Avant de servir des clients payants : Vercel Pro ou Cloud Run.
+- Prochaines étapes : push direct complet (extensions, planning) + export Google Ads Editor, audit PDF prospect/client, Persona branché sur le questionnaire, Meta Ads plus tard.

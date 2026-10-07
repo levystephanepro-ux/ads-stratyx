@@ -46,7 +46,7 @@ function prompt(i: StructureInput): string {
     `- Zone : ${i.places.length ? i.places.join(", ") : i.country} · langue : ${i.language}`,
     `- Budget mensuel : ${Math.round(i.monthlyBudget)} €`,
     i.panier ? `- Panier moyen : ${i.panier} €, marge ${i.marge ?? "?"} %, ${i.closing ?? "?"} % des leads deviennent clients` : "",
-    i.accountContext ? `- Ce que le client a dit de son activité :\n${i.accountContext.slice(0, 1500)}` : "",
+    i.accountContext ? `- Ce que le client a dit de son activité :\n${i.accountContext.slice(0, 4000)}` : "",
     ``,
     `Mots-clés du planificateur Google (* = retenus par l'utilisateur) :`,
     kw,

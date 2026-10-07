@@ -14,6 +14,7 @@ const PUBLIC_PREFIXES = [
   "/api/cron",
   "/api/stripe/webhook",
   "/r", // liens publics des rapports clients
+  "/q", // lien public du questionnaire de découverte
 ];
 
 export async function middleware(request: NextRequest) {

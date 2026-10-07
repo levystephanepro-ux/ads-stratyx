@@ -9,7 +9,7 @@ import Owl from "@/components/Owl";
 // Icônes : Lucide (components/Icons.tsx)
 const Ic = Icons;
 
-type PageKey = "home" | "copilote" | "agent" | "waste" | "scripts" | "rapports" | "comptes" | "alertes" | "previsions" | "templates" | "connexions" | "persona" | "search-console" | "aide" | "admin";
+type PageKey = "home" | "copilote" | "agent" | "waste" | "scripts" | "rapports" | "comptes" | "clients" | "alertes" | "previsions" | "templates" | "connexions" | "persona" | "search-console" | "aide" | "admin";
 
 const NAV: { key: PageKey; label: string; ic: keyof typeof Ic; href: string }[] = [
   { key: "home",       label: "Accueil",     ic: "home",       href: "/dashboard" },
@@ -20,6 +20,7 @@ const NAV: { key: PageKey; label: string; ic: keyof typeof Ic; href: string }[] 
   { key: "alertes",    label: "Alertes",     ic: "alertes",    href: "/alertes" },
   { key: "previsions", label: "Prévisions",  ic: "previsions", href: "/previsions" },
   { key: "comptes",    label: "Comptes liés", ic: "comptes",   href: "/comptes" },
+  { key: "clients",    label: "Clients",     ic: "clients",    href: "/clients" },
   { key: "persona",         label: "Persona",          ic: "persona",    href: "/persona" },
   { key: "search-console", label: "Search Console",   ic: "gsc",        href: "/search-console" },
   { key: "connexions",      label: "Connexions",       ic: "connexions", href: "/connexions" },
