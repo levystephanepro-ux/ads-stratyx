@@ -21,6 +21,8 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   if (path === "/") {
+    // Usage interne : pas de vitrine commerciale, on envoie directement vers l'app (login si besoin).
+    if (process.env.STRATYX_INTERNAL_MODE === "true") return NextResponse.redirect(new URL("/dashboard", request.url));
     return NextResponse.next();
   }
 
