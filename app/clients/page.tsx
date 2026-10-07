@@ -6,7 +6,7 @@ import SubmitButton from "@/components/SubmitButton";
 import { getDashboardContext } from "@/lib/workspace";
 import { getAccountsInfo } from "@/lib/google-ads/default-account";
 import { listClients } from "@/lib/clients/store";
-import { createClientAction } from "./actions";
+import { createClientAction, deleteClientAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -43,10 +43,16 @@ export default async function ClientsPage() {
         <div style={{ display: "grid", gap: 10 }}>
           {clients.length === 0 && !dbError && <div className="card subtitle">Aucun client pour l'instant.</div>}
           {clients.map((c) => (
-            <Link key={c.id} href={`/clients/${c.id}`} className="card" style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", color: "inherit", flexWrap: "wrap" }}>
-              <span><strong>{c.name}</strong><br /><span className="subtitle" style={{ margin: 0, fontSize: 12 }}>{nameOf(c.customer_id)}</span></span>
+            <div key={c.id} className="card" style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <Link href={`/clients/${c.id}`} style={{ color: "inherit", flex: 1, minWidth: 200 }}>
+                <strong>{c.name}</strong><br /><span className="subtitle" style={{ margin: 0, fontSize: 12 }}>{nameOf(c.customer_id)}</span>
+              </Link>
               <span className="pill">{STATUS_LABEL[c.status]}</span>
-            </Link>
+              <form action={deleteClientAction}>
+                <input type="hidden" name="id" value={c.id} />
+                <button className="btn-ghost" type="submit" style={{ color: "var(--red)", padding: "6px 10px", fontSize: 12 }}>Supprimer</button>
+              </form>
+            </div>
           ))}
         </div>
       </div>
