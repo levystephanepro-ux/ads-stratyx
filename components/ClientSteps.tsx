@@ -44,10 +44,8 @@ export default function ClientSteps({ c, hasProposal }: { c: Client; hasProposal
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8, margin: "14px 0" }}>
       {steps.map((s) => (
         <div key={s.n} className="card" style={{ padding: 12, borderTop: `4px solid ${COLOR[s.state]}`, display: "grid", gap: 6, alignContent: "start", opacity: s.state === "a_faire" ? 0.75 : 1 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 6 }}>
-            <strong style={{ fontSize: 14 }}>{s.n}. {s.title}</strong>
-            <span style={{ fontSize: 11, fontWeight: 700, color: s.state === "a_faire" ? "var(--muted)" : COLOR[s.state] }}>{s.state === "fait" ? "Fait" : s.state === "en_cours" ? "En cours" : "À faire"}</span>
-          </div>
+          <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em", color: s.state === "a_faire" ? "var(--muted)" : COLOR[s.state] }}>{s.state === "fait" ? "Fait" : s.state === "en_cours" ? "En cours" : "À faire"}</span>
+          <strong style={{ fontSize: 15 }}>{s.n}. {s.title}</strong>
           <span className="subtitle" style={{ margin: 0, fontSize: 12 }}>{s.detail}</span>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {s.links.map((l) => <Link key={l.href} href={l.href} style={{ fontSize: 12 }}>{l.label}</Link>)}

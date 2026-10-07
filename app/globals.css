@@ -163,6 +163,13 @@ button:disabled {
   color: var(--text);
   border: 1px solid var(--border);
 }
+/* Liens présentés en bouton : même gabarit que les vrais boutons */
+a.btn-ghost {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 11px 16px; border-radius: 10px; font-size: 15px; font-weight: 600;
+  text-decoration: none; cursor: pointer; line-height: 1.2;
+}
+a.btn-ghost:hover { filter: brightness(0.97); text-decoration: none; }
 
 .status-msg {
   margin-top: 14px;
