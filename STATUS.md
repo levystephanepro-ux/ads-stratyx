@@ -219,3 +219,7 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 - Les réponses sont écrites dans account_context:<customerId> (bloc [Questionnaire client], texte libre conservé) : Copilote et Prévisions les lisent. Limite du contexte planner passée à 4000 caractères.
 - Hébergement : on reste sur Vercel Hobby pendant la construction (usage seul). Avant de servir des clients payants : Vercel Pro ou Cloud Run.
 - Prochaines étapes : push direct complet (extensions, planning) + export Google Ads Editor, audit PDF prospect/client, Persona branché sur le questionnaire, Meta Ads plus tard.
+
+## Journal : Push direct complet + export Google Ads Editor
+- lib/planner/create.ts : extensions (liens annexes, accroches, appel) via assets + campaignAssets, horaires de diffusion (adSchedule), validations.
+- lib/planner/editor.ts + bouton « Exporter pour Google Ads Editor (CSV) » dans Prévisions. Format à valider sur un vrai import (noms de colonnes et lieux).

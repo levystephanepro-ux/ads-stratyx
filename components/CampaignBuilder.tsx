@@ -2,7 +2,9 @@
 // Constructeur de campagne (Prévisions) : réglages, groupes d'annonces éditables,
 // proposition par l'IA, vérification et création EN PAUSE dans Google Ads.
 import { useState, useTransition } from "react";
-import type { AdGroupSpec, CampaignSpec } from "@/lib/planner/create";
+import type { AdGroupSpec, CampaignSpec, Extensions } from "@/lib/planner/create";
+import { DAY_FR } from "@/lib/planner/create";
+import { toEditorCsv } from "@/lib/planner/editor";
 import type { BuilderTier, Structure, StructureInput } from "@/lib/planner/ai";
 import type { ActionResult } from "@/app/previsions/actions";
 
@@ -40,6 +42,10 @@ export default function CampaignBuilder({ customerId, accountName, languageId, g
   const [groups, setGroups] = useState<GroupDraft[]>([toDraft(initial.group)]);
   const [negatives, setNegatives] = useState("");
   const [notes, setNotes] = useState("");
+  const [phone, setPhone] = useState("");
+  const [sitelinks, setSitelinks] = useState("");
+  const [callouts, setCallouts] = useState("");
+  const [sched, setSched] = useState("");
   const [tier, setTier] = useState<BuilderTier>("sonnet");
   const [msg, setMsg] = useState<{ ok: boolean; lines: string[] } | null>(null);
   const [created, setCreated] = useState(false);
@@ -49,9 +55,25 @@ export default function CampaignBuilder({ customerId, accountName, languageId, g
   const setG = (i: number, k: keyof GroupDraft, v: string) => setGroups((gs) => gs.map((g, j) => (j === i ? { ...g, [k]: v } : g)));
   const num = (v: string) => Number(v.replace(/\s/g, "").replace(",", "."));
 
+  const extensions = (): Extensions => {
+    const sl = lines(sitelinks).map((l) => { const [text = "", desc1 = "", desc2 = "", u = ""] = l.split("|").map((x) => x.trim()); return { text, desc1, desc2, url: u || url }; });
+    const schedule = sched === "ouvres" ? { days: [1, 2, 3, 4, 5], startHour: 8, endHour: 19 } : sched === "semaine" ? { days: [1, 2, 3, 4, 5, 6], startHour: 8, endHour: 20 } : null;
+    return { phone: phone.trim() || undefined, sitelinks: sl, callouts: lines(callouts), schedule };
+  };
+  const exportCsv = () => {
+    const sp = spec();
+    const csv = toEditorCsv({ ...sp, groups: sp.groups.map((g) => ({ ...g, path1: g.path1 || undefined, path2: g.path2 || undefined })) });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    a.download = `${(name || "campagne").replace(/[^\w-]+/g, "_")}_google-ads-editor.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
   const spec = (): CampaignSpec => ({
     name, dailyBudget: num(budget), bidding, maxCpc: maxCpc ? num(maxCpc) : null, geoIds: geoSel, matchType: match, finalUrl: url,
     negatives: lines(negatives), languageId,
+    geoNames: geos.filter((g) => geoSel.includes(g.id)).map((g) => g.label), extensions: extensions(),
     groups: groups.map((g) => ({ name: g.name, keywords: lines(g.keywords), headlines: lines(g.headlines), descriptions: lines(g.descriptions), path1: g.path1, path2: g.path2 })),
   });
 
@@ -150,12 +172,37 @@ export default function CampaignBuilder({ customerId, accountName, languageId, g
       <span style={lab}>Négatifs de campagne, un par ligne, en expression ({lines(negatives).length})</span>
       <textarea rows={4} value={negatives} onChange={(e) => setNegatives(e.target.value)} style={ta} placeholder={"emploi\nformation\ngratuit"} />
 
+      <div style={{ marginTop: 16, paddingTop: 4, borderTop: "1px solid var(--border)" }}>
+        <strong style={{ fontSize: 14 }}>Extensions et horaires</strong>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 10 }}>
+          <div>
+            <span style={lab}>Liens annexes, un par ligne : titre (25) | description 1 (35) | description 2 (35) | URL ({lines(sitelinks).length})</span>
+            <textarea rows={5} value={sitelinks} onChange={(e) => setSitelinks(e.target.value)} style={ta} placeholder={"Devis gratuit | Réponse sous 24 h | Sans engagement | https://…\nNos réalisations"} />
+          </div>
+          <div>
+            <span style={lab}>Accroches, une par ligne, 25 caractères max ({lines(callouts).length})</span>
+            <textarea rows={5} value={callouts} onChange={(e) => setCallouts(e.target.value)} style={ta} placeholder={"Devis gratuit\nPose par nos équipes\nGarantie décennale"} />
+          </div>
+          <div>
+            <span style={lab}>Téléphone (extension d&apos;appel)</span>
+            <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="04 94 00 00 00" />
+            <span style={lab}>Horaires de diffusion</span>
+            <select value={sched} onChange={(e) => setSched(e.target.value)} style={sel}>
+              <option value="">Toute la semaine, 24 h</option>
+              <option value="ouvres">{DAY_FR[1]} au {DAY_FR[5].toLowerCase()}, 8 h à 19 h</option>
+              <option value="semaine">{DAY_FR[1]} au {DAY_FR[6].toLowerCase()}, 8 h à 20 h</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       {msg && (
         <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 10, border: `1px solid ${msg.ok ? "var(--green)" : "var(--red)"}` }}>
           {msg.lines.map((m, i) => <div key={i} style={{ fontSize: 13 }}>{msg.ok ? "✓ " : "• "}{m}</div>)}
         </div>
       )}
       <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+        <button type="button" className="btn-ghost" onClick={exportCsv} disabled={!!busy}>Exporter pour Google Ads Editor (CSV)</button>
         <button type="button" className="btn-ghost" onClick={() => send("check")} disabled={!!busy}>{busy === "check" ? "Vérification…" : "Vérifier sans créer"}</button>
         <button type="button" onClick={() => send("create")} disabled={!!busy || created}>{busy === "create" ? "Création…" : created ? "Créée ✓" : "Créer en pause"}</button>
       </div>

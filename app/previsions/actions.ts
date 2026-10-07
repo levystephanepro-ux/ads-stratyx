@@ -49,6 +49,15 @@ export async function createCampaignAction(customerId: string, accountName: stri
       path1: g.path1?.trim() || undefined, path2: g.path2?.trim() || undefined,
     })),
   };
+  const ex = spec.extensions;
+  if (ex) {
+    clean.extensions = {
+      phone: ex.phone?.trim() || undefined,
+      sitelinks: (ex.sitelinks ?? []).map((l) => ({ text: l.text.trim(), desc1: l.desc1.trim(), desc2: l.desc2.trim(), url: l.url.trim() })).filter((l) => l.text),
+      callouts: [...new Set((ex.callouts ?? []).map((t) => t.trim()).filter(Boolean))],
+      schedule: ex.schedule ?? null,
+    };
+  }
   const problems = validateSpec(clean);
   if (problems.length) return { ok: false, messages: problems };
 
@@ -64,7 +73,7 @@ export async function createCampaignAction(customerId: string, accountName: stri
       undo: r.campaign ? { type: "remove_campaign", resourceName: r.campaign } : null,
       status: "done", error: null, author: ctx.email,
     }).catch(() => undefined);
-    return { ok: true, created: r.campaign ?? "ok", messages: [`Campagne « ${clean.name} » créée EN PAUSE. Relis-la dans Google Ads (extensions, horaires), puis active-la. Annulable depuis le Journal des corrections.`] };
+    return { ok: true, created: r.campaign ?? "ok", messages: [`Campagne « ${clean.name} » créée EN PAUSE. Relis-la dans Google Ads (vérifie les extensions et horaires), puis active-la. Annulable depuis le Journal des corrections.`] };
   } catch (e) {
     return { ok: false, messages: [e instanceof Error ? e.message : String(e)] };
   }

@@ -26,7 +26,23 @@ export interface CampaignSpec {
   negatives: string[];
   /** id languageConstant (défaut 1002 = français) */
   languageId?: string;
+  /** noms des lieux (export Google Ads Editor) */
+  geoNames?: string[];
+  extensions?: Extensions;
 }
+
+export interface Sitelink { text: string; desc1: string; desc2: string; url: string }
+export interface Schedule { days: number[]; startHour: number; endHour: number } // jours 1 = lundi … 7 = dimanche
+export interface Extensions {
+  phone?: string;
+  sitelinks?: Sitelink[];
+  callouts?: string[];
+  schedule?: Schedule | null;
+}
+
+export const DAY_NAMES = ["", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"];
+export const DAY_FR = ["", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
+export const normPhone = (v: string) => v.replace(/[^\d+]/g, "");
 
 /** Contrôles avant envoi : renvoie la liste des problèmes (vide = OK). */
 export function validateSpec(s: CampaignSpec): string[] {
@@ -53,6 +69,22 @@ export function validateSpec(s: CampaignSpec): string[] {
     if ((g.path1 ?? "").length > 15 || (g.path2 ?? "").length > 15) p.push(`« ${n} » : chemins d'URL de 15 caractères maximum.`);
   });
   s.negatives.forEach((k) => { if (k.length > 80) p.push(`Négatif trop long « ${k} ».`); });
+  const x = s.extensions;
+  if (x) {
+    if (x.phone && !/^(\+33|0)\d{9}$/.test(normPhone(x.phone))) p.push("Téléphone : format français attendu (ex. 04 94 00 00 00).");
+    (x.sitelinks ?? []).forEach((l, i) => {
+      if (!l.text || l.text.length > 25) p.push(`Lien annexe ${i + 1} : titre de 1 à 25 caractères requis.`);
+      if (l.desc1.length > 35 || l.desc2.length > 35) p.push(`Lien annexe ${i + 1} : descriptions de 35 caractères maximum.`);
+      if ((l.desc1 && !l.desc2) || (!l.desc1 && l.desc2)) p.push(`Lien annexe ${i + 1} : remplis les deux descriptions ou aucune.`);
+      if (!/^https:\/\/[^\s]+\.[^\s]+/.test(l.url)) p.push(`Lien annexe ${i + 1} : URL en https:// requise.`);
+    });
+    (x.callouts ?? []).forEach((c, i) => { if (!c || c.length > 25) p.push(`Accroche ${i + 1} : 1 à 25 caractères (« ${c} »).`); });
+    if (x.schedule) {
+      const h = x.schedule;
+      if (!h.days.length) p.push("Horaires : choisis au moins un jour.");
+      if (!(h.startHour >= 0 && h.endHour <= 24 && h.startHour < h.endHour)) p.push("Horaires : heure de début avant l'heure de fin (0 à 24).");
+    }
+  }
   return p;
 }
 
@@ -80,6 +112,22 @@ export async function createPausedSearchCampaign(customerId: string, s: Campaign
     { campaignCriterionOperation: { create: { campaign, language: { languageConstant: lang } } } },
     ...s.negatives.map((k) => ({ campaignCriterionOperation: { create: { campaign, negative: true, keyword: { text: k, matchType: "PHRASE" } } } })),
   ];
+  const x = s.extensions;
+  if (x?.schedule) {
+    for (const d of x.schedule.days) ops.push({ campaignCriterionOperation: { create: { campaign, adSchedule: { dayOfWeek: DAY_NAMES[d], startHour: x.schedule.startHour, startMinute: "ZERO", endHour: x.schedule.endHour, endMinute: "ZERO" } } } });
+  }
+  let assetId = 100;
+  const addAsset = (field: "SITELINK" | "CALLOUT" | "CALL", asset: Record<string, unknown>) => {
+    const rn = `${c}/assets/-${assetId++}`;
+    ops.push({ assetOperation: { create: { resourceName: rn, ...asset } } });
+    ops.push({ campaignAssetOperation: { create: { campaign, asset: rn, fieldType: field } } });
+  };
+  (x?.sitelinks ?? []).forEach((l) => addAsset("SITELINK", { finalUrls: [l.url], sitelinkAsset: { linkText: l.text, ...(l.desc1 ? { description1: l.desc1, description2: l.desc2 } : {}) } }));
+  (x?.callouts ?? []).forEach((t) => addAsset("CALLOUT", { calloutAsset: { calloutText: t } }));
+  if (x?.phone) {
+    const n = normPhone(x.phone);
+    addAsset("CALL", { callAsset: { countryCode: "FR", phoneNumber: n.startsWith("+33") ? "0" + n.slice(3) : n } });
+  }
   s.groups.forEach((g, i) => {
     const adGroup = `${c}/adGroups/-${10 + i}`;
     ops.push({ adGroupOperation: { create: {
