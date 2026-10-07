@@ -284,3 +284,11 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 
 ### 2026-10-07 · Libellé « Aucun client (compte) »
 - Le sélecteur affiche « Aucun client (nom du compte par défaut) » avec son identifiant ; /api/clients/active renvoie defaultAccount (getBaseDefaultAccount, ignore le client actif).
+
+### 2026-10-07 · Devis sur mesure : catalogue, variables, IA
+- lib/clients/quotes.ts : catalogue de 18 prestations par catégorie (Audit et stratégie, Suivi des conversions, Création des campagnes, Page d'atterrissage, Pilotage mensuel, Meta Ads, Accompagnement), prix indicatifs ; 4 packs (Pilote 90 jours, Lancement avec page, Audit et plan d'action, Google + Meta). Lignes : section, désignation, détail à puces, unité, quantité × prix, remise, option (hors total), unité « % du budget pub » (modèle hybride). Remise globale. Anciens devis compatibles.
+- Variables {entreprise} {contact} {zone} {activite} {services} {objectif} {budget} {site} {nb_campagnes} remplies depuis la fiche, le questionnaire et la proposition ; valeur absente affichée [entre crochets].
+- lib/clients/quote-ai.ts : l'IA choisit prestations, quantités et options du catalogue (jamais les prix), avec une raison par ligne ; titre, engagement, budget pub.
+- Page devis : création par IA, par pack ou vierge ; édition ligne par ligne, ajout depuis le catalogue, « Enregistrer et continuer » ; PDF groupé par sections avec détails, options à part, remise.
+- Réglages : /clients/devis-reglages devient « Catalogue et réglages des devis ».
+- Stockage inchangé (app_settings), pas de migration.

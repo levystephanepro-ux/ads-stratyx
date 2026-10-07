@@ -801,3 +801,8 @@ select { cursor: pointer; }
 /* le thème sombre force la couleur des boutons : on la rétablit ici */
 .sidebar button.cs-trigger { color: var(--side-text) !important; }
 .sidebar button.cs-opt { color: #0B3C5D !important; }
+
+/* Barre d'actions collante en bas des longs formulaires */
+.sticky-actions { position: sticky; bottom: 0; z-index: 5; padding: 10px 0; background: linear-gradient(to top, var(--bg) 70%, transparent); }
+.rv .sticky-actions { background: linear-gradient(to top, var(--rv-bg) 70%, transparent); }
+.rv .card { background: var(--rv-card); border-color: var(--rv-border); color: var(--rv-fg); }
