@@ -48,6 +48,10 @@ async function saveClient(form: FormData, intent: "draft" | "done") {
     submitted_at: intent === "done" ? new Date().toISOString() : c.submitted_at,
   });
   if (intent === "done" && stageRank(stageOf(c)) < stageRank("decouverte")) await updateClient(id, { stage: "decouverte" }).catch(() => undefined);
+  if (form.has("contact_name")) {
+    await updateClient(id, { contact_name: String(form.get("contact_name") ?? "").trim() || null, contact_phone: String(form.get("contact_phone") ?? "").trim() || null })
+      .catch(() => undefined); // migration 0023 absente : on ignore
+  }
   const fresh = await getClient(id);
   const synced = fresh && form.get("sync") === "1" ? await syncContext(fresh) : false;
   revalidatePath(`/clients/${id}`);

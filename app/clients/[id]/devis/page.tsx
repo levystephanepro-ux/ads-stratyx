@@ -79,7 +79,7 @@ export default async function DevisPage({ params, searchParams }: { params: P; s
         <>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 20, flexWrap: "wrap", marginTop: 18, fontSize: 13 }}>
             <div><div className="rv-kicker">Prestataire</div><strong>{s.raisonSociale}</strong><br />{s.adresse}<br />{s.email}{s.telephone && <><br />{s.telephone}</>}{s.siret && <><br />SIRET {s.siret}</>}</div>
-            <div style={{ textAlign: "right" }}><div className="rv-kicker">Client</div><strong>{c.name}</strong>{c.contact_email && <><br />{c.contact_email}</>}{c.website && <><br />{c.website}</>}</div>
+            <div style={{ textAlign: "right" }}><div className="rv-kicker">Client</div><strong>{c.name}</strong>{c.contact_name && <><br />{c.contact_name}</>}{c.contact_phone && <><br />{c.contact_phone}</>}{c.contact_email && <><br />{c.contact_email}</>}{c.website && <><br />{c.website}</>}</div>
           </div>
           <section>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>

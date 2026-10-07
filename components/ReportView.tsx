@@ -1,6 +1,7 @@
 // Rendu d'un rapport client (aperçu dans l'app, lien public, impression PDF).
 // Composant serveur pur : reçoit des données déjà calculées.
 import type { ReportData, Totals } from "@/lib/reports/data";
+import BrandLogo from "@/components/BrandLogo";
 import { frDate } from "@/lib/reports/periods";
 import { CHANGE_KINDS } from "@/lib/reports/changes";
 
@@ -92,6 +93,7 @@ export default function ReportView({ meta, data }: { meta: ReportMeta; data: Rep
   return (
     <article className="rv" data-theme={meta.theme === "sombre" ? "dark" : "light"}>
       <header className="rv-head">
+        <div className="rv-brand"><BrandLogo size={24} /></div>
         <div className="rv-kicker">Rapport de performance Google Ads</div>
         <h1 className="rv-title">{meta.title || meta.accountName}</h1>
         <div className="rv-meta">

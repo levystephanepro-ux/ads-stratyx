@@ -55,6 +55,8 @@ export async function importCalendly(daysBack = 30, daysAhead = 60): Promise<Imp
       if (company && names.has(company.toLowerCase())) { known++; continue; }
       const when = new Date(ev.start_time).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Paris" });
       const id = await createClientRow(clientName, null);
+      // Contact (colonnes 0023) : enregistré à part, sans bloquer l'import si la migration manque.
+      await updateClient(id, { contact_name: name, contact_phone: phone || null }).catch(() => undefined);
       await updateClient(id, {
         contact_email: email || null,
         website: site && !/^https?:/i.test(site) ? `https://${site}` : site,

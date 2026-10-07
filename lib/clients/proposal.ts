@@ -53,7 +53,7 @@ const eur = (x: number | null) => (x === null ? "inconnu" : `${Math.round(x).toL
 function prompt(c: Client, e: Economics, site: StoredProposal["site"]): string {
   const answers = ALL_QUESTIONS.filter((q) => c.answers[q.key]).map((q) => `${INTERNAL_KEYS.has(q.key) ? "[NOTE INTERNE, ne pas citer] " : ""}${q.label} ${c.answers[q.key]}`).join("\n");
   return [
-    `Tu es un consultant senior en acquisition payante (Google Ads, Meta Ads) en France, qui travaille pour STRATYX Media. Tu rédiges la synthèse de découverte et la proposition d'accompagnement pour le prospect « ${c.name} », à remettre après le rendez-vous.`,
+    `Tu es un consultant senior en acquisition payante (Google Ads, Meta Ads) en France, qui travaille pour STRATYXMEDIA. Tu rédiges la synthèse de découverte et la proposition d'accompagnement pour le prospect « ${c.name} », à remettre après le rendez-vous.`,
     ``,
     `Réponses du questionnaire de découverte :`, answers || "(aucune)",
     c.website ? `Site : ${c.website}` : "",

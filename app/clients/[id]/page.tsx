@@ -84,7 +84,11 @@ export default async function ClientPage({ params, searchParams }: { params: P; 
         <input type="hidden" name="id" value={c.id} />
         <section className="card" style={{ display: "grid", gap: 12 }}>
           <h2 style={{ margin: 0, fontSize: 18 }}>Informations</h2>
-          <div><span style={lab}>Nom</span><input name="name" defaultValue={c.name} required style={input} /></div>
+          <div><span style={lab}>Entreprise</span><input name="name" defaultValue={c.name} required style={input} /></div>
+          <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+            <div><span style={lab}>Nom du contact</span><input name="contact_name" defaultValue={c.contact_name ?? ""} style={input} /></div>
+            <div><span style={lab}>Téléphone</span><input name="contact_phone" type="tel" defaultValue={c.contact_phone ?? ""} style={input} /></div>
+          </div>
           <div>
             <span style={lab}>Compte Google Ads lié</span>
             <select name="customer_id" defaultValue={c.customer_id ?? ""} style={input}>

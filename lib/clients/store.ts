@@ -11,6 +11,9 @@ export interface Client {
   share_token: string; created_at: string; updated_at: string;
   /** étape commerciale (migration 0022) */
   stage?: string;
+  /** contact (migration 0023) */
+  contact_name?: string | null;
+  contact_phone?: string | null;
 }
 
 function db() {
@@ -46,7 +49,7 @@ export async function createClientRow(name: string, customerId: string | null): 
   if (error) throw new Error(error.message);
   return data.id as string;
 }
-export async function updateClient(id: string, patch: Partial<Pick<Client, "name" | "customer_id" | "website" | "contact_email" | "notes" | "answers" | "status" | "submitted_at" | "stage">>) {
+export async function updateClient(id: string, patch: Partial<Pick<Client, "name" | "customer_id" | "website" | "contact_email" | "notes" | "answers" | "status" | "submitted_at" | "stage" | "contact_name" | "contact_phone">>) {
   const { error } = await db().from("clients").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id);
   if (error) throw new Error(error.message);
 }

@@ -725,3 +725,12 @@ select { cursor: pointer; }
   .audit-wrap { min-height:0 !important; padding:0 !important; background:#fff !important; }
   .rv > :last-child { margin-bottom:0 !important; }
 }
+
+/* ── Logo STRATYXMEDIA (documents clients) ── */
+.brand-logo { display:inline-flex; flex-direction:column; align-items:stretch; line-height:1; color:#0B3C5D; }
+.brand-logo .bl-word { font-family:"Syne", "Inter", sans-serif; font-weight:800; letter-spacing:.03em; white-space:nowrap; }
+.brand-logo .bl-word span { color:#F2A122; }
+.brand-logo .bl-base { display:flex; align-items:center; justify-content:center; gap:.45em; margin-top:.35em; font-family:"Inter", sans-serif; font-weight:600; font-size:.3em; letter-spacing:.14em; text-transform:uppercase; white-space:nowrap; }
+.brand-logo .bl-base i { display:inline-block; width:1.6em; height:2px; background:#F2A122; flex:1 1 auto; max-width:3em; }
+.rv[data-theme="dark"] .brand-logo { color:#F3EDE4; }
+.rv-brand { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:22px; }

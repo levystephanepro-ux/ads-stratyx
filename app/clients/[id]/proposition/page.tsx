@@ -42,7 +42,7 @@ export default async function PropositionPage({ params, searchParams }: { params
   const date = new Date(s.at).toLocaleDateString("fr-FR", { dateStyle: "long", timeZone: "Europe/Paris" });
 
   return (
-    <AuditSheet kicker="Synthèse de découverte et proposition" title={c.name} subtitle={`Préparé le ${date}`} back={{ href: `/clients/${c.id}`, label: "Retour à la fiche" }} actions={regen} footer="Document préparé par STRATYX Media · stratyxmedia.fr">
+    <AuditSheet kicker="Synthèse de découverte et proposition" title={c.name} subtitle={`Préparé le ${date}`} back={{ href: `/clients/${c.id}`, label: "Retour à la fiche" }} actions={regen} footer="Document préparé par STRATYXMEDIA · stratyxmedia.fr">
       {sp.err && <p className="no-print" style={{ color: "#d92d4b" }}>{sp.err}</p>}
       <section><h2 className="rv-h2">Ce que nous avons compris</h2><p style={{ whiteSpace: "pre-wrap" }}>{p.resume}</p>
         {p.enjeux.length > 0 && <ul style={{ paddingLeft: 20 }}>{p.enjeux.map((x, i) => <li key={i}>{x}</li>)}</ul>}
