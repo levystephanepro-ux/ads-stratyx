@@ -7,7 +7,10 @@ import CopyLinkButton from "@/components/CopyLinkButton";
 import { getDashboardContext } from "@/lib/workspace";
 import { getAccountsInfo } from "@/lib/google-ads/default-account";
 import { getClient } from "@/lib/clients/store";
-import { saveClientAction, markSentAction, deleteClientAction } from "../actions";
+import { saveClientAction, markSentAction, deleteClientAction, setActiveClientAction, setStageAction } from "../actions";
+import { getActiveClient } from "@/lib/clients/active";
+import { getProposal } from "@/lib/clients/proposal";
+import { STAGES, stageOf, nextAction } from "@/lib/clients/stages";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -17,7 +20,7 @@ const lab = { fontSize: 12, textTransform: "uppercase", color: "var(--muted)", d
 const LABEL = { a_envoyer: "Questionnaire à envoyer", envoye: "Envoyé, en attente", brouillon: "Brouillon en cours", rempli: "Questionnaire rempli" } as const;
 
 type P = Promise<{ id: string }>;
-type SP = Promise<{ saved?: string }>;
+type SP = Promise<{ saved?: string; err?: string }>;
 
 export default async function ClientPage({ params, searchParams }: { params: P; searchParams: SP }) {
   const ctx = await getDashboardContext();
@@ -26,7 +29,10 @@ export default async function ClientPage({ params, searchParams }: { params: P; 
   const sp = await searchParams;
   const c = await getClient(id);
   if (!c) notFound();
-  const { accounts } = await getAccountsInfo({ workspaceId: ctx.workspaceId, isOwner: true });
+  const [{ accounts }, active, prop] = await Promise.all([getAccountsInfo({ workspaceId: ctx.workspaceId, isOwner: true }), getActiveClient(), getProposal(c.id).catch(() => null)]);
+  const isActive = active?.id === c.id;
+  const stage = stageOf(c);
+  const next = nextAction(c, !!prop);
   const acc = c.customer_id ? `?account=${c.customer_id}` : "";
   const prospect = `/audit/prospect?${new URLSearchParams({ nom: c.name, ...(c.website ? { url: c.website } : {}) }).toString()}`;
   const tools = c.customer_id
@@ -48,6 +54,22 @@ export default async function ClientPage({ params, searchParams }: { params: P; 
         <h1 style={{ margin: 0 }}>{c.name}</h1>
         <span className="pill">{LABEL[c.status]}</span>
       </div>
+      <div className="card" style={{ margin: "14px 0", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <form action={setStageAction} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <input type="hidden" name="id" value={c.id} />
+          <span className="subtitle" style={{ margin: 0, fontSize: 12 }}>Étape</span>
+          <select name="stage" defaultValue={stage} style={{ ...input, width: "auto" }}>
+            {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+          </select>
+          <button className="btn-ghost" type="submit" style={{ padding: "7px 10px", fontSize: 12 }}>OK</button>
+        </form>
+        {next && <Link href={next.href} style={{ flex: 1, minWidth: 220 }}>Prochaine action : {next.text}</Link>}
+        {isActive ? <span className="pill">Client actif</span> : (
+          <form action={setActiveClientAction}><input type="hidden" name="id" value={c.id} /><input type="hidden" name="back" value={`/clients/${c.id}`} />
+            <button type="submit">Travailler sur ce client</button></form>
+        )}
+      </div>
+      {sp.err && <div className="card" style={{ borderColor: "var(--red)", margin: "12px 0" }}>{sp.err}</div>}
       {sp.saved && <div className="card" style={{ borderColor: "var(--green)", margin: "12px 0" }}>{sp.saved === "sync" ? "Fiche enregistrée, et le contexte IA du compte est mis à jour (Copilote et Prévisions s'en servent)." : sp.saved === "draft" ? "Brouillon enregistré. Tu peux quitter la page et reprendre plus tard." : "Fiche enregistrée et marquée comme remplie."}</div>}
 
       <div className="card" style={{ margin: "16px 0", display: "grid", gap: 10 }}>

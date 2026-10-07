@@ -2,6 +2,7 @@
 // Calcul sans IA (0 crédit). Rien n'est modifié dans Google Ads sans clic :
 // les corrections en un clic sont journalisées et annulables 30 jours.
 import Link from "next/link";
+import { getActiveClient } from "@/lib/clients/active";
 import { redirect } from "next/navigation";
 import Shell from "@/components/Shell";
 import { getDashboardContext } from "@/lib/workspace";
@@ -31,7 +32,9 @@ export default async function DiagnosticPage({ searchParams }: { searchParams: S
   const sp = await searchParams;
 
   const reports = await latestAuditReports();
-  const report = reports.find((r) => r.customer_id === sp.account) ?? reports[0] ?? null;
+  const active = sp.account ? null : await getActiveClient();
+  const want = sp.account ?? active?.customer_id;
+  const report = reports.find((r) => r.customer_id === want) ?? reports[0] ?? null;
   const cat = (sp.cat && sp.cat in CATEGORY_LABELS ? sp.cat : "tout") as AuditCategory | "tout";
 
   let actions: ActionLog[] = []; let logError: string | null = null;

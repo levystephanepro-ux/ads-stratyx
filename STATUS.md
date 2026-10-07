@@ -243,3 +243,9 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 ## Journal : Synthèse et proposition
 - lib/clients/proposal.ts : calculs de rentabilité sans IA (valeur d'une demande, coût max rentable, demandes au budget), audit de la page, puis rédaction Sonnet (JSON) stockée dans app_settings (proposal:<clientId>), pas de migration.
 - /clients/[id]/proposition : document PDF (compris, chiffres, stratégie et campagnes, objectifs 90 j, prérequis, déroulé, vigilance, prochaine étape). Notes internes utilisées pour calibrer mais jamais citées.
+
+## Journal : Client actif + pipeline
+- Migration 0022_client_stage.sql (colonne stage).
+- lib/clients/active.ts (cookie stratyx_client), lib/clients/stages.ts (8 étapes, prochaine action), /api/clients/active, components/ClientSwitcher.tsx (barre latérale).
+- Le client actif prime sur le compte par défaut (resolveDefaultId) : Prévisions, Tableau de bord, Rapports, Scripts, audit prospect, Copilote, Diagnostic et Persona le suivent.
+- /clients en pipeline par étape avec prochaine action ; fiche : étape, prochaine action, « Travailler sur ce client ». Passage auto en « Découverte faite » quand le questionnaire est marqué rempli ou la proposition générée.

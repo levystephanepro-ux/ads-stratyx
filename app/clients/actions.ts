@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getDashboardContext } from "@/lib/workspace";
 import { generateProposal } from "@/lib/clients/proposal";
+import { setActiveClientCookie } from "@/lib/clients/active";
+import { STAGES, stageOf, stageRank } from "@/lib/clients/stages";
 import { getGlobalBilling } from "@/lib/billing";
 import { createClientRow, updateClient, deleteClient, getClient, formAnswers, syncContext } from "@/lib/clients/store";
 
@@ -39,6 +41,7 @@ export async function saveClientAction(form: FormData) {
     status: intent === "done" ? "rempli" : c.status === "rempli" ? "rempli" : filled ? "brouillon" : c.status,
     submitted_at: intent === "done" ? new Date().toISOString() : c.submitted_at,
   });
+  if (intent === "done" && stageRank(stageOf(c)) < stageRank("decouverte")) await updateClient(id, { stage: "decouverte" }).catch(() => undefined);
   const fresh = await getClient(id);
   const synced = fresh && form.get("sync") === "1" ? await syncContext(fresh) : false;
   revalidatePath(`/clients/${id}`);
@@ -72,7 +75,31 @@ export async function generateProposalAction(form: FormData) {
   else {
     const billing = await getGlobalBilling();
     if (!billing.allowed) err = billing.reason ?? "Plafond IA atteint.";
-    else { try { await generateProposal(c); } catch (e) { err = e instanceof Error ? e.message : String(e); } }
+    else {
+      try {
+        await generateProposal(c);
+        if (stageRank(stageOf(c)) < stageRank("decouverte")) await updateClient(id, { stage: "decouverte" }).catch(() => undefined);
+      } catch (e) { err = e instanceof Error ? e.message : String(e); }
+    }
   }
   redirect(`/clients/${id}/proposition${err ? `?err=${encodeURIComponent(err.slice(0, 200))}` : ""}`);
+}
+
+export async function setActiveClientAction(form: FormData) {
+  await owner();
+  const id = String(form.get("id") ?? "");
+  await setActiveClientCookie(id || null);
+  const back = String(form.get("back") ?? "");
+  redirect(back.startsWith("/") ? back : "/clients");
+}
+
+export async function setStageAction(form: FormData) {
+  await owner();
+  const id = String(form.get("id") ?? "");
+  const stage = String(form.get("stage") ?? "");
+  if (!STAGES.some((s) => s.key === stage)) return;
+  try { await updateClient(id, { stage }); }
+  catch (e) { redirect(`/clients/${id}?err=${encodeURIComponent("Étape non enregistrée : lance la migration 0022_client_stage.sql dans Supabase. " + (e instanceof Error ? e.message : ""))}`); }
+  revalidatePath("/clients");
+  revalidatePath(`/clients/${id}`);
 }

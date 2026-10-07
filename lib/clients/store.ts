@@ -9,6 +9,8 @@ export interface Client {
   id: string; name: string; customer_id: string | null; website: string | null; contact_email: string | null; notes: string | null;
   answers: Record<string, string>; status: "a_envoyer" | "envoye" | "brouillon" | "rempli"; submitted_at: string | null;
   share_token: string; created_at: string; updated_at: string;
+  /** étape commerciale (migration 0022) */
+  stage?: string;
 }
 
 function db() {
@@ -44,7 +46,7 @@ export async function createClientRow(name: string, customerId: string | null): 
   if (error) throw new Error(error.message);
   return data.id as string;
 }
-export async function updateClient(id: string, patch: Partial<Pick<Client, "name" | "customer_id" | "website" | "contact_email" | "notes" | "answers" | "status" | "submitted_at">>) {
+export async function updateClient(id: string, patch: Partial<Pick<Client, "name" | "customer_id" | "website" | "contact_email" | "notes" | "answers" | "status" | "submitted_at" | "stage">>) {
   const { error } = await db().from("clients").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id);
   if (error) throw new Error(error.message);
 }

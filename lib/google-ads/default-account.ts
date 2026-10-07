@@ -2,6 +2,7 @@ import { adsConfig, isLive, hasEnvAccount } from "./config";
 import { listManagedAccounts } from "./client";
 import { getSetting } from "@/lib/agent/store";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getActiveClient } from "@/lib/clients/active";
 
 export interface AccountInfo {
   customerId: string;
@@ -34,6 +35,10 @@ export async function listWorkspaceAccounts(
 
 /** Compte par défaut du scope : réglage workspace, puis global (owner), puis env. */
 async function resolveDefaultId(scope?: AccountScope): Promise<string | null> {
+  if (!scope || scope.isOwner) {
+    const active = await getActiveClient();
+    if (active?.customer_id) return active.customer_id;
+  }
   if (scope?.workspaceId) {
     const ws = await getSetting("default_customer_id", scope.workspaceId);
     if (ws) return ws;

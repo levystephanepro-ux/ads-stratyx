@@ -3,6 +3,7 @@ import { getDashboardContext } from "@/lib/workspace";
 import { requireSub } from "@/lib/subscription";
 import Shell from "@/components/Shell";
 import { getClient } from "@/lib/clients/store";
+import { getActiveClient } from "@/lib/clients/active";
 import PersonaBuilder from "./PersonaBuilder";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,9 @@ export default async function PersonaPage({ searchParams }: { searchParams: SP }
   requireSub(ctx);
   const sp = await searchParams;
   // Depuis une fiche client : les réponses du questionnaire pré-remplissent le formulaire.
-  const client = ctx.isOwner && sp.client ? await getClient(sp.client).catch(() => null) : null;
+  const activeId = ctx.isOwner && !sp.client ? (await getActiveClient())?.id : undefined;
+  const pick = sp.client ?? activeId;
+  const client = ctx.isOwner && pick ? await getClient(pick).catch(() => null) : null;
   const a = client?.answers ?? {};
   const prefill = client
     ? {

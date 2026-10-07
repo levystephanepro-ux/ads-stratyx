@@ -1,5 +1,6 @@
 'use client'
 import { useState } from "react";
+import ClientSwitcher from "@/components/ClientSwitcher";
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 import CreditGauge from "@/components/CreditGauge";
@@ -123,6 +124,7 @@ export default function Shell({
         </nav>
 
         <div className="sidebar-foot">
+          {showAdmin && <ClientSwitcher />}
           {accountName && (
             <Link
               href="/connexions"

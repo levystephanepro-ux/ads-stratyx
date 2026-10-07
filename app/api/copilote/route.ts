@@ -4,6 +4,7 @@
 // aux outils d'ÉCRITURE — mais la double confirmation (confirm=true) reste exigée,
 // donc rien n'est modifié sans que tu l'aies validé explicitement dans le chat.
 import { NextResponse } from "next/server";
+import { getActiveClient } from "@/lib/clients/active";
 import { runAgentLoop } from "@/lib/agent/loop";
 import { addMonthlyCost } from "@/lib/agent/cost";
 import { tokenValueOk, getWorkspaceIdFromValue } from "@/lib/api-auth";
@@ -90,6 +91,12 @@ export async function POST(req: Request) {
         );
       }
     }
+  }
+
+  // Owner : le client actif (sélecteur de la barre latérale) fixe le compte.
+  if (!workspaceId || isOwnerEmail(await getWorkspaceOwnerEmail(workspaceId))) {
+    const active = await getActiveClient();
+    if (active?.customer_id) customerId = active.customer_id;
   }
 
   // Contexte campagne : injecté dans le system prompt pour guider l'IA.
