@@ -28,14 +28,16 @@ export default async function ClientPage({ params, searchParams }: { params: P; 
   if (!c) notFound();
   const { accounts } = await getAccountsInfo({ workspaceId: ctx.workspaceId, isOwner: true });
   const acc = c.customer_id ? `?account=${c.customer_id}` : "";
+  const prospect = `/audit/prospect?${new URLSearchParams({ nom: c.name, ...(c.website ? { url: c.website } : {}) }).toString()}`;
   const tools = c.customer_id
     ? [
         { href: `/waste${acc}`, t: "Diagnostic et audit", d: "Score de santé, gaspillage, correctifs en un clic." },
+        { href: `/audit/client${acc}`, t: "Audit PDF du compte", d: "Document à remettre au client." },
         { href: `/previsions${acc}`, t: "Prévisions et structure", d: "Mots clés, budget, campagne en pause." },
         { href: `/rapports`, t: "Rapports", d: "Rapport du mois, lien client, PDF." },
         { href: `/alertes`, t: "Alertes", d: "Budget, conversions, landing page." },
         { href: `/dashboard${acc}`, t: "Tableau de bord", d: "Dépense, conversions, budget." },
-        { href: `/persona`, t: "Persona", d: "Cibles et messages." },
+        { href: `/persona?client=${c.id}`, t: "Persona", d: "Pré-rempli avec le questionnaire." },
       ]
     : [];
 
@@ -68,6 +70,7 @@ export default async function ClientPage({ params, searchParams }: { params: P; 
               <strong>{t.t}</strong><br /><span className="subtitle" style={{ margin: 0, fontSize: 12 }}>{t.d}</span>
             </Link>
           ))}
+          <Link href={prospect} className="card" style={{ color: "inherit" }}><strong>Audit de la page</strong><br /><span className="subtitle" style={{ margin: 0, fontSize: 12 }}>Page, suivi, potentiel de recherche.</span></Link>
           <div className="card" style={{ opacity: 0.6 }}><strong>Meta Ads</strong><br /><span className="subtitle" style={{ margin: 0, fontSize: 12 }}>Bientôt.</span></div>
         </div>
       ) : (

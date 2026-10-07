@@ -42,6 +42,7 @@ export default async function DiagnosticPage({ searchParams }: { searchParams: S
 
   const headerRight = (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      {report && <Link className="btn-ghost" href={`/audit/client?account=${report.customer_id}`} style={{ padding: "11px 16px", borderRadius: 10, display: "inline-flex", alignItems: "center" }}>Audit PDF</Link>}
       <Link className="btn-ghost" href="/waste/journal" style={{ padding: "11px 16px", borderRadius: 10, display: "inline-flex", alignItems: "center" }}>Journal des corrections</Link>
       <form action={runAuditNow}>
         <input type="hidden" name="customer_id" value={report?.customer_id ?? ""} />

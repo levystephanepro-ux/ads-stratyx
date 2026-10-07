@@ -223,3 +223,7 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 ## Journal : Push direct complet + export Google Ads Editor
 - lib/planner/create.ts : extensions (liens annexes, accroches, appel) via assets + campaignAssets, horaires de diffusion (adSchedule), validations.
 - lib/planner/editor.ts + bouton « Exporter pour Google Ads Editor (CSV) » dans Prévisions. Format à valider sur un vrai import (noms de colonnes et lieux).
+
+## Journal : Audits PDF + Persona
+- lib/audit/site.ts (audit de page sans IA), components/AuditSheet.tsx, /audit/client?account= (PDF du diagnostic), /audit/prospect (page + potentiel de recherche + estimation).
+- Persona pré-rempli depuis la fiche client (/persona?client=id).

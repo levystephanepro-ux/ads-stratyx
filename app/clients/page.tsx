@@ -22,7 +22,8 @@ export default async function ClientsPage() {
   const nameOf = (id: string | null) => accounts.find((a) => a.customerId === id)?.name ?? id ?? "Aucun compte lié";
 
   return (
-    <Shell active="clients" token={ctx.mcpToken} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}>
+    <Shell active="clients" token={ctx.mcpToken} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}
+      headerRight={<Link className="btn-ghost" href="/audit/prospect">Audit prospect</Link>}>
       <h1 style={{ margin: "0 0 6px" }}>Clients</h1>
       <p className="subtitle" style={{ marginTop: 0 }}>Une fiche par client : questionnaire de découverte, puis audit, persona, structure de campagne, rapports et alertes au même endroit.</p>
       {dbError && <div className="card" style={{ borderColor: "var(--red)", margin: "12px 0" }}>Base non prête : lance la migration 0021_clients.sql dans Supabase. ({dbError})</div>}

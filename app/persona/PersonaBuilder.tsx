@@ -41,9 +41,9 @@ const REVENU_LABELS = [
 ]
 const TUNNEL_LABELS = ['Découverte (TOFU)', 'Intérêt (MOFU)', 'Décision (BOFU)', 'Fidélité']
 
-export default function PersonaBuilder({ token }: { token: string }) {
+export default function PersonaBuilder({ token, prefill }: { token: string; prefill?: Partial<typeof INITIAL> }) {
   const [step, setStep] = useState(1)
-  const [form, setForm] = useState(INITIAL)
+  const [form, setForm] = useState({ ...INITIAL, ...(prefill ?? {}) })
   const [result, setResult] = useState<PersonaGenere | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
