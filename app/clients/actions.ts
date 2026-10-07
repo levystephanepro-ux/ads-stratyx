@@ -2,6 +2,8 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getDashboardContext } from "@/lib/workspace";
+import { generateProposal } from "@/lib/clients/proposal";
+import { getGlobalBilling } from "@/lib/billing";
 import { createClientRow, updateClient, deleteClient, getClient, formAnswers, syncContext } from "@/lib/clients/store";
 
 async function owner() {
@@ -58,4 +60,19 @@ export async function deleteClientAction(form: FormData) {
   await owner();
   await deleteClient(String(form.get("id") ?? ""));
   redirect("/clients");
+}
+
+export async function generateProposalAction(form: FormData) {
+  await owner();
+  const id = String(form.get("id") ?? "");
+  const c = await getClient(id);
+  if (!c) return;
+  let err = "";
+  if (!process.env.ANTHROPIC_API_KEY) err = "ANTHROPIC_API_KEY manquante.";
+  else {
+    const billing = await getGlobalBilling();
+    if (!billing.allowed) err = billing.reason ?? "Plafond IA atteint.";
+    else { try { await generateProposal(c); } catch (e) { err = e instanceof Error ? e.message : String(e); } }
+  }
+  redirect(`/clients/${id}/proposition${err ? `?err=${encodeURIComponent(err.slice(0, 200))}` : ""}`);
 }

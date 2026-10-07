@@ -239,3 +239,7 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 ## Journal : Bilan de santé (/admin/sante)
 - lib/health.ts : vérifs en lecture seule (variables, tables Supabase, comptes Google Ads, compte par défaut, change_event, planificateur, lieux, création de campagne + extensions en validateOnly, modèles IA Sonnet/Opus, derniers crons).
 - Liste de 10 tests manuels avec liens. Accès : Admin > Bilan de santé.
+
+## Journal : Synthèse et proposition
+- lib/clients/proposal.ts : calculs de rentabilité sans IA (valeur d'une demande, coût max rentable, demandes au budget), audit de la page, puis rédaction Sonnet (JSON) stockée dans app_settings (proposal:<clientId>), pas de migration.
+- /clients/[id]/proposition : document PDF (compris, chiffres, stratégie et campagnes, objectifs 90 j, prérequis, déroulé, vigilance, prochaine étape). Notes internes utilisées pour calibrer mais jamais citées.

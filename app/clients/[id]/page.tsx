@@ -10,6 +10,7 @@ import { getClient } from "@/lib/clients/store";
 import { saveClientAction, markSentAction, deleteClientAction } from "../actions";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 120;
 
 const input = { padding: "9px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface-2)", color: "var(--text)", width: "100%" } as const;
 const lab = { fontSize: 12, textTransform: "uppercase", color: "var(--muted)", display: "block", marginBottom: 4 } as const;
@@ -61,6 +62,11 @@ export default async function ClientPage({ params, searchParams }: { params: P; 
           )}
         </div>
         {c.submitted_at && <span className="subtitle" style={{ margin: 0, fontSize: 12 }}>Dernières réponses le {new Date(c.submitted_at).toLocaleDateString("fr-FR")}</span>}
+      </div>
+
+      <div className="card" style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap", borderColor: "var(--accent)" }}>
+        <div><strong>Synthèse et proposition</strong><br /><span className="subtitle" style={{ margin: 0, fontSize: 12 }}>Résumé du besoin, rentabilité, budget, stratégie, objectifs 90 jours. En PDF à ta charte. IA, quelques centimes.</span></div>
+        <Link className="btn" href={`/clients/${c.id}/proposition`}>Ouvrir</Link>
       </div>
 
       {tools.length > 0 ? (
