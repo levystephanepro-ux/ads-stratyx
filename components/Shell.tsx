@@ -35,6 +35,7 @@ const SECTIONS: Section[] = [
     { label: "Diagnostic", href: "/waste" },
     { label: "Journal des corrections", href: "/waste/journal" },
     { label: "Alertes du matin", href: "/alertes" },
+    { label: "Scripts", href: "/scripts" },
   ] },
   { id: "creation", label: "Création", ic: "previsions", items: [
     { label: "Prévisions et campagnes", href: "/previsions" },
@@ -46,14 +47,9 @@ const SECTIONS: Section[] = [
     { label: "Compte rendu mensuel", href: "/rapports/compte-rendu" },
     { label: "Impact des changements", href: "/rapports/impact" },
   ] },
-  { id: "outils", label: "Outils", ic: "scripts", items: [
-    { label: "Comptes liés", href: "/comptes" },
-    { label: "Scripts", href: "/scripts" },
-  ] },
 ];
 const SETTINGS: Item[] = [
-  { label: "Connexions", href: "/connexions", ic: "connexions" },
-  { label: "Admin", href: "/admin", ic: "admin", ownerOnly: true },
+  { label: "Comptes et réglages", href: "/comptes", ic: "comptes" },
   { label: "Bilan de santé", href: "/admin/sante", ic: "sante", ownerOnly: true },
   { label: "Aide", href: "/aide", ic: "aide" },
 ];
@@ -196,7 +192,7 @@ export default function Shell({
           {showAdmin && <HealthLight />}
           {accountName && (
             <Link
-              href="/connexions"
+              href={showAdmin ? "/comptes" : "/connexions"}
               style={{
                 display: "flex", alignItems: "center", gap: 8, padding: "7px 10px",
                 borderRadius: 8, fontSize: 12, color: "var(--muted)",

@@ -293,3 +293,10 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 - Réglages : /clients/devis-reglages devient « Catalogue et réglages des devis ».
 - Stockage inchangé (app_settings), pas de migration.
 - Catalogue v2 multi-canal (38 prestations) : Audit et stratégie, Tracking et données (GTM/GA4, pixel Meta + CAPI, consentement, conversions hors ligne, tableau de bord), Google Ads (Search, PMax, Display/YouTube, Shopping, fiche Google), Meta Ads, Autres réseaux (LinkedIn, TikTok, Microsoft), Créatives (rédaction, visuels, vidéos courtes, brief tournage, renouvellement mensuel), Landing page (création, variante A/B, optimisation, formulaire multi-étapes, hébergement), Pilotage et reporting par canal, Automatisation et CRM, Accompagnement. Unités visuel et vidéo. 5 packs. Catalogue déjà enregistré complété automatiquement (catalogueVersion). IA : choix des canaux selon la découverte.
+
+### 2026-10-07 · Comptes et réglages (façon Ades)
+- /comptes devient « Comptes et réglages » : indicateurs (comptes, surveillés, dépense 30 j, comptes actifs), tableau nom / identifiant / dépense / conversions / santé / connexion (MCC ou accès direct) / plateforme / interrupteur de surveillance / Ouvrir ; étoile = compte par défaut (setDefaultAccountAction, global + workspace).
+- Boutons : Synchroniser (vide le cache des comptes), Inviter un compte (CustomerClientLink PENDING depuis le MCC via l'API ; message de repli si Google refuse), invitations en attente listées. Meta Ads « bientôt ».
+- En bas, replié : campagnes de travail du copilote, connecteur Claude (URL MCP). /connexions reste accessible (lien), hors menu pour l'owner.
+- Menu : Réglages = Comptes et réglages, Bilan de santé, Aide. Admin retiré du menu (lien sur /comptes seulement hors mode interne). Scripts passe dans Pilotage, section Outils supprimée.
+- components/AdsMark.tsx partagé (logo public/google-ads.svg).

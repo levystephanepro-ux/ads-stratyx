@@ -704,3 +704,35 @@ function normalizeRange(range: DateRange): DateRange {
   since.setDate(since.getDate() - 30);
   return { since: range.since || iso(since), until: range.until || iso(until) };
 }
+
+// ---------------------------------------------------------------------------
+// Comptes : synchronisation et invitations depuis le MCC
+// ---------------------------------------------------------------------------
+
+/** Vide le cache de la liste des comptes (bouton « Synchroniser »). */
+export function clearManagedCache() {
+  managedCache = null;
+}
+
+/** Envoie une demande d'association MCC -> compte client. Le client l'accepte dans son Google Ads. */
+export async function inviteClientAccount(clientId: string): Promise<string> {
+  assertLiveConfig();
+  const mcc = adsConfig.loginCustomerId || adsConfig.customerId;
+  const id = clientId.replace(/\D/g, "");
+  const j = await adsPost(null, `customers/${mcc}/customerClientLinks:mutate`, {
+    operation: { create: { clientCustomer: `customers/${id}`, status: "PENDING" } },
+  });
+  return String((j as { result?: { resourceName?: string } }).result?.resourceName ?? "");
+}
+
+/** Invitations envoyées par le MCC et pas encore acceptées. */
+export async function listPendingInvites(): Promise<{ customerId: string; status: string }[]> {
+  if (!isLive()) return [];
+  const mcc = adsConfig.loginCustomerId || adsConfig.customerId;
+  const rows = await search({ customerId: mcc, loginCustomerId: mcc },
+    `SELECT customer_client_link.client_customer, customer_client_link.status FROM customer_client_link WHERE customer_client_link.status = 'PENDING'`);
+  return (rows as unknown as RawRow[]).map((r) => {
+    const l = (r as { customerClientLink?: { clientCustomer?: string; status?: string } }).customerClientLink ?? {};
+    return { customerId: String(l.clientCustomer ?? "").split("/")[1] ?? "", status: String(l.status ?? "") };
+  }).filter((x) => x.customerId);
+}

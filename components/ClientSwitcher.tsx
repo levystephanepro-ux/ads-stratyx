@@ -3,6 +3,7 @@
 // Menu maison (un <select> ne peut pas afficher d'icône) : client actif en premier, coche, identifiant du compte.
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Mark from "@/components/AdsMark";
 
 interface Item { id: string; name: string; linked: boolean; customerId?: string | null }
 
@@ -11,13 +12,7 @@ const fmtId = (id?: string | null) => {
   return d.length === 10 ? `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}` : d;
 };
 
-// Logo Google Ads officiel à déposer dans public/google-ads.svg ; repli : pastille neutre.
-function AdsMark() {
-  const [ok, setOk] = useState(true);
-  if (!ok) return <span className="cs-mark-fallback" aria-hidden />;
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src="/google-ads.svg" alt="" width={16} height={16} className="cs-mark" onError={() => setOk(false)} />;
-}
+const AdsMark = () => <Mark size={16} />;
 
 export default function ClientSwitcher() {
   const router = useRouter();
