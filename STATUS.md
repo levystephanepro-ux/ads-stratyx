@@ -255,3 +255,8 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 - Mode interne : /agent, /templates, /artisans, /demo renvoyés vers /dashboard (code conservé).
 - Fiche client : parcours en 6 étapes (components/ClientSteps.tsx) avec état et boutons d'avancement, questionnaire replié une fois rempli.
 - Accueil : bloc « À faire sur tes clients » (prochaines actions du pipeline).
+
+## Journal : Devis
+- lib/clients/quotes.ts (réglages + offres types + devis par client + numérotation DEV-AAAA-NNN), stockés dans app_settings (pas de migration).
+- /clients/devis-reglages (coordonnées, mention TVA 293 B, conditions, clause de vérité, 3 offres types), /clients/[id]/devis (création depuis une offre, édition, PDF avec bon pour accord). Statut du devis -> étape de la fiche (envoyé, accepté = signé, refusé = perdu).
+- Calendly : webhooks réservés aux offres payantes ; l'API en lecture (GET) est annoncée sur toutes les offres. Piste gratuite : import des rendez-vous à la demande avec un jeton personnel.
