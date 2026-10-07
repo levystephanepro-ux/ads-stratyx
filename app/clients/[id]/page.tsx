@@ -11,6 +11,8 @@ import { getClient } from "@/lib/clients/store";
 import { saveClientAction, saveClientDraftAction, saveClientDoneAction, markSentAction, deleteClientAction, setActiveClientAction, setStageAction } from "../actions";
 import { getActiveClient } from "@/lib/clients/active";
 import { getProposal } from "@/lib/clients/proposal";
+import { getOAuthMeta } from "@/lib/oauth-store";
+import CopyTextButton from "@/components/CopyTextButton";
 import { STAGES, stageOf, nextAction } from "@/lib/clients/stages";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +34,22 @@ export default async function ClientPage({ params, searchParams }: { params: P; 
   if (!c) notFound();
   const [{ accounts }, active, prop] = await Promise.all([getAccountsInfo({ workspaceId: ctx.workspaceId, isOwner: true }), getActiveClient(), getProposal(c.id).catch(() => null)]);
   const isActive = active?.id === c.id;
+  const gscEmail = (await getOAuthMeta(ctx.mcpToken, "gsc").catch(() => null))?.email ?? null;
+  const googleEmail = gscEmail ?? "[ton adresse Google]";
+  const accessMsg = [
+    `Bonjour,`,
+    ``,
+    `Pour démarrer, voici les accès à me donner. Ils me permettent de gérer vos campagnes et d'installer le suivi des demandes (formulaires, appels) ; vous restez propriétaire de tous vos comptes et pouvez retirer ces accès à tout moment.`,
+    ``,
+    `1. Google Ads : je vous envoie une invitation depuis mon compte administrateur. Acceptez-la dans Google Ads, menu Administration, Accès et sécurité, onglet Comptes administrateur.${c.answers?.id_google_ads ? ` (compte ${c.answers.id_google_ads})` : " Envoyez-moi aussi le numéro de votre compte (10 chiffres, en haut à droite)."}`,
+    `2. Google Tag Manager : Administration, Gestion des utilisateurs, ajoutez ${googleEmail} avec l'autorisation « Publier » sur le conteneur de votre site. Si vous n'avez pas de Tag Manager, je le crée pour vous.`,
+    `3. Google Analytics : Administration, Gestion des accès au compte, + , ajoutez ${googleEmail} avec le rôle « Éditeur ».`,
+    `4. Meta (Facebook, Instagram) : je vous envoie une demande d'accès partenaire depuis mon Business Manager, pour le compte publicitaire et le pixel. Acceptez-la dans Paramètres de l'entreprise, Demandes.`,
+    `5. Facultatif, Search Console : Paramètres, Utilisateurs et autorisations, Ajouter un utilisateur : ${googleEmail}, autorisation « Restreint ».`,
+    `6. Si la page d'atterrissage ou le formulaire sont dans la mission : un accès administrateur à votre site, ou le contact de la personne qui le gère.`,
+    ``,
+    `Merci, et n'hésitez pas à m'appeler si un menu vous pose problème.`,
+  ].join("\n");
   const stage = stageOf(c);
   const next = nextAction(c, !!prop);
   const acc = c.customer_id ? `?account=${c.customer_id}` : "";
@@ -69,6 +87,20 @@ export default async function ClientPage({ params, searchParams }: { params: P; 
         {c.customer_id && <Link href={`/copilote`}>Copilote</Link>}
         <span className="subtitle" style={{ margin: 0 }}>Meta Ads : bientôt</span>
       </div>
+
+      <details className="card" style={{ marginBottom: 16 }}>
+        <summary style={{ cursor: "pointer", fontWeight: 700 }}>Demander les accès au client (Google Ads, Tag Manager, Analytics, Meta)</summary>
+        <p className="subtitle" style={{ fontSize: 13 }}>
+          Message prêt à envoyer. Les accès Tag Manager, Analytics et Search Console se donnent à l&apos;adresse Google connectée dans Connexions
+          {gscEmail ? ` (${gscEmail})` : " (aucune pour l'instant : connecte Search Console dans Connexions pour l'afficher ici)"}.
+          Une fois l&apos;accès donné, le site apparaît dans Search Console de l&apos;outil.
+        </p>
+        <pre style={{ whiteSpace: "pre-wrap", fontSize: 13, background: "var(--surface-2)", padding: 12, borderRadius: 8, margin: "8px 0" }}>{accessMsg}</pre>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <CopyTextButton text={accessMsg} label="Copier le message" />
+          <Link className="btn-ghost" href="/search-console">Ouvrir Search Console</Link>
+        </div>
+      </details>
 
       <details id="questionnaire" open={c.status !== "rempli" ? true : undefined} className="card" style={{ marginBottom: 16 }}>
         <summary style={{ cursor: "pointer", fontWeight: 700 }}>Questionnaire de découverte · {LABEL[c.status]}{c.submitted_at ? ` · ${new Date(c.submitted_at).toLocaleDateString("fr-FR")}` : ""}</summary>

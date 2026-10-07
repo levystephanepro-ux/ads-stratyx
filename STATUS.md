@@ -265,3 +265,4 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 - Migration 0023_client_contact.sql : contact_name, contact_phone. Fiche : champs Entreprise / Nom du contact / Téléphone ; import Calendly les remplit ; devis les affiche.
 - RGPD : /confidentialite complétée (éditeur STRATYXMEDIA, section questionnaire et rendez-vous, Resend et Calendly, notes de travail retirées ; reste la région Supabase à préciser). Mention d'information + lien en bas du questionnaire public.
 - /mentions-legales (public) sur le modèle LCEN fourni, coordonnées STRATYXMEDIA ; liens depuis le questionnaire et la politique de confidentialité ; boutons « Retour » vers stratyxmedia.fr.
+- Search Console retiré du menu (page conservée, lien depuis la fiche). Fiche client : bloc « Demander les accès » avec message prêt à copier (Google Ads via MCC, Search Console « Restreint », GA4 « Lecteur », GTM, Meta partenaire), adresse = compte Google connecté dans Connexions.

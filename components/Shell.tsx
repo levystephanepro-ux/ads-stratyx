@@ -34,7 +34,7 @@ const GROUPS: { label: string | null; keys: PageKey[]; fold?: boolean }[] = [
   { label: "Pilotage", keys: ["waste", "alertes", "copilote"] },
   { label: "Création", keys: ["previsions", "persona", "audit"] },
   { label: "Suivi", keys: ["rapports"] },
-  { label: "Outils et réglages", keys: ["comptes", "scripts", "search-console", "connexions", "aide"], fold: true },
+  { label: "Outils et réglages", keys: ["comptes", "scripts", "connexions", "aide"], fold: true },
 ];
 
 export default function Shell({
