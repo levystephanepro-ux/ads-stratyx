@@ -276,3 +276,8 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 ### 2026-10-07 · Menu à plusieurs niveaux
 - Sidebar réorganisée (pages existantes uniquement) : Accueil, Clients ; sélecteur du client actif en haut ; sections dépliantes Pilotage (Diagnostic, Journal des corrections, Alertes du matin), Création (Prévisions et campagnes, Persona, Audit prospect), Rapports (Rapports clients, Compte rendu mensuel, Impact des changements), Outils (Comptes liés, Scripts) ; bouton Copilote mis en avant ; Réglages en bas (Connexions, Admin, Bilan de santé, Aide).
 - Page active déterminée par l'adresse (usePathname) ; une seule section ouverte à la fois, celle de la page courante à l'arrivée.
+
+### 2026-10-07 · Sélecteur de client façon menu
+- ClientSwitcher refait en menu maison : client actif en tête avec coche, identifiant Google Ads (xxx-xxx-xxxx) sous chaque nom, « Aucun (compte par défaut) » en fin de liste, fermeture au clic extérieur ou Échap.
+- Logo : charge public/google-ads.svg (à déposer, logo officiel) ; pastille orange en repli si absent.
+- /api/clients/active renvoie aussi customerId.
