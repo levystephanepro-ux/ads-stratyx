@@ -1,6 +1,9 @@
 // Accueil façon Ades : bienvenue, tableau de bord (période vs précédente,
 // part d'impressions, budget du mois), accès rapides.
 import Link from "next/link";
+import { listClients } from "@/lib/clients/store";
+import { getProposal } from "@/lib/clients/proposal";
+import { stageOf, stageRank, stageLabel, nextAction } from "@/lib/clients/stages";
 import { getDashboardContext } from "@/lib/workspace";
 import { requireSub } from "@/lib/subscription";
 import Shell from "@/components/Shell";
@@ -40,6 +43,18 @@ export default async function Dashboard({ searchParams }: { searchParams: SP }) 
     } catch (e) { perfError = e instanceof Error ? e.message : String(e); }
   }
 
+  // Owner : prochaines actions du pipeline clients (hors pause et perdu).
+  let todo: { id: string; name: string; stage: string; text: string; href: string }[] = [];
+  if (ctx.isOwner) {
+    try {
+      const list = (await listClients()).filter((c) => !["pause", "perdu"].includes(stageOf(c)));
+      const props = await Promise.all(list.map((c) => getProposal(c.id).then((x) => !!x).catch(() => false)));
+      todo = list.map((c, i) => ({ c, n: nextAction(c, props[i]) })).filter((x) => x.n)
+        .sort((a, b) => stageRank(stageOf(a.c)) - stageRank(stageOf(b.c)))
+        .slice(0, 6).map(({ c, n }) => ({ id: c.id, name: c.name, stage: stageLabel(stageOf(c)), text: n!.text, href: n!.href }));
+    } catch { /* table clients absente : on n'affiche rien */ }
+  }
+
   const headerRight = (
     <span className={`pill ${ctx.mode === "live" ? "ok" : "warn"}`}>
       {ctx.mode === "live" ? "● Live" : "Mode démo"}
@@ -48,6 +63,23 @@ export default async function Dashboard({ searchParams }: { searchParams: SP }) 
 
   return (
     <Shell active="home" token={ctx.mcpToken} headerRight={headerRight} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}>
+      {todo.length > 0 && (
+        <div className="card" style={{ marginBottom: 18 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+            <strong>À faire sur tes clients</strong>
+            <Link href="/clients" style={{ fontSize: 13 }}>Pipeline complet</Link>
+          </div>
+          <div style={{ display: "grid", gap: 6, marginTop: 10 }}>
+            {todo.map((t) => (
+              <div key={t.id} style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: "8px 10px", borderRadius: 8, background: "var(--surface-2)" }}>
+                <Link href={`/clients/${t.id}`} style={{ fontWeight: 600, color: "inherit", minWidth: 140 }}>{t.name}</Link>
+                <span className="pill" style={{ fontSize: 11 }}>{t.stage}</span>
+                <Link href={t.href} style={{ flex: 1, fontSize: 13 }}>→ {t.text}</Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {/* Hero de bienvenue */}
       <div className="hero" style={{ marginBottom: 18 }}>
         <div style={{ position: "relative", zIndex: 1 }}>

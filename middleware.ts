@@ -33,6 +33,10 @@ export async function middleware(request: NextRequest) {
   ) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
+  // Usage interne : pages héritées de la version SaaS, renvoyées vers l'app.
+  if (process.env.STRATYX_INTERNAL_MODE === "true" && ["/agent", "/templates", "/artisans", "/demo"].some((p) => path === p || path.startsWith(p + "/"))) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
 
   if (PUBLIC_PREFIXES.some((p) => path === p || path.startsWith(p + "/"))) {
     return NextResponse.next();

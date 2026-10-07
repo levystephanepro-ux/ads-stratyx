@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import Shell from "@/components/Shell";
 import QuestionFields from "@/components/QuestionFields";
 import CopyLinkButton from "@/components/CopyLinkButton";
+import ClientSteps from "@/components/ClientSteps";
 import { getDashboardContext } from "@/lib/workspace";
 import { getAccountsInfo } from "@/lib/google-ads/default-account";
 import { getClient } from "@/lib/clients/store";
@@ -34,48 +35,44 @@ export default async function ClientPage({ params, searchParams }: { params: P; 
   const stage = stageOf(c);
   const next = nextAction(c, !!prop);
   const acc = c.customer_id ? `?account=${c.customer_id}` : "";
-  const prospect = `/audit/prospect?${new URLSearchParams({ nom: c.name, ...(c.website ? { url: c.website } : {}) }).toString()}`;
-  const tools = c.customer_id
-    ? [
-        { href: `/waste${acc}`, t: "Diagnostic et audit", d: "Score de santé, gaspillage, correctifs en un clic." },
-        { href: `/audit/client${acc}`, t: "Audit PDF du compte", d: "Document à remettre au client." },
-        { href: `/previsions${acc}`, t: "Prévisions et structure", d: "Mots clés, budget, campagne en pause." },
-        { href: `/rapports`, t: "Rapports", d: "Rapport du mois, lien client, PDF." },
-        { href: `/alertes`, t: "Alertes", d: "Budget, conversions, landing page." },
-        { href: `/dashboard${acc}`, t: "Tableau de bord", d: "Dépense, conversions, budget." },
-        { href: `/persona?client=${c.id}`, t: "Persona", d: "Pré-rempli avec le questionnaire." },
-      ]
-    : [];
 
   return (
     <Shell active="clients" token={ctx.mcpToken} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}
       headerRight={<Link className="btn-ghost" href="/clients">Tous les clients</Link>}>
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
         <h1 style={{ margin: 0 }}>{c.name}</h1>
-        <span className="pill">{LABEL[c.status]}</span>
-      </div>
-      <div className="card" style={{ margin: "14px 0", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-        <form action={setStageAction} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+        {isActive ? (
+          <form action={setActiveClientAction} style={{ display: "flex", gap: 6, alignItems: "center" }}><span className="pill ok">Client actif</span><input type="hidden" name="id" value="" /><input type="hidden" name="back" value={`/clients/${c.id}`} />
+            <button className="btn-ghost" type="submit" style={{ padding: "5px 10px", fontSize: 12 }}>Désactiver</button></form>
+        ) : (
+          <form action={setActiveClientAction}><input type="hidden" name="id" value={c.id} /><input type="hidden" name="back" value={`/clients/${c.id}`} />
+            <button type="submit" style={{ padding: "7px 12px", fontSize: 13 }}>Travailler sur ce client</button></form>
+        )}
+        <form action={setStageAction} style={{ display: "flex", gap: 6, alignItems: "center", marginLeft: "auto" }}>
           <input type="hidden" name="id" value={c.id} />
-          <span className="subtitle" style={{ margin: 0, fontSize: 12 }}>Étape</span>
-          <select name="stage" defaultValue={stage} style={{ ...input, width: "auto" }}>
+          <select name="stage" defaultValue={stage} style={{ ...input, width: "auto", padding: "6px 10px" }} aria-label="Étape">
             {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
           </select>
-          <button className="btn-ghost" type="submit" style={{ padding: "7px 10px", fontSize: 12 }}>OK</button>
+          <button className="btn-ghost" type="submit" style={{ padding: "6px 10px", fontSize: 12 }}>OK</button>
         </form>
-        {next && <Link href={next.href} style={{ flex: 1, minWidth: 220 }}>Prochaine action : {next.text}</Link>}
-        {isActive ? <span className="pill">Client actif</span> : (
-          <form action={setActiveClientAction}><input type="hidden" name="id" value={c.id} /><input type="hidden" name="back" value={`/clients/${c.id}`} />
-            <button type="submit">Travailler sur ce client</button></form>
-        )}
       </div>
+      {next && <p style={{ margin: "10px 0 0" }}><Link href={next.href}><strong>Prochaine action :</strong> {next.text}</Link></p>}
       {sp.err && <div className="card" style={{ borderColor: "var(--red)", margin: "12px 0" }}>{sp.err}</div>}
       {sp.saved && <div className="card" style={{ borderColor: "var(--green)", margin: "12px 0" }}>{sp.saved === "sync" ? "Fiche enregistrée, et le contexte IA du compte est mis à jour (Copilote et Prévisions s'en servent)." : sp.saved === "draft" ? "Brouillon enregistré. Tu peux quitter la page et reprendre plus tard." : "Fiche enregistrée et marquée comme remplie."}</div>}
 
-      <div className="card" style={{ margin: "16px 0", display: "grid", gap: 10 }}>
-        <strong>Lien du questionnaire à envoyer au client</strong>
-        <p className="subtitle" style={{ margin: 0 }}>Le client répond sans compte. Ses réponses arrivent ici et alimentent le contexte IA du compte lié.</p>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <ClientSteps c={c} hasProposal={!!prop} />
+
+      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 13, margin: "0 0 16px" }}>
+        <span className="subtitle" style={{ margin: 0 }}>Aussi :</span>
+        <Link href={`/persona?client=${c.id}`}>Persona</Link>
+        {c.customer_id && <Link href={`/dashboard${acc}`}>Tableau de bord</Link>}
+        {c.customer_id && <Link href={`/copilote`}>Copilote</Link>}
+        <span className="subtitle" style={{ margin: 0 }}>Meta Ads : bientôt</span>
+      </div>
+
+      <details id="questionnaire" open={c.status !== "rempli" ? true : undefined} className="card" style={{ marginBottom: 16 }}>
+        <summary style={{ cursor: "pointer", fontWeight: 700 }}>Questionnaire de découverte · {LABEL[c.status]}{c.submitted_at ? ` · ${new Date(c.submitted_at).toLocaleDateString("fr-FR")}` : ""}</summary>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "12px 0" }}>
           <CopyLinkButton path={`/q/${c.share_token}`} label="Copier le lien complet" />
           <CopyLinkButton path={`/q/${c.share_token}?v=court`} label="Copier le lien court (12 questions)" />
           <Link className="btn-ghost" href={`/q/${c.share_token}?apercu=1`} target="_blank">Voir ce que voit le client</Link>
@@ -83,28 +80,6 @@ export default async function ClientPage({ params, searchParams }: { params: P; 
             <form action={markSentAction}><input type="hidden" name="id" value={c.id} /><button className="btn-ghost" type="submit">Marquer comme envoyé</button></form>
           )}
         </div>
-        {c.submitted_at && <span className="subtitle" style={{ margin: 0, fontSize: 12 }}>Dernières réponses le {new Date(c.submitted_at).toLocaleDateString("fr-FR")}</span>}
-      </div>
-
-      <div className="card" style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap", borderColor: "var(--accent)" }}>
-        <div><strong>Synthèse et proposition</strong><br /><span className="subtitle" style={{ margin: 0, fontSize: 12 }}>Résumé du besoin, rentabilité, budget, stratégie, objectifs 90 jours. En PDF à ta charte. IA, quelques centimes.</span></div>
-        <Link className="btn" href={`/clients/${c.id}/proposition`}>Ouvrir</Link>
-      </div>
-
-      {tools.length > 0 ? (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10, marginBottom: 16 }}>
-          {tools.map((t) => (
-            <Link key={t.t} href={t.href} className="card" style={{ color: "inherit" }}>
-              <strong>{t.t}</strong><br /><span className="subtitle" style={{ margin: 0, fontSize: 12 }}>{t.d}</span>
-            </Link>
-          ))}
-          <Link href={prospect} className="card" style={{ color: "inherit" }}><strong>Audit de la page</strong><br /><span className="subtitle" style={{ margin: 0, fontSize: 12 }}>Page, suivi, potentiel de recherche.</span></Link>
-          <div className="card" style={{ opacity: 0.6 }}><strong>Meta Ads</strong><br /><span className="subtitle" style={{ margin: 0, fontSize: 12 }}>Bientôt.</span></div>
-        </div>
-      ) : (
-        <div className="card subtitle" style={{ marginBottom: 16 }}>Lie un compte Google Ads à ce client pour activer l'audit, les prévisions, les alertes et le contexte IA.</div>
-      )}
-
       <form action={saveClientAction} style={{ display: "grid", gap: 16 }}>
         <input type="hidden" name="id" value={c.id} />
         <section className="card" style={{ display: "grid", gap: 12 }}>
@@ -136,6 +111,8 @@ export default async function ClientPage({ params, searchParams }: { params: P; 
           <Link className="btn-ghost" href="/clients">Quitter</Link>
         </div>
       </form>
+
+      </details>
 
       <form action={deleteClientAction} style={{ marginTop: 28 }}>
         <input type="hidden" name="id" value={c.id} />

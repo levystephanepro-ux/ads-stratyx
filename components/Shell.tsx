@@ -10,22 +10,31 @@ import Owl from "@/components/Owl";
 // Icônes : Lucide (components/Icons.tsx)
 const Ic = Icons;
 
-type PageKey = "home" | "copilote" | "agent" | "waste" | "scripts" | "rapports" | "comptes" | "clients" | "alertes" | "previsions" | "templates" | "connexions" | "persona" | "search-console" | "aide" | "admin";
+type PageKey = "home" | "copilote" | "agent" | "waste" | "scripts" | "rapports" | "comptes" | "clients" | "audit" | "alertes" | "previsions" | "templates" | "connexions" | "persona" | "search-console" | "aide" | "admin";
 
 const NAV: { key: PageKey; label: string; ic: keyof typeof Ic; href: string }[] = [
-  { key: "home",       label: "Accueil",     ic: "home",       href: "/dashboard" },
-  { key: "copilote",   label: "Copilote",    ic: "copilote",   href: "/copilote" },
-  { key: "waste",      label: "Diagnostic",  ic: "waste",      href: "/waste" },
-  { key: "scripts",    label: "Scripts",     ic: "scripts",    href: "/scripts" },
-  { key: "rapports",   label: "Rapports",    ic: "rapports",   href: "/rapports" },
-  { key: "alertes",    label: "Alertes",     ic: "alertes",    href: "/alertes" },
-  { key: "previsions", label: "Prévisions",  ic: "previsions", href: "/previsions" },
-  { key: "comptes",    label: "Comptes liés", ic: "comptes",   href: "/comptes" },
-  { key: "clients",    label: "Clients",     ic: "clients",    href: "/clients" },
-  { key: "persona",         label: "Persona",          ic: "persona",    href: "/persona" },
+  { key: "home",           label: "Accueil",          ic: "home",       href: "/dashboard" },
+  { key: "clients",        label: "Clients",          ic: "clients",    href: "/clients" },
+  { key: "waste",          label: "Diagnostic",       ic: "waste",      href: "/waste" },
+  { key: "alertes",        label: "Alertes",          ic: "alertes",    href: "/alertes" },
+  { key: "copilote",       label: "Copilote",         ic: "copilote",   href: "/copilote" },
+  { key: "previsions",     label: "Prévisions",       ic: "previsions", href: "/previsions" },
+  { key: "persona",        label: "Persona",          ic: "persona",    href: "/persona" },
+  { key: "audit",          label: "Audit prospect",   ic: "audit",      href: "/audit/prospect" },
+  { key: "rapports",       label: "Rapports",         ic: "rapports",   href: "/rapports" },
+  { key: "comptes",        label: "Comptes liés",     ic: "comptes",    href: "/comptes" },
+  { key: "scripts",        label: "Scripts",          ic: "scripts",    href: "/scripts" },
   { key: "search-console", label: "Search Console",   ic: "gsc",        href: "/search-console" },
-  { key: "connexions",      label: "Connexions",       ic: "connexions", href: "/connexions" },
-  { key: "aide",            label: "Aide",             ic: "aide",       href: "/aide" },
+  { key: "connexions",     label: "Connexions",       ic: "connexions", href: "/connexions" },
+  { key: "aide",           label: "Aide",             ic: "aide",       href: "/aide" },
+];
+// Menu regroupé par usage : le parcours client d'abord, les réglages repliés en bas.
+const GROUPS: { label: string | null; keys: PageKey[]; fold?: boolean }[] = [
+  { label: null, keys: ["home", "clients"] },
+  { label: "Pilotage", keys: ["waste", "alertes", "copilote"] },
+  { label: "Création", keys: ["previsions", "persona", "audit"] },
+  { label: "Suivi", keys: ["rapports"] },
+  { label: "Outils et réglages", keys: ["comptes", "scripts", "search-console", "connexions", "aide"], fold: true },
 ];
 
 export default function Shell({
@@ -103,24 +112,30 @@ export default function Shell({
         </div>
 
         <nav className="sidebar-nav">
-          <div className="nav-group-label">Navigation</div>
-          {NAV.slice(0, 2).map(navLink)}
-          <div className="nav-group-label" style={{ marginTop: 18 }}>Outils</div>
-          {NAV.slice(2).map(navLink)}
-          {showAdmin && (
-            <>
-              <div className="nav-group-label" style={{ marginTop: 18 }}>Gestion</div>
-              <Link
-                href="/admin"
-                className={`side-link${active === "admin" ? " active" : ""}`}
-                onClick={() => setDrawerOpen(false)}
-              >
-                <span className="side-ic">{Ic.admin}</span>
-                <span className="side-label">Admin</span>
-                {active === "admin" && <span className="side-dot" />}
-              </Link>
-            </>
-          )}
+          {GROUPS.map((g, gi) => {
+            const items = g.keys.map((k) => NAV.find((n) => n.key === k)!).filter(Boolean);
+            const open = items.some((it) => it.key === active) || active === "admin";
+            const body = items.map(navLink);
+            if (g.fold) {
+              return (
+                <details key={gi} open={open ? true : undefined} className="nav-fold" style={{ marginTop: 18 }}>
+                  <summary className="nav-group-label" style={{ cursor: "pointer", listStyle: "none" }}>{g.label} ▾</summary>
+                  {body}
+                  {showAdmin && (
+                    <Link href="/admin" className={`side-link${active === "admin" ? " active" : ""}`} onClick={() => setDrawerOpen(false)}>
+                      <span className="side-ic">{Ic.admin}</span><span className="side-label">Admin</span>{active === "admin" && <span className="side-dot" />}
+                    </Link>
+                  )}
+                </details>
+              );
+            }
+            return (
+              <div key={gi} style={{ marginTop: gi === 0 ? 0 : 18 }}>
+                {g.label && <div className="nav-group-label">{g.label}</div>}
+                {body}
+              </div>
+            );
+          })}
         </nav>
 
         <div className="sidebar-foot">

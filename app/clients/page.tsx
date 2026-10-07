@@ -43,7 +43,13 @@ export default async function ClientsPage({ searchParams }: { searchParams: SP }
       </p>
       {sp.saved === "draft" && <div className="card" style={{ borderColor: "var(--green)", margin: "12px 0" }}>Brouillon enregistré{sp.name ? ` pour ${sp.name}` : ""}. Tu peux le reprendre à tout moment.</div>}
       {dbError && <div className="card" style={{ borderColor: "var(--red)", margin: "12px 0" }}>Base non prête : lance la migration 0021_clients.sql dans Supabase. ({dbError})</div>}
-      {active && <div className="card" style={{ margin: "12px 0", borderColor: "var(--accent)" }}>Client actif : <strong>{active.name}</strong>{active.customer_id ? "" : " (aucun compte Google Ads lié : les pages restent sur le compte par défaut)"}</div>}
+      {active && (
+        <div className="card" style={{ margin: "12px 0", borderColor: "var(--accent)", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <span style={{ flex: 1 }}>Client actif : <strong>{active.name}</strong>{active.customer_id ? "" : " (aucun compte Google Ads lié : les pages restent sur le compte par défaut)"}</span>
+          <form action={setActiveClientAction}><input type="hidden" name="id" value="" /><input type="hidden" name="back" value="/clients" />
+            <button className="btn-ghost" type="submit" style={{ padding: "6px 12px", fontSize: 13 }}>Revenir à « Aucun »</button></form>
+        </div>
+      )}
 
       <form action={createClientAction} className="card" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", margin: "12px 0 16px" }}>
         <input name="name" placeholder="Nouveau client ou prospect" required style={{ ...input, flex: "2 1 220px", width: "auto" }} />

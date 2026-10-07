@@ -28,7 +28,7 @@ export default async function ProspectAudit({ searchParams }: { searchParams: SP
 
   if (!url) {
     return (
-      <Shell active="clients" token={ctx.mcpToken} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}
+      <Shell active="audit" token={ctx.mcpToken} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}
         headerRight={<Link className="btn-ghost" href="/clients">Clients</Link>}>
         <h1 style={{ margin: "0 0 6px" }}>Audit prospect</h1>
         <p className="subtitle" style={{ marginTop: 0 }}>Analyse la page d&apos;un prospect et estime son potentiel Google Ads, sans accès à son compte. Résultat imprimable en PDF.</p>

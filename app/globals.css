@@ -367,6 +367,8 @@ body {
   margin-bottom: 4px;
 }
 
+.nav-fold > summary::-webkit-details-marker { display:none; }
+
 .side-link {
   position: relative;
   display: flex;

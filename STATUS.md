@@ -249,3 +249,9 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 - lib/clients/active.ts (cookie stratyx_client), lib/clients/stages.ts (8 étapes, prochaine action), /api/clients/active, components/ClientSwitcher.tsx (barre latérale).
 - Le client actif prime sur le compte par défaut (resolveDefaultId) : Prévisions, Tableau de bord, Rapports, Scripts, audit prospect, Copilote, Diagnostic et Persona le suivent.
 - /clients en pipeline par étape avec prochaine action ; fiche : étape, prochaine action, « Travailler sur ce client ». Passage auto en « Découverte faite » quand le questionnaire est marqué rempli ou la proposition générée.
+
+## Journal : Ergonomie et parcours client
+- Menu regroupé : Accueil, Clients / Pilotage (Diagnostic, Alertes, Copilote) / Création (Prévisions, Persona, Audit prospect) / Suivi (Rapports) / Outils et réglages repliés (Comptes liés, Scripts, Search Console, Connexions, Aide, Admin).
+- Mode interne : /agent, /templates, /artisans, /demo renvoyés vers /dashboard (code conservé).
+- Fiche client : parcours en 6 étapes (components/ClientSteps.tsx) avec état et boutons d'avancement, questionnaire replié une fois rempli.
+- Accueil : bloc « À faire sur tes clients » (prochaines actions du pipeline).
