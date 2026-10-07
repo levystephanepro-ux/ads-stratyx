@@ -22,13 +22,18 @@ export async function createClientAction(form: FormData) {
   redirect(`/clients/${id}`);
 }
 
-export async function saveClientAction(form: FormData) {
+// Deux actions distinctes (une par bouton, via formAction) : plus fiable que lire
+// le bouton cliqué dans le formulaire.
+export async function saveClientDraftAction(form: FormData) { return saveClient(form, "draft"); }
+export async function saveClientDoneAction(form: FormData) { return saveClient(form, "done"); }
+export async function saveClientAction(form: FormData) { return saveClient(form, String(form.get("intent") ?? "draft") === "done" ? "done" : "draft"); }
+
+async function saveClient(form: FormData, intent: "draft" | "done") {
   await owner();
   const id = String(form.get("id") ?? "");
   const c = await getClient(id);
   if (!c) return;
   const answers = formAnswers(form);
-  const intent = String(form.get("intent") ?? "draft");
   const cid = String(form.get("customer_id") ?? "").replace(/\D/g, "") || null;
   const filled = Object.keys(answers).length > 0;
   await updateClient(id, {

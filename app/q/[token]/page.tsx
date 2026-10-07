@@ -2,7 +2,7 @@
 import { notFound } from "next/navigation";
 import QuestionFields from "@/components/QuestionFields";
 import { getClientByToken } from "@/lib/clients/store";
-import { submitQuestionnaireAction } from "./actions";
+import { submitQuestionnaireAction, submitDraftAction, submitDoneAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Questionnaire de découverte", robots: { index: false, follow: false } };
@@ -40,8 +40,8 @@ export default async function PublicQuestionnaire({ params, searchParams }: { pa
         <input name="website_hp" tabIndex={-1} autoComplete="off" aria-hidden="true" style={{ position: "absolute", left: "-9999px", height: 0, width: 0, opacity: 0 }} />
         <QuestionFields answers={c.answers ?? {}} mode={short ? "court" : "public"} />
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", position: "sticky", bottom: 0, padding: "10px 0", background: "var(--bg)" }}>
-          <button type="submit" name="intent" value="done">Envoyer mes réponses</button>
-          <button type="submit" name="intent" value="draft" className="btn-ghost">Enregistrer et reprendre plus tard</button>
+          <button type="submit" formAction={submitDoneAction}>Envoyer mes réponses</button>
+          <button type="submit" formAction={submitDraftAction} className="btn-ghost">Enregistrer et reprendre plus tard</button>
         </div>
       </form>
     </main>

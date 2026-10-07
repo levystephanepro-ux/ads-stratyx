@@ -8,7 +8,7 @@ import ClientSteps from "@/components/ClientSteps";
 import { getDashboardContext } from "@/lib/workspace";
 import { getAccountsInfo } from "@/lib/google-ads/default-account";
 import { getClient } from "@/lib/clients/store";
-import { saveClientAction, markSentAction, deleteClientAction, setActiveClientAction, setStageAction } from "../actions";
+import { saveClientAction, saveClientDraftAction, saveClientDoneAction, markSentAction, deleteClientAction, setActiveClientAction, setStageAction } from "../actions";
 import { getActiveClient } from "@/lib/clients/active";
 import { getProposal } from "@/lib/clients/proposal";
 import { STAGES, stageOf, nextAction } from "@/lib/clients/stages";
@@ -106,8 +106,8 @@ export default async function ClientPage({ params, searchParams }: { params: P; 
           <span>Mettre à jour le contexte IA du compte lié avec ces réponses</span>
         </label>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", position: "sticky", bottom: 0, padding: "10px 0", background: "var(--bg)", zIndex: 5 }}>
-          <button type="submit" name="intent" value="draft">Enregistrer le brouillon</button>
-          <button type="submit" name="intent" value="done" className="btn-ghost">Enregistrer et marquer comme rempli</button>
+          <button type="submit" formAction={saveClientDraftAction}>Enregistrer le brouillon</button>
+          <button type="submit" formAction={saveClientDoneAction} className="btn-ghost">Enregistrer et marquer comme rempli</button>
           <Link className="btn-ghost" href="/clients">Quitter</Link>
         </div>
       </form>

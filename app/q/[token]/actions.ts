@@ -3,12 +3,15 @@ import { redirect } from "next/navigation";
 import { getClientByToken, updateClient, formAnswers, syncContext, getClient } from "@/lib/clients/store";
 import { publicKeys } from "@/lib/clients/questions";
 
-export async function submitQuestionnaireAction(form: FormData) {
+export async function submitDraftAction(form: FormData) { return submit(form, true); }
+export async function submitDoneAction(form: FormData) { return submit(form, false); }
+export async function submitQuestionnaireAction(form: FormData) { return submit(form, form.get("intent") === "draft"); }
+
+async function submit(form: FormData, draft: boolean) {
   const token = String(form.get("token") ?? "");
   const short = form.get("v") === "court";
   const c = await getClientByToken(token);
   if (!c) return;
-  const draft = form.get("intent") === "draft";
   const back = `/q/${token}${short ? "?v=court" : ""}`;
   const done = `${back}${short ? "&" : "?"}${draft ? "ok=draft" : "ok=1"}`;
   if (String(form.get("website_hp") ?? "")) redirect(done); // champ piège anti-robot
