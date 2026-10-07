@@ -1,6 +1,7 @@
 'use client'
 import { useState } from "react";
 import ClientSwitcher from "@/components/ClientSwitcher";
+import HealthLight from "@/components/HealthLight";
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 import CreditGauge from "@/components/CreditGauge";
@@ -10,9 +11,9 @@ import Owl from "@/components/Owl";
 // Icônes : Lucide (components/Icons.tsx)
 const Ic = Icons;
 
-type PageKey = "home" | "copilote" | "agent" | "waste" | "scripts" | "rapports" | "comptes" | "clients" | "audit" | "alertes" | "previsions" | "templates" | "connexions" | "persona" | "search-console" | "aide" | "admin";
+type PageKey = "home" | "copilote" | "agent" | "waste" | "scripts" | "rapports" | "comptes" | "clients" | "audit" | "alertes" | "previsions" | "templates" | "connexions" | "persona" | "search-console" | "aide" | "admin" | "sante";
 
-const NAV: { key: PageKey; label: string; ic: keyof typeof Ic; href: string }[] = [
+const NAV: { key: PageKey; label: string; ic: keyof typeof Ic; href: string; ownerOnly?: boolean }[] = [
   { key: "home",           label: "Accueil",          ic: "home",       href: "/dashboard" },
   { key: "clients",        label: "Clients",          ic: "clients",    href: "/clients" },
   { key: "waste",          label: "Diagnostic",       ic: "waste",      href: "/waste" },
@@ -26,6 +27,8 @@ const NAV: { key: PageKey; label: string; ic: keyof typeof Ic; href: string }[] 
   { key: "scripts",        label: "Scripts",          ic: "scripts",    href: "/scripts" },
   { key: "search-console", label: "Search Console",   ic: "gsc",        href: "/search-console" },
   { key: "connexions",     label: "Connexions",       ic: "connexions", href: "/connexions" },
+  { key: "admin",          label: "Admin",            ic: "admin",      href: "/admin", ownerOnly: true },
+  { key: "sante",          label: "Bilan de santé",   ic: "sante",      href: "/admin/sante", ownerOnly: true },
   { key: "aide",           label: "Aide",             ic: "aide",       href: "/aide" },
 ];
 // Menu regroupé par usage : le parcours client d'abord, les réglages repliés en bas.
@@ -34,7 +37,8 @@ const GROUPS: { label: string | null; keys: PageKey[]; fold?: boolean }[] = [
   { label: "Pilotage", keys: ["waste", "alertes", "copilote"] },
   { label: "Création", keys: ["previsions", "persona", "audit"] },
   { label: "Suivi", keys: ["rapports"] },
-  { label: "Outils et réglages", keys: ["comptes", "scripts", "connexions", "aide"], fold: true },
+  { label: "Outils", keys: ["comptes", "scripts"], fold: true },
+  { label: "Réglages", keys: ["connexions", "admin", "sante", "aide"], fold: true },
 ];
 
 export default function Shell({
@@ -113,19 +117,17 @@ export default function Shell({
 
         <nav className="sidebar-nav">
           {GROUPS.map((g, gi) => {
-            const items = g.keys.map((k) => NAV.find((n) => n.key === k)!).filter(Boolean);
-            const open = items.some((it) => it.key === active) || active === "admin";
+            const items = g.keys
+              .map((k) => NAV.find((n) => n.key === k)!)
+              .filter((it) => it && (!it.ownerOnly || showAdmin));
+            if (items.length === 0) return null;
+            const open = items.some((it) => it.key === active);
             const body = items.map(navLink);
             if (g.fold) {
               return (
                 <details key={gi} open={open ? true : undefined} className="nav-fold" style={{ marginTop: 18 }}>
                   <summary className="nav-group-label" style={{ cursor: "pointer", listStyle: "none" }}>{g.label} ▾</summary>
                   {body}
-                  {showAdmin && (
-                    <Link href="/admin" className={`side-link${active === "admin" ? " active" : ""}`} onClick={() => setDrawerOpen(false)}>
-                      <span className="side-ic">{Ic.admin}</span><span className="side-label">Admin</span>{active === "admin" && <span className="side-dot" />}
-                    </Link>
-                  )}
                 </details>
               );
             }
@@ -139,6 +141,7 @@ export default function Shell({
         </nav>
 
         <div className="sidebar-foot">
+          {showAdmin && <HealthLight />}
           {showAdmin && <ClientSwitcher />}
           {accountName && (
             <Link

@@ -9,6 +9,7 @@ import { keywordIdeas, suggestGeo } from "@/lib/planner/ideas";
 import { createPausedSearchCampaign, type CampaignSpec } from "@/lib/planner/create";
 import { latestAuditReports } from "@/lib/audit/run";
 import { lastAlertsRun } from "@/lib/alerts/run";
+import { getSetting, setSetting } from "@/lib/agent/store";
 
 export type Status = "ok" | "warn" | "fail" | "skip";
 export interface Check { group: string; label: string; status: Status; detail: string; ms?: number }
@@ -158,4 +159,27 @@ export async function healthChecks(): Promise<Check[]> {
   }, 10000));
 
   return checks;
+}
+
+
+// ---------------- Témoin lumineux (menu) ----------------
+// Résumé du dernier bilan, enregistré à chaque passage (page Bilan de santé + tâche du matin).
+export interface HealthSummary { at: string; fail: number; warn: number; failed: string[] }
+const SUMMARY_KEY = "health_last";
+
+export async function saveHealthSummary(checks: Check[]): Promise<HealthSummary> {
+  const sum: HealthSummary = {
+    at: new Date().toISOString(),
+    fail: checks.filter((c) => c.status === "fail").length,
+    warn: checks.filter((c) => c.status === "warn").length,
+    failed: checks.filter((c) => c.status === "fail").map((c) => `${c.group} : ${c.label}`).slice(0, 8),
+  };
+  try { await setSetting(SUMMARY_KEY, JSON.stringify(sum)); } catch { /* table absente : sans effet */ }
+  return sum;
+}
+
+export async function getHealthSummary(): Promise<HealthSummary | null> {
+  const raw = await getSetting(SUMMARY_KEY);
+  if (!raw) return null;
+  try { return JSON.parse(raw) as HealthSummary; } catch { return null; }
 }

@@ -266,3 +266,9 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 - RGPD : /confidentialite complétée (éditeur STRATYXMEDIA, section questionnaire et rendez-vous, Resend et Calendly, notes de travail retirées ; reste la région Supabase à préciser). Mention d'information + lien en bas du questionnaire public.
 - /mentions-legales (public) sur le modèle LCEN fourni, coordonnées STRATYXMEDIA ; liens depuis le questionnaire et la politique de confidentialité ; boutons « Retour » vers stratyxmedia.fr.
 - Search Console retiré du menu (page conservée, lien depuis la fiche). Fiche client : bloc « Demander les accès » avec message prêt à copier (Google Ads via MCC, Search Console « Restreint », GA4 « Lecteur », GTM, Meta partenaire), adresse = compte Google connecté dans Connexions.
+
+### 2026-10-07 · Menu Outils / Réglages + témoin de santé
+- Menu : « Outils » (Comptes liés, Scripts) et « Réglages » (Connexions, Admin, Bilan de santé, Aide) séparés, repliables. Admin et Bilan de santé visibles pour le propriétaire uniquement.
+- Correctif : le menu défile désormais (overflow) ; Admin était coupé en bas de la barre latérale.
+- Témoin lumineux en bas du menu : vert = dernier bilan sans échec, rouge clignotant = problème (survol : liste), gris = bilan absent ou de plus de 36 h. Clic : /admin/sante.
+- Résumé enregistré dans app_settings (clé health_last) à chaque ouverture du Bilan de santé et par la tâche du matin (/api/cron/waste). Route légère : /api/health/status.

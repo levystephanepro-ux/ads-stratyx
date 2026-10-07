@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import Shell from "@/components/Shell";
 import { getDashboardContext } from "@/lib/workspace";
-import { healthChecks, type Status } from "@/lib/health";
+import { healthChecks, saveHealthSummary, type Status } from "@/lib/health";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -29,11 +29,12 @@ export default async function SantePage() {
   if (!ctx.isOwner) redirect("/dashboard");
   const t = Date.now();
   const checks = await healthChecks();
+  await saveHealthSummary(checks);
   const groups = [...new Set(checks.map((c) => c.group))];
   const count = (s: Status) => checks.filter((c) => c.status === s).length;
 
   return (
-    <Shell active="admin" token={ctx.mcpToken} showAdmin trialDaysLeft={ctx.trialDaysLeft} accountName={ctx.defaultAccountName}
+    <Shell active="sante" token={ctx.mcpToken} showAdmin trialDaysLeft={ctx.trialDaysLeft} accountName={ctx.defaultAccountName}
       headerRight={<Link className="btn-ghost" href="/admin/sante">Relancer les tests</Link>}>
       <h1 style={{ margin: "0 0 6px" }}>Bilan de santé</h1>
       <p className="subtitle" style={{ marginTop: 0 }}>

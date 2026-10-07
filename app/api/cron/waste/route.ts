@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { runAuditForOwner } from "@/lib/audit/run";
 import { sendAgentEmail } from "@/lib/agent/email";
 import { runAlertsForOwner, alertsMarkdown, type AlertsRun } from "@/lib/alerts/run";
+import { healthChecks, saveHealthSummary } from "@/lib/health";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -33,9 +34,19 @@ export async function GET(req: Request) {
     }
   }
 
+  // Bilan de santé du jour (lecture seule) : alimente le témoin vert/rouge du menu.
+  let health = "non lancé";
+  try {
+    const sum = await saveHealthSummary(await healthChecks());
+    health = sum.fail ? `${sum.fail} échec(s)` : "ok";
+  } catch (e) {
+    health = `erreur : ${e instanceof Error ? e.message : String(e)}`;
+  }
+
   return NextResponse.json({
     ranAt: new Date().toISOString(),
     email,
+    health,
     alerts: alerts.accounts.map((a) => ({ name: a.name, alerts: a.alerts.map((x) => x.title), errors: a.errors })),
     accounts: r.accounts.map((a) => ({
       customerId: a.customerId,
