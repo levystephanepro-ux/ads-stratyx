@@ -262,3 +262,4 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 - Calendly : webhooks réservés aux offres payantes ; l'API en lecture (GET) est annoncée sur toutes les offres. Piste gratuite : import des rendez-vous à la demande avec un jeton personnel.
 - Import Calendly : lib/clients/calendly.ts + bouton « Importer mes RDV Calendly » sur /clients (si CALENDLY_TOKEN présent). Lit les RDV de -30 à +60 jours, crée les fiches manquantes (nom, email, site trouvé dans les réponses, notes avec les réponses du formulaire). Doublons évités par email et par nom.
 - Logo STRATYXMEDIA (components/BrandLogo.tsx, wordmark Syne avec « YX » orange + baseline) en tête des rapports clients, audits, proposition et devis.
+- Migration 0023_client_contact.sql : contact_name, contact_phone. Fiche : champs Entreprise / Nom du contact / Téléphone ; import Calendly les remplit ; devis les affiche.
