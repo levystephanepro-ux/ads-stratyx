@@ -22,7 +22,7 @@ export async function suggestQuote(c: Client, s: QuoteSettings, prop: StoredProp
   const packs = s.offres.map((o) => `${o.nom} : ${(o.items ?? []).join(", ")}`).join("\n");
 
   const prompt = [
-    `Tu es un consultant senior en acquisition payante (Google Ads, Meta Ads) en France. Tu prépares le devis de STRATYXMEDIA pour « ${c.name} ».`,
+    `Tu es un consultant senior en paid media multi-canal (Google Ads, Meta Ads, LinkedIn, TikTok), créatives et landing pages, en France. Tu prépares le devis de STRATYXMEDIA pour « ${c.name} ».`,
     `Choisis les prestations du catalogue adaptées à ce client, avec leurs quantités. Tu ne fixes jamais de prix.`,
     ``, `Découverte du client :`, answers || "(questionnaire vide)",
     c.website ? `Site : ${c.website}` : "",
@@ -32,10 +32,12 @@ export async function suggestQuote(c: Client, s: QuoteSettings, prop: StoredProp
     ``, `Packs existants :`, packs,
     ``, `Règles :`,
     `1. Uniquement des id du catalogue. Ne propose pas deux fois la même prestation.`,
-    `2. Ce qui manque (suivi des conversions, page dédiée, rappel des demandes) passe avant le reste.`,
-    `3. Quantité de « search » = nombre de campagnes Search prévues (1 à 4). Garde le devis raisonnable pour une TPE.`,
-    `4. Ce qui est utile mais pas indispensable va dans "options" (affiché sans être compté).`,
-    `5. Chaque raison tient en une phrase courte, factuelle, tirée de la découverte. Pas de tirets longs.`,
+    `2. Ce qui manque (suivi des conversions, landing page, traitement des demandes) passe avant le reste.`,
+    `3. Choisis les canaux selon la découverte : Google quand le besoin est déjà recherché, Meta ou TikTok pour susciter le besoin avec du visuel, LinkedIn pour une cible B2B. Pas de canal sans raison.`,
+    `4. Chaque canal retenu a sa création, ses créatives (visuels, vidéos, rédaction) et son pilotage mensuel. Un tracking adapté à chaque canal (pixel Meta pour Meta).`,
+    `5. Quantité de « search » = nombre de campagnes Search (1 à 4). Quantités de visuels et vidéos réalistes. Garde le devis cohérent avec le budget publicitaire du client.`,
+    `6. Ce qui est utile mais pas indispensable va dans "options" (affiché sans être compté).`,
+    `7. Chaque raison tient en une phrase courte, factuelle, tirée de la découverte. Pas de tirets longs.`,
     ``, `Réponds UNIQUEMENT avec ce JSON :`,
     `{"titre":"titre court du devis","engagementMois":3,"budgetPub":900,"items":[{"id":"tracking","qte":1,"raison":"..."}],"options":[{"id":"landing_variante","qte":1,"raison":"..."}],"note":"1 à 2 phrases pour le bas du devis, ou vide"}`,
   ].filter((l) => l !== "").join("\n");

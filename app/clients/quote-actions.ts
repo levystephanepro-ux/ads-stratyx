@@ -8,7 +8,7 @@ import { suggestQuote } from "@/lib/clients/quote-ai";
 import { stageOf, stageRank } from "@/lib/clients/stages";
 import {
   getQuoteSettings, saveQuoteSettings, getQuote, saveQuote, nextQuoteNumber, linesFromForm, withAmounts,
-  lineFromCatalog, varContext, UNITES, type CatalogItem, type Offer, type Quote, type Unite,
+  lineFromCatalog, varContext, UNITES, CATALOGUE_VERSION, type CatalogItem, type Offer, type Quote, type Unite,
 } from "@/lib/clients/quotes";
 
 async function owner() {
@@ -54,7 +54,7 @@ export async function saveQuoteSettingsAction(form: FormData) {
     raisonSociale: str(form, "raisonSociale"), adresse: str(form, "adresse"), email: str(form, "email"), telephone: str(form, "telephone"),
     siret: str(form, "siret"), mentionTva: str(form, "mentionTva"), validiteJours: Math.round(num(form, "validiteJours", 30)),
     conditionsPaiement: str(form, "conditionsPaiement"), garantie: str(form, "garantie"),
-    catalogue: catalogue.length ? catalogue : prev.catalogue, offres: offres.length ? offres : prev.offres,
+    catalogue: catalogue.length ? catalogue : prev.catalogue, offres: offres.length ? offres : prev.offres, catalogueVersion: CATALOGUE_VERSION,
   });
   const back = str(form, "back");
   redirect(back.startsWith("/") ? back : "/clients/devis-reglages?ok=1");
