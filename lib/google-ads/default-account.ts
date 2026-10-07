@@ -100,3 +100,17 @@ export async function getAccountsInfo(scope?: AccountScope): Promise<{
     return { accounts: [], defaultCustomerId };
   }
 }
+
+/** Compte par défaut du propriétaire SANS tenir compte du client actif (réglage global, puis env). */
+export async function getBaseDefaultAccount(): Promise<AccountInfo | null> {
+  const customerId = (await getSetting("default_customer_id")) || adsConfig.customerId || null;
+  if (!customerId) return null;
+  if (!isLive() || !hasEnvAccount()) return { customerId, name: customerId };
+  try {
+    const accounts = await listManagedAccounts(adsConfig.refreshToken);
+    const match = accounts.find((a) => a.customerId === customerId);
+    return { customerId, name: match?.name ?? customerId };
+  } catch {
+    return { customerId, name: customerId };
+  }
+}

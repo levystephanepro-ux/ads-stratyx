@@ -281,3 +281,6 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 - ClientSwitcher refait en menu maison : client actif en tête avec coche, identifiant Google Ads (xxx-xxx-xxxx) sous chaque nom, « Aucun (compte par défaut) » en fin de liste, fermeture au clic extérieur ou Échap.
 - Logo : charge public/google-ads.svg (à déposer, logo officiel) ; pastille orange en repli si absent.
 - /api/clients/active renvoie aussi customerId.
+
+### 2026-10-07 · Libellé « Aucun client (compte) »
+- Le sélecteur affiche « Aucun client (nom du compte par défaut) » avec son identifiant ; /api/clients/active renvoie defaultAccount (getBaseDefaultAccount, ignore le client actif).

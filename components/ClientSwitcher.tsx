@@ -23,12 +23,13 @@ export default function ClientSwitcher() {
   const router = useRouter();
   const [items, setItems] = useState<Item[] | null>(null);
   const [active, setActive] = useState<string>("");
+  const [base, setBase] = useState<{ customerId: string; name: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch("/api/clients/active", { cache: "no-store" }).then((r) => r.json()).then((j) => { setItems(j.clients ?? []); setActive(j.active ?? ""); }).catch(() => setItems([]));
+    fetch("/api/clients/active", { cache: "no-store" }).then((r) => r.json()).then((j) => { setItems(j.clients ?? []); setActive(j.active ?? ""); setBase(j.defaultAccount ?? null); }).catch(() => setItems([]));
   }, []);
 
   useEffect(() => {
@@ -51,7 +52,7 @@ export default function ClientSwitcher() {
     router.refresh();
   };
 
-  const none: Item = { id: "", name: "Aucun (compte par défaut)", linked: true, customerId: null };
+  const none: Item = { id: "", name: base ? `Aucun client (${base.name})` : "Aucun client", linked: true, customerId: base?.customerId ?? null };
   const all = [...items, none];
   const current = all.find((c) => c.id === active) ?? none;
   // Le client actif en premier, puis les autres dans l'ordre de la liste.
@@ -75,7 +76,7 @@ export default function ClientSwitcher() {
                   <AdsMark />
                   <span className="cs-opt-txt">
                     <span className="cs-opt-name">{c.name}</span>
-                    <span className="cs-opt-id">{c.id === "" ? "Compte Google Ads par défaut" : c.customerId ? fmtId(c.customerId) : "Sans compte Google Ads"}</span>
+                    <span className="cs-opt-id">{c.id === "" ? (c.customerId ? `${fmtId(c.customerId)} · compte par défaut` : "Compte par défaut") : c.customerId ? fmtId(c.customerId) : "Sans compte Google Ads"}</span>
                   </span>
                   {sel && <span className="cs-check" aria-hidden>✓</span>}
                 </button>

@@ -3,14 +3,19 @@ import { NextResponse } from "next/server";
 import { getDashboardContext } from "@/lib/workspace";
 import { listClients } from "@/lib/clients/store";
 import { getActiveClient, setActiveClientCookie } from "@/lib/clients/active";
+import { getBaseDefaultAccount } from "@/lib/google-ads/default-account";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const ctx = await getDashboardContext();
   if (!ctx.isOwner) return NextResponse.json({ clients: [], active: null });
-  const [clients, active] = await Promise.all([listClients().catch(() => []), getActiveClient()]);
-  return NextResponse.json({ clients: clients.map((c) => ({ id: c.id, name: c.name, linked: !!c.customer_id, customerId: c.customer_id ?? null })), active: active?.id ?? null });
+  const [clients, active, base] = await Promise.all([
+    listClients().catch(() => []),
+    getActiveClient(),
+    getBaseDefaultAccount().catch(() => null),
+  ]);
+  return NextResponse.json({ defaultAccount: base, clients: clients.map((c) => ({ id: c.id, name: c.name, linked: !!c.customer_id, customerId: c.customer_id ?? null })), active: active?.id ?? null });
 }
 
 export async function POST(req: Request) {

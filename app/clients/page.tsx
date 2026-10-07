@@ -55,7 +55,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: SP }
         <div className="card" style={{ margin: "12px 0", borderColor: "var(--accent)", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <span style={{ flex: 1 }}>Client actif : <strong>{active.name}</strong>{active.customer_id ? "" : " (aucun compte Google Ads lié : les pages restent sur le compte par défaut)"}</span>
           <form action={setActiveClientAction}><input type="hidden" name="id" value="" /><input type="hidden" name="back" value="/clients" />
-            <button className="btn-ghost" type="submit" style={{ padding: "6px 12px", fontSize: 13 }}>Revenir à « Aucun »</button></form>
+            <button className="btn-ghost" type="submit" style={{ padding: "6px 12px", fontSize: 13 }}>Revenir à « Aucun client »</button></form>
         </div>
       )}
 
