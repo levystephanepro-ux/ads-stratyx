@@ -2,7 +2,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getDashboardContext } from "@/lib/workspace";
-import { createClientRow, updateClient, deleteClient, getClient, cleanAnswers, syncContext } from "@/lib/clients/store";
+import { createClientRow, updateClient, deleteClient, getClient, formAnswers, syncContext } from "@/lib/clients/store";
 
 async function owner() {
   const ctx = await getDashboardContext();
@@ -23,9 +23,7 @@ export async function saveClientAction(form: FormData) {
   const id = String(form.get("id") ?? "");
   const c = await getClient(id);
   if (!c) return;
-  const raw: Record<string, FormDataEntryValue | null> = {};
-  form.forEach((v, k) => { raw[k] = v; });
-  const answers = cleanAnswers(raw);
+  const answers = formAnswers(form);
   const cid = String(form.get("customer_id") ?? "").replace(/\D/g, "") || null;
   const filled = Object.keys(answers).length > 0;
   await updateClient(id, {

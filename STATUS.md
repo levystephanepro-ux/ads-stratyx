@@ -227,3 +227,8 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 ## Journal : Audits PDF + Persona
 - lib/audit/site.ts (audit de page sans IA), components/AuditSheet.tsx, /audit/client?account= (PDF du diagnostic), /audit/prospect (page + potentiel de recherche + estimation).
 - Persona pré-rempli depuis la fiche client (/persona?client=id).
+
+## Journal : Questionnaire v2 (paid media et croissance)
+- 6 sections : entreprise, clients, chiffres et objectifs (marge, récurrence, délai de vente), traitement des demandes (délai de rappel, qualité des leads), existant et accès, notes internes (jamais visibles du client ni envoyées à l'IA).
+- Liens : complet (~35 questions) ou court (12 questions, ?v=court). Cases à cocher multiples. Le client ne peut pas écraser les réponses qu'il ne voit pas.
+- À faire : faire relire par des pros du paid media et de la croissance, ajuster les questions.

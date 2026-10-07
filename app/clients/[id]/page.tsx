@@ -54,7 +54,8 @@ export default async function ClientPage({ params, searchParams }: { params: P; 
         <strong>Lien du questionnaire à envoyer au client</strong>
         <p className="subtitle" style={{ margin: 0 }}>Le client répond sans compte. Ses réponses arrivent ici et alimentent le contexte IA du compte lié.</p>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <CopyLinkButton path={`/q/${c.share_token}`} label="Copier le lien du questionnaire" />
+          <CopyLinkButton path={`/q/${c.share_token}`} label="Copier le lien complet" />
+          <CopyLinkButton path={`/q/${c.share_token}?v=court`} label="Copier le lien court (12 questions)" />
           <Link className="btn-ghost" href={`/q/${c.share_token}`} target="_blank">Voir ce que voit le client</Link>
           {c.status === "a_envoyer" && (
             <form action={markSentAction}><input type="hidden" name="id" value={c.id} /><button className="btn-ghost" type="submit">Marquer comme envoyé</button></form>

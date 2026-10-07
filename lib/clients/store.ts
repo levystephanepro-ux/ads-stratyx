@@ -3,7 +3,7 @@ import { randomBytes } from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { getSetting, setSetting } from "@/lib/agent/store";
 import { contextKey } from "@/lib/account-context";
-import { ALL_QUESTIONS } from "./questions";
+import { ALL_QUESTIONS, INTERNAL_KEYS } from "./questions";
 
 export interface Client {
   id: string; name: string; customer_id: string | null; website: string | null; contact_email: string | null; notes: string | null;
@@ -52,10 +52,12 @@ export async function deleteClient(id: string) {
   await db().from("clients").delete().eq("id", id);
 }
 
-export function cleanAnswers(raw: Record<string, FormDataEntryValue | null>): Record<string, string> {
+/** Lit les réponses d'un formulaire (les cases multiples sont jointes par des virgules). */
+export function formAnswers(form: FormData, keys?: Set<string>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const q of ALL_QUESTIONS) {
-    const v = String(raw[q.key] ?? "").trim().slice(0, 2000);
+    if (keys && !keys.has(q.key)) continue;
+    const v = form.getAll(q.key).map((x) => String(x).trim()).filter(Boolean).join(", ").slice(0, 2000);
     if (v) out[q.key] = v;
   }
   return out;
@@ -69,6 +71,7 @@ export function answersToContext(c: Pick<Client, "name" | "website" | "answers">
   const lines = [`${START}`, `Client : ${c.name}`];
   if (c.website) lines.push(`Site : ${c.website}`);
   for (const q of ALL_QUESTIONS) {
+    if (INTERNAL_KEYS.has(q.key)) continue; // notes internes : jamais envoyées à l'IA
     const v = c.answers[q.key];
     if (v) lines.push(`${q.label} ${v.replace(/\s*\n\s*/g, " ")}`);
   }
