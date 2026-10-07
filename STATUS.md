@@ -235,3 +235,7 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 
 ## Journal : Brouillon du questionnaire
 - Statut « Brouillon en cours » : enregistrer sans marquer comme rempli (fiche et lien public). Barres de boutons collantes, bouton Quitter, aperçu client avec retour à la fiche et au tableau de bord.
+
+## Journal : Bilan de santé (/admin/sante)
+- lib/health.ts : vérifs en lecture seule (variables, tables Supabase, comptes Google Ads, compte par défaut, change_event, planificateur, lieux, création de campagne + extensions en validateOnly, modèles IA Sonnet/Opus, derniers crons).
+- Liste de 10 tests manuels avec liens. Accès : Admin > Bilan de santé.
