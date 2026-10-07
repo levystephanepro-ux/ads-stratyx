@@ -272,3 +272,7 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 - Correctif : le menu défile désormais (overflow) ; Admin était coupé en bas de la barre latérale.
 - Témoin lumineux en bas du menu : vert = dernier bilan sans échec, rouge clignotant = problème (survol : liste), gris = bilan absent ou de plus de 36 h. Clic : /admin/sante.
 - Résumé enregistré dans app_settings (clé health_last) à chaque ouverture du Bilan de santé et par la tâche du matin (/api/cron/waste). Route légère : /api/health/status.
+
+### 2026-10-07 · Menu à plusieurs niveaux
+- Sidebar réorganisée (pages existantes uniquement) : Accueil, Clients ; sélecteur du client actif en haut ; sections dépliantes Pilotage (Diagnostic, Journal des corrections, Alertes du matin), Création (Prévisions et campagnes, Persona, Audit prospect), Rapports (Rapports clients, Compte rendu mensuel, Impact des changements), Outils (Comptes liés, Scripts) ; bouton Copilote mis en avant ; Réglages en bas (Connexions, Admin, Bilan de santé, Aide).
+- Page active déterminée par l'adresse (usePathname) ; une seule section ouverte à la fois, celle de la page courante à l'arrivée.

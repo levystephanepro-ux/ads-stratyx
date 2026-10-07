@@ -1,5 +1,6 @@
 'use client'
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import ClientSwitcher from "@/components/ClientSwitcher";
 import HealthLight from "@/components/HealthLight";
 import Link from "next/link";
@@ -13,33 +14,57 @@ const Ic = Icons;
 
 type PageKey = "home" | "copilote" | "agent" | "waste" | "scripts" | "rapports" | "comptes" | "clients" | "audit" | "alertes" | "previsions" | "templates" | "connexions" | "persona" | "search-console" | "aide" | "admin" | "sante";
 
-const NAV: { key: PageKey; label: string; ic: keyof typeof Ic; href: string; ownerOnly?: boolean }[] = [
-  { key: "home",           label: "Accueil",          ic: "home",       href: "/dashboard" },
-  { key: "clients",        label: "Clients",          ic: "clients",    href: "/clients" },
-  { key: "waste",          label: "Diagnostic",       ic: "waste",      href: "/waste" },
-  { key: "alertes",        label: "Alertes",          ic: "alertes",    href: "/alertes" },
-  { key: "copilote",       label: "Copilote",         ic: "copilote",   href: "/copilote" },
-  { key: "previsions",     label: "Prévisions",       ic: "previsions", href: "/previsions" },
-  { key: "persona",        label: "Persona",          ic: "persona",    href: "/persona" },
-  { key: "audit",          label: "Audit prospect",   ic: "audit",      href: "/audit/prospect" },
-  { key: "rapports",       label: "Rapports",         ic: "rapports",   href: "/rapports" },
-  { key: "comptes",        label: "Comptes liés",     ic: "comptes",    href: "/comptes" },
-  { key: "scripts",        label: "Scripts",          ic: "scripts",    href: "/scripts" },
-  { key: "search-console", label: "Search Console",   ic: "gsc",        href: "/search-console" },
-  { key: "connexions",     label: "Connexions",       ic: "connexions", href: "/connexions" },
-  { key: "admin",          label: "Admin",            ic: "admin",      href: "/admin", ownerOnly: true },
-  { key: "sante",          label: "Bilan de santé",   ic: "sante",      href: "/admin/sante", ownerOnly: true },
-  { key: "aide",           label: "Aide",             ic: "aide",       href: "/aide" },
+// Correspondance ancienne clé de page -> adresse (repli si l'adresse courante ne suffit pas).
+const KEY_HREF: Partial<Record<PageKey, string>> = {
+  home: "/dashboard", clients: "/clients", waste: "/waste", alertes: "/alertes", copilote: "/copilote",
+  previsions: "/previsions", persona: "/persona", audit: "/audit/prospect", rapports: "/rapports",
+  comptes: "/comptes", scripts: "/scripts", connexions: "/connexions", aide: "/aide",
+  admin: "/admin", sante: "/admin/sante", "search-console": "/search-console",
+};
+
+type Item = { label: string; href: string; ic?: keyof typeof Ic; ownerOnly?: boolean };
+type Section = { id: string; label: string; ic: keyof typeof Ic; items: Item[] };
+
+// Menu à plusieurs niveaux (pages existantes uniquement).
+const TOP: Item[] = [
+  { label: "Accueil", href: "/dashboard", ic: "home" },
+  { label: "Clients", href: "/clients", ic: "clients" },
 ];
-// Menu regroupé par usage : le parcours client d'abord, les réglages repliés en bas.
-const GROUPS: { label: string | null; keys: PageKey[]; fold?: boolean }[] = [
-  { label: null, keys: ["home", "clients"] },
-  { label: "Pilotage", keys: ["waste", "alertes", "copilote"] },
-  { label: "Création", keys: ["previsions", "persona", "audit"] },
-  { label: "Suivi", keys: ["rapports"] },
-  { label: "Outils", keys: ["comptes", "scripts"], fold: true },
-  { label: "Réglages", keys: ["connexions", "admin", "sante", "aide"], fold: true },
+const SECTIONS: Section[] = [
+  { id: "pilotage", label: "Pilotage", ic: "waste", items: [
+    { label: "Diagnostic", href: "/waste" },
+    { label: "Journal des corrections", href: "/waste/journal" },
+    { label: "Alertes du matin", href: "/alertes" },
+  ] },
+  { id: "creation", label: "Création", ic: "previsions", items: [
+    { label: "Prévisions et campagnes", href: "/previsions" },
+    { label: "Persona", href: "/persona" },
+    { label: "Audit prospect", href: "/audit/prospect" },
+  ] },
+  { id: "rapports", label: "Rapports", ic: "rapports", items: [
+    { label: "Rapports clients", href: "/rapports" },
+    { label: "Compte rendu mensuel", href: "/rapports/compte-rendu" },
+    { label: "Impact des changements", href: "/rapports/impact" },
+  ] },
+  { id: "outils", label: "Outils", ic: "scripts", items: [
+    { label: "Comptes liés", href: "/comptes" },
+    { label: "Scripts", href: "/scripts" },
+  ] },
 ];
+const SETTINGS: Item[] = [
+  { label: "Connexions", href: "/connexions", ic: "connexions" },
+  { label: "Admin", href: "/admin", ic: "admin", ownerOnly: true },
+  { label: "Bilan de santé", href: "/admin/sante", ic: "sante", ownerOnly: true },
+  { label: "Aide", href: "/aide", ic: "aide" },
+];
+
+const ALL_HREFS = [...TOP, ...SECTIONS.flatMap((x) => x.items), ...SETTINGS, { label: "Copilote", href: "/copilote" }].map((i) => i.href);
+
+// Adresse du menu la plus précise qui contient la page courante.
+function activeHref(path: string, fallback?: string): string | null {
+  const hit = ALL_HREFS.filter((h) => path === h || path.startsWith(h + "/")).sort((x, y) => y.length - x.length)[0];
+  return hit ?? fallback ?? null;
+}
 
 export default function Shell({
   active,
@@ -61,19 +86,19 @@ export default function Shell({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const q = token ? `?token=${encodeURIComponent(token)}` : "";
 
-  const navLink = (it: (typeof NAV)[number]) => {
-    const href = it.key === "home" ? it.href : `${it.href}${q}`;
-    const isActive = it.key === active;
+  const path = usePathname() ?? "";
+  const current = activeHref(path, KEY_HREF[active]);
+  const initial = SECTIONS.find((x) => x.items.some((i) => i.href === current))?.id ?? null;
+  const [openId, setOpenId] = useState<string | null>(initial);
+  const close = () => setDrawerOpen(false);
+  const withQ = (href: string) => (href === "/dashboard" ? href : `${href}${q}`);
+
+  const link = (it: Item) => {
+    const isActive = it.href === current;
     return (
-      <Link
-        key={it.key}
-        href={href}
-        className={`side-link${isActive ? " active" : ""}`}
-        onClick={() => setDrawerOpen(false)}
-      >
-        <span className="side-ic">{Ic[it.ic]}</span>
+      <Link key={it.href} href={withQ(it.href)} className={`side-link${isActive ? " active" : ""}`} onClick={close}>
+        {it.ic && <span className="side-ic">{Ic[it.ic]}</span>}
         <span className="side-label">{it.label}</span>
-        {isActive && <span className="side-dot" />}
       </Link>
     );
   };
@@ -116,33 +141,60 @@ export default function Shell({
         </div>
 
         <nav className="sidebar-nav">
-          {GROUPS.map((g, gi) => {
-            const items = g.keys
-              .map((k) => NAV.find((n) => n.key === k)!)
-              .filter((it) => it && (!it.ownerOnly || showAdmin));
-            if (items.length === 0) return null;
-            const open = items.some((it) => it.key === active);
-            const body = items.map(navLink);
-            if (g.fold) {
+          <div className="nav-group-label">Accueil</div>
+          {TOP.map(link)}
+
+          {showAdmin && (
+            <>
+              <div className="nav-group-label" style={{ marginTop: 14 }}>Client</div>
+              <div className="side-client"><ClientSwitcher /></div>
+            </>
+          )}
+
+          <div style={{ marginTop: 10 }}>
+            {SECTIONS.map((sec) => {
+              const isOpen = openId === sec.id;
+              const holds = sec.items.some((i) => i.href === current);
               return (
-                <details key={gi} open={open ? true : undefined} className="nav-fold" style={{ marginTop: 18 }}>
-                  <summary className="nav-group-label" style={{ cursor: "pointer", listStyle: "none" }}>{g.label} ▾</summary>
-                  {body}
-                </details>
+                <div key={sec.id}>
+                  <button
+                    type="button"
+                    className={`side-link side-section${holds ? " holds" : ""}`}
+                    aria-expanded={isOpen}
+                    onClick={() => setOpenId(isOpen ? null : sec.id)}
+                  >
+                    <span className="side-ic">{Ic[sec.ic]}</span>
+                    <span className="side-label">{sec.label}</span>
+                    <span className={`side-chev${isOpen ? " open" : ""}`} aria-hidden>›</span>
+                  </button>
+                  {isOpen && (
+                    <div className="side-sub">
+                      {sec.items.map((it) => (
+                        <Link key={it.href} href={withQ(it.href)} className={`side-sublink${it.href === current ? " active" : ""}`} onClick={close}>
+                          {it.label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
               );
-            }
-            return (
-              <div key={gi} style={{ marginTop: gi === 0 ? 0 : 18 }}>
-                {g.label && <div className="nav-group-label">{g.label}</div>}
-                {body}
-              </div>
-            );
-          })}
+            })}
+          </div>
+
+          <Link href={withQ("/copilote")} className={`side-copilot${current === "/copilote" ? " active" : ""}`} onClick={close}>
+            <span className="side-ic">{Ic.copilote}</span>
+            <span className="side-label">Copilote</span>
+            <span className="side-pill">IA</span>
+          </Link>
+
+          <div className="side-settings">
+            <div className="nav-group-label">Réglages</div>
+            {SETTINGS.filter((i) => !i.ownerOnly || showAdmin).map(link)}
+          </div>
         </nav>
 
         <div className="sidebar-foot">
           {showAdmin && <HealthLight />}
-          {showAdmin && <ClientSwitcher />}
           {accountName && (
             <Link
               href="/connexions"

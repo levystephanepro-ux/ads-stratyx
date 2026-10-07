@@ -751,3 +751,23 @@ select { cursor: pointer; }
 .health-fail .health-text { color: #ef4444; font-weight: 600; }
 @keyframes health-pulse { 50% { opacity: .45; } }
 @media print { .health-light { display: none; } }
+
+/* ── Menu à plusieurs niveaux ── */
+.side-client { padding: 0 4px 2px; }
+.side-client .client-switch { width: 100%; }
+.side-link.side-section { background: none; border: none; width: 100%; text-align: left; font-size: 14px; font-weight: 500; padding: 9px 12px; border-radius: 10px; color: var(--side-muted); filter: none; }
+.side-link.side-section:hover { background: var(--side-hover); color: var(--side-text); }
+.side-link.side-section.holds { color: var(--side-text); font-weight: 600; }
+.side-chev { margin-left: auto; font-size: 16px; line-height: 1; opacity: .6; transition: transform .15s; }
+.side-chev.open { transform: rotate(90deg); }
+.side-sub { display: flex; flex-direction: column; gap: 1px; margin: 2px 0 6px 21px; padding-left: 10px; border-left: 1px solid var(--side-border); }
+.side-sublink { position: relative; padding: 7px 10px; border-radius: 8px; font-size: 13.5px; color: var(--side-muted); text-decoration: none; }
+.side-sublink:hover { background: var(--side-hover); color: var(--side-text); text-decoration: none; }
+.side-sublink.active { color: var(--side-text); font-weight: 600; background: var(--side-active); }
+.side-sublink.active::before { content: ""; position: absolute; left: -11px; top: 22%; bottom: 22%; width: 2px; border-radius: 2px; background: var(--orange); }
+.side-copilot { display: flex; align-items: center; gap: 10px; margin: 10px 0 4px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--side-border); background: var(--side-hover); color: var(--side-text); font-weight: 600; font-size: 14px; text-decoration: none; }
+.side-copilot:hover { text-decoration: none; filter: brightness(1.08); }
+.side-copilot.active { border-color: var(--orange); }
+.side-pill { margin-left: auto; font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 5px; background: var(--orange); color: #0B3C5D; }
+.side-settings { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--side-border); display: flex; flex-direction: column; gap: 2px; }
+.side-settings .nav-group-label { margin-top: 2px; }
