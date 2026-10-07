@@ -27,7 +27,7 @@ export default function ClientSwitcher() {
     <label style={{ display: "grid", gap: 4, margin: "0 4px 8px", padding: "0 8px", fontSize: 11, color: "var(--side-muted, var(--muted))", textTransform: "uppercase", letterSpacing: ".04em" }}>
       Client actif
       <select value={active} disabled={busy} onChange={(e) => change(e.target.value)}
-        style={{ padding: "7px 8px", borderRadius: 8, fontSize: 13, textTransform: "none", letterSpacing: 0, background: "var(--surface-2)", color: "var(--text)", border: "1px solid var(--border)", width: "100%" }}>
+        className="client-switch" style={{ padding: "7px 8px", borderRadius: 8, fontSize: 13, textTransform: "none", letterSpacing: 0, width: "100%" }}>
         <option value="">Aucun (compte par défaut)</option>
         {items.map((c) => <option key={c.id} value={c.id}>{c.name}{c.linked ? "" : " (sans compte Ads)"}</option>)}
       </select>

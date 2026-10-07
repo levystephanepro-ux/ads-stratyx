@@ -734,3 +734,7 @@ select { cursor: pointer; }
 .brand-logo .bl-base i { display:inline-block; width:1.6em; height:2px; background:#F2A122; flex:1 1 auto; max-width:3em; }
 .rv[data-theme="dark"] .brand-logo { color:#F3EDE4; }
 .rv-brand { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:22px; }
+
+/* Sélecteur du client actif (barre latérale) : couleurs fixes, lisibles quel que soit le thème */
+.client-switch { background:#ffffff !important; color:#0B3C5D !important; border:1px solid rgba(255,255,255,.35) !important; }
+.client-switch option { background:#ffffff; color:#0B3C5D; }
