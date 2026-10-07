@@ -42,7 +42,7 @@ export default async function PropositionPage({ params, searchParams }: { params
   const date = new Date(s.at).toLocaleDateString("fr-FR", { dateStyle: "long", timeZone: "Europe/Paris" });
 
   return (
-    <AuditSheet kicker="Synthèse de découverte et proposition" title={c.name} subtitle={`Préparé le ${date}`} back={{ href: `/clients/${c.id}`, label: "Retour à la fiche" }} actions={regen}>
+    <AuditSheet kicker="Synthèse de découverte et proposition" title={c.name} subtitle={`Préparé le ${date}`} back={{ href: `/clients/${c.id}`, label: "Retour à la fiche" }} actions={regen} footer="Document préparé par STRATYX Media · stratyxmedia.fr">
       {sp.err && <p className="no-print" style={{ color: "#d92d4b" }}>{sp.err}</p>}
       <section><h2 className="rv-h2">Ce que nous avons compris</h2><p style={{ whiteSpace: "pre-wrap" }}>{p.resume}</p>
         {p.enjeux.length > 0 && <ul style={{ paddingLeft: 20 }}>{p.enjeux.map((x, i) => <li key={i}>{x}</li>)}</ul>}
@@ -51,11 +51,12 @@ export default async function PropositionPage({ params, searchParams }: { params
       <section>
         <h2 className="rv-h2">Vos chiffres</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
-          <div style={box}><div className="rv-kicker">Ce que rapporte une demande</div><div style={{ fontSize: 22, fontWeight: 700 }}>{eur(e.valeurDemande)}</div><div style={{ fontSize: 12 }}>marge moyenne, après taux de signature</div></div>
-          <div style={box}><div className="rv-kicker">Coût maximum rentable</div><div style={{ fontSize: 22, fontWeight: 700 }}>{eur(e.cplMaxRentable)}</div><div style={{ fontSize: 12 }}>par demande, au-delà la pub perd de l&apos;argent</div></div>
+          {e.valeurDemande !== null && <div style={box}><div className="rv-kicker">Ce que rapporte une demande</div><div style={{ fontSize: 22, fontWeight: 700 }}>{eur(e.valeurDemande)}</div><div style={{ fontSize: 12 }}>marge moyenne, après taux de signature</div></div>}
+          {e.cplMaxRentable !== null && <div style={box}><div className="rv-kicker">Coût maximum rentable</div><div style={{ fontSize: 22, fontWeight: 700 }}>{eur(e.cplMaxRentable)}</div><div style={{ fontSize: 12 }}>par demande, au-delà la pub perd de l&apos;argent</div></div>}
           <div style={box}><div className="rv-kicker">Budget recommandé</div><div style={{ fontSize: 22, fontWeight: 700 }}>{eur(p.budget_mensuel)}</div><div style={{ fontSize: 12 }}>par mois, hors honoraires</div></div>
           {e.demandesBudget !== null && <div style={box}><div className="rv-kicker">Ordre de grandeur</div><div style={{ fontSize: 22, fontWeight: 700 }}>~{Math.round(e.demandesBudget)} demandes</div><div style={{ fontSize: 12 }}>par mois avec le budget envisagé, à confirmer en conditions réelles</div></div>}
         </div>
+        {e.valeurDemande === null && <p style={{ fontSize: 13, color: "var(--rv-muted)" }}>À compléter ensemble pour fixer votre seuil de rentabilité : {[e.valeurClient === null && "valeur moyenne d'un client", e.margePct === null && "marge", e.closing === null && "part des demandes signées"].filter(Boolean).join(", ")}.</p>}
         {p.budget_justification && <p>{p.budget_justification}</p>}
       </section>
 

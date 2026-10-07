@@ -56,7 +56,7 @@ export async function analyzeSite(rawUrl: string): Promise<SiteAudit> {
   add("http", "La page répond", base.status !== null && base.status < 400, "critique", `Code ${base.status}.`, `La page répond ${base.status} : les annonces enverraient les visiteurs vers une erreur.`);
   add("https", "Page sécurisée (https)", https, "critique", "Connexion sécurisée.", "La page n'est pas en https : Google Ads la refuse ou les visiteurs se méfient.");
   add("noindex", "Page non bloquée", !noindex, "important", "Aucune consigne noindex.", "La page contient « noindex » : ne pas l'utiliser comme page d'atterrissage SEO.");
-  add("speed", "Temps de réponse", (base.ms ?? 99999) < 1500, "important", `${base.ms} ms pour recevoir la page.`, `${base.ms} ms pour recevoir la page : au-delà de 1,5 s, une part des visiteurs part avant l'affichage. Mesure aussi le temps complet sur PageSpeed Insights.`);
+  add("speed", "Temps de réponse", (base.ms ?? 99999) < 2500, "mineur", `${base.ms} ms pour recevoir la page.`, `${base.ms} ms pour recevoir la page depuis nos serveurs (souvent plus lent qu'en France) : à confirmer sur PageSpeed Insights.`);
   add("weight", "Poids de la page HTML", (base.sizeKb ?? 0) < 500, "mineur", `${base.sizeKb} Ko de HTML.`, `${base.sizeKb} Ko de HTML : page très lourde.`);
   add("mobile", "Adaptée au mobile", hasViewport, "critique", "Balise viewport présente.", "Balise viewport absente : la page risque de s'afficher en version bureau sur téléphone, où vient l'essentiel du trafic.");
   add("title", "Titre de la page", base.title.length >= 20 && base.title.length <= 70, "mineur", `« ${base.title} » (${base.title.length} car.).`, base.title ? `Titre de ${base.title.length} caractères : vise 30 à 65.` : "Titre absent.");

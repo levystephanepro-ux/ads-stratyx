@@ -713,4 +713,6 @@ select { cursor: pointer; }
   .no-print, .sidebar, header.topbar, nav { display:none !important; }
   .rv { max-width:none; padding:0; border-radius:0; }
   .copilote-layout { display:block !important; }
+  .audit-wrap { min-height:0 !important; padding:0 !important; background:#fff !important; }
+  .rv > :last-child { margin-bottom:0 !important; }
 }

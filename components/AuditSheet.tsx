@@ -4,11 +4,11 @@ import Link from "next/link";
 import Owl from "@/components/Owl";
 import PrintButton from "@/components/PrintButton";
 
-export default function AuditSheet({ kicker, title, subtitle, back, children, actions }: {
-  kicker: string; title: string; subtitle: string; back: { href: string; label: string }; children: ReactNode; actions?: ReactNode;
+export default function AuditSheet({ kicker, title, subtitle, back, children, actions, footer = "Audit réalisé par STRATYX Media · stratyxmedia.fr" }: {
+  kicker: string; title: string; subtitle: string; back: { href: string; label: string }; children: ReactNode; actions?: ReactNode; footer?: string;
 }) {
   return (
-    <main style={{ background: "#f1ece3", minHeight: "100vh", padding: "24px 12px" }}>
+    <main className="audit-wrap" style={{ background: "#f1ece3", minHeight: "100vh", padding: "24px 12px" }}>
       <div className="no-print" style={{ maxWidth: 980, margin: "0 auto 12px", display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
         <Link className="btn-ghost" href={back.href}>{back.label}</Link>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{actions}<PrintButton label="Télécharger en PDF" /></div>
@@ -22,7 +22,7 @@ export default function AuditSheet({ kicker, title, subtitle, back, children, ac
         <h1 className="rv-title">{title}</h1>
         <div className="rv-meta">{subtitle}</div>
         {children}
-        <p style={{ marginTop: 40, fontSize: 12, color: "var(--rv-muted)" }}>Audit réalisé par STRATYX Media · stratyxmedia.fr</p>
+        <p style={{ marginTop: 40, fontSize: 12, color: "var(--rv-muted)" }}>{footer}</p>
       </article>
     </main>
   );
