@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import Shell from "@/components/Shell";
+import SubmitButton from "@/components/SubmitButton";
 import { getDashboardContext } from "@/lib/workspace";
 import { getAccountsInfo } from "@/lib/google-ads/default-account";
 import { listClients } from "@/lib/clients/store";
@@ -36,7 +37,7 @@ export default async function ClientsPage() {
             <option value="">Compte Google Ads : pas encore</option>
             {accounts.map((a) => <option key={a.customerId} value={a.customerId}>{a.name}</option>)}
           </select>
-          <button type="submit">Créer la fiche</button>
+          <SubmitButton pending="Création...">Créer la fiche</SubmitButton>
         </form>
 
         <div style={{ display: "grid", gap: 10 }}>

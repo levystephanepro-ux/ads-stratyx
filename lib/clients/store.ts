@@ -36,6 +36,10 @@ export async function getClientByCustomer(customerId: string): Promise<Client | 
   return data as Client | null;
 }
 export async function createClientRow(name: string, customerId: string | null): Promise<string> {
+  // Anti-doublon (double clic, rechargement) : même nom, même compte => on renvoie la fiche existante.
+  const { data: same } = await db().from("clients").select("id, name, customer_id").is("workspace_id", null).ilike("name", name);
+  const dup = (same ?? []).find((c) => (c.customer_id ?? null) === customerId);
+  if (dup) return dup.id as string;
   const { data, error } = await db().from("clients").insert({ name, customer_id: customerId, share_token: randomBytes(18).toString("base64url") }).select("id").single();
   if (error) throw new Error(error.message);
   return data.id as string;
