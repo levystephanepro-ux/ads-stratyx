@@ -38,7 +38,9 @@ export default async function ClientsPage({ searchParams }: { searchParams: SP }
     <Shell active="clients" token={ctx.mcpToken} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}
       headerRight={
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {process.env.CALENDLY_TOKEN && <form action={importCalendlyAction}><SubmitButton className="btn-ghost" pending="Lecture de Calendly...">Importer mes RDV Calendly</SubmitButton></form>}
+          {process.env.CALENDLY_TOKEN
+            ? <form action={importCalendlyAction}><SubmitButton className="btn-ghost" pending="Lecture de Calendly...">Importer mes RDV Calendly</SubmitButton></form>
+            : <span className="pill" title="Ajoute CALENDLY_TOKEN sur Vercel puis redéploie">Calendly non connecté</span>}
           <Link className="btn-ghost" href="/audit/prospect">Audit prospect</Link>
         </div>
       }>

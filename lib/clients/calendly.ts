@@ -12,8 +12,8 @@ async function get<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-interface Ev { uri: string; name: string; start_time: string; status: string }
-interface Inv { name: string; email: string; status: string; questions_and_answers?: { question: string; answer: string }[] }
+interface Ev { uri: string; name: string; start_time: string; status: string; location?: { type?: string; location?: string } }
+interface Inv { name: string; email: string; status: string; text_reminder_number?: string | null; questions_and_answers?: { question: string; answer: string }[] }
 
 export interface ImportResult { events: number; created: string[]; known: number }
 
@@ -37,16 +37,35 @@ export async function importCalendly(daysBack = 30, daysAhead = 60): Promise<Imp
       const name = (p.name ?? "").trim() || email;
       if ((email && emails.has(email)) || names.has(name.toLowerCase())) { known++; continue; }
       const qa = (p.questions_and_answers ?? []).filter((x) => x.answer?.trim());
-      const site = qa.map((x) => x.answer).join(" ").match(/https?:\/\/[^\s]+|(?:www\.)[^\s]+\.[a-z]{2,}/i)?.[0] ?? null;
+      // Réponses du formulaire Calendly rangées dans la fiche (repérées par mots-clés de la question).
+      const find = (re: RegExp) => qa.find((x) => re.test(x.question.toLowerCase()))?.answer.trim() ?? "";
+      const company = find(/entreprise|soci[ée]t[ée]/);
+      const siteAns = find(/site|facebook|lien/);
+      const site = (siteAns || qa.map((x) => x.answer).join(" ")).match(/https?:\/\/[^\s]+|(?:www\.)[^\s]+\.[a-z]{2,}|[a-z0-9-]+\.(?:fr|com|net|org|eu)\b[^\s]*/i)?.[0] ?? null;
+      const attente = find(/attendez|objectif|publicit[ée] vous/).toLowerCase();
+      const objectif = /devis|appel/.test(attente) ? "Recevoir des demandes de devis ou des appels" : /vendre|vente/.test(attente) ? "Vendre en ligne" : /conna[iî]tre|notori/.test(attente) ? "Faire connaître la marque" : "";
+      const answers: Record<string, string> = {};
+      const act = find(/activit[ée]|m[ée]tier/); if (act) answers.activite = act;
+      if (site) answers.site = site;
+      if (objectif) answers.objectif = objectif;
+      const deja = find(/d[ée]j[aà]|essay/); if (deja) answers.deja_teste = deja;
+      // Telephone : lieu "J'appellerai l'invite" (outbound_call), sinon numero de rappel SMS, sinon une question.
+      const phone = (ev.location?.type === "outbound_call" ? ev.location.location : "") || p.text_reminder_number || find(/t[ée]l[ée]phone|portable/);
+      const clientName = company || name;
+      if (company && names.has(company.toLowerCase())) { known++; continue; }
       const when = new Date(ev.start_time).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Paris" });
-      const id = await createClientRow(name, null);
+      const id = await createClientRow(clientName, null);
       await updateClient(id, {
         contact_email: email || null,
-        website: site,
-        notes: [`Rendez-vous Calendly « ${ev.name} » le ${when}.`, ...qa.map((x) => `${x.question} : ${x.answer}`)].join("\n").slice(0, 3000),
+        website: site && !/^https?:/i.test(site) ? `https://${site}` : site,
+        answers,
+        status: Object.keys(answers).length ? "brouillon" : "a_envoyer",
+        notes: [`Rendez-vous Calendly « ${ev.name} » le ${when}, avec ${name}${email ? ` (${email})` : ""}${phone ? `, tél. ${phone}` : ""}.`, ...qa.map((x) => `${x.question} : ${x.answer}`)].join("\n").slice(0, 3000),
       });
-      emails.add(email); names.add(name.toLowerCase());
-      created.push(name);
+      names.add(clientName.toLowerCase());
+      created.push(clientName);
+      if (email) emails.add(email);
+      names.add(name.toLowerCase());
     }
   }
   return { events: evs.collection.length, created, known };
