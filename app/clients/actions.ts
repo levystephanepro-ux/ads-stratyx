@@ -40,7 +40,10 @@ export async function saveClientAction(form: FormData) {
   const fresh = await getClient(id);
   const synced = fresh && form.get("sync") === "1" ? await syncContext(fresh) : false;
   revalidatePath(`/clients/${id}`);
-  redirect(`/clients/${id}?saved=${synced ? "sync" : intent === "done" ? "1" : "draft"}`);
+  revalidatePath("/clients");
+  // Brouillon : retour à la liste des clients. Marqué comme rempli : on reste sur la fiche.
+  if (intent !== "done") redirect(`/clients?saved=draft&name=${encodeURIComponent(fresh?.name ?? "")}`);
+  redirect(`/clients/${id}?saved=${synced ? "sync" : "1"}`);
 }
 
 export async function markSentAction(form: FormData) {

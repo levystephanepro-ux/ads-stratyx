@@ -13,7 +13,10 @@ export const dynamic = "force-dynamic";
 const input = { padding: "9px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface-2)", color: "var(--text)", width: "100%" } as const;
 const STATUS_LABEL = { a_envoyer: "Questionnaire à envoyer", envoye: "Envoyé, en attente", brouillon: "Brouillon en cours", rempli: "Questionnaire rempli" } as const;
 
-export default async function ClientsPage() {
+type SP = Promise<{ saved?: string; name?: string }>;
+
+export default async function ClientsPage({ searchParams }: { searchParams: SP }) {
+  const sp = await searchParams;
   const ctx = await getDashboardContext();
   if (!ctx.isOwner) redirect("/dashboard");
   let clients: Awaited<ReturnType<typeof listClients>> = [];
@@ -27,6 +30,7 @@ export default async function ClientsPage() {
       headerRight={<Link className="btn-ghost" href="/audit/prospect">Audit prospect</Link>}>
       <h1 style={{ margin: "0 0 6px" }}>Clients</h1>
       <p className="subtitle" style={{ marginTop: 0 }}>Une fiche par client : questionnaire de découverte, puis audit, persona, structure de campagne, rapports et alertes au même endroit.</p>
+      {sp.saved === "draft" && <div className="card" style={{ borderColor: "var(--green)", margin: "12px 0" }}>Brouillon enregistré{sp.name ? ` pour ${sp.name}` : ""}. Tu peux le reprendre à tout moment depuis la liste.</div>}
       {dbError && <div className="card" style={{ borderColor: "var(--red)", margin: "12px 0" }}>Base non prête : lance la migration 0021_clients.sql dans Supabase. ({dbError})</div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 320px) minmax(0, 1fr)", gap: 16, marginTop: 16, alignItems: "start" }} className="copilote-layout">
