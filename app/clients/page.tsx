@@ -9,12 +9,12 @@ import { listClients } from "@/lib/clients/store";
 import { getActiveClient } from "@/lib/clients/active";
 import { getProposal } from "@/lib/clients/proposal";
 import { STAGES, stageOf, nextAction } from "@/lib/clients/stages";
-import { createClientAction, deleteClientAction, setActiveClientAction } from "./actions";
+import { createClientAction, deleteClientAction, setActiveClientAction, importCalendlyAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 const input = { padding: "9px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface-2)", color: "var(--text)", width: "100%" } as const;
-type SP = Promise<{ saved?: string; name?: string; voir?: string }>;
+type SP = Promise<{ saved?: string; name?: string; voir?: string; cal?: string }>;
 
 export default async function ClientsPage({ searchParams }: { searchParams: SP }) {
   const sp = await searchParams;
@@ -36,11 +36,17 @@ export default async function ClientsPage({ searchParams }: { searchParams: SP }
 
   return (
     <Shell active="clients" token={ctx.mcpToken} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}
-      headerRight={<Link className="btn-ghost" href="/audit/prospect">Audit prospect</Link>}>
+      headerRight={
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {process.env.CALENDLY_TOKEN && <form action={importCalendlyAction}><SubmitButton className="btn-ghost" pending="Lecture de Calendly...">Importer mes RDV Calendly</SubmitButton></form>}
+          <Link className="btn-ghost" href="/audit/prospect">Audit prospect</Link>
+        </div>
+      }>
       <h1 style={{ margin: "0 0 6px" }}>Clients</h1>
       <p className="subtitle" style={{ marginTop: 0 }}>
         Ton pipeline, du prospect aux campagnes actives. « Activer » fait suivre ce client à toutes les pages (diagnostic, prévisions, copilote, persona).
       </p>
+      {sp.cal && <div className="card" style={{ borderColor: sp.cal.startsWith("ok:") ? "var(--green)" : "var(--red)", margin: "12px 0" }}>{sp.cal.replace(/^(ok|err):/, "")}</div>}
       {sp.saved === "draft" && <div className="card" style={{ borderColor: "var(--green)", margin: "12px 0" }}>Brouillon enregistré{sp.name ? ` pour ${sp.name}` : ""}. Tu peux le reprendre à tout moment.</div>}
       {dbError && <div className="card" style={{ borderColor: "var(--red)", margin: "12px 0" }}>Base non prête : lance la migration 0021_clients.sql dans Supabase. ({dbError})</div>}
       {active && (

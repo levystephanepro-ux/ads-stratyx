@@ -260,3 +260,4 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 - lib/clients/quotes.ts (réglages + offres types + devis par client + numérotation DEV-AAAA-NNN), stockés dans app_settings (pas de migration).
 - /clients/devis-reglages (coordonnées, mention TVA 293 B, conditions, clause de vérité, 3 offres types), /clients/[id]/devis (création depuis une offre, édition, PDF avec bon pour accord). Statut du devis -> étape de la fiche (envoyé, accepté = signé, refusé = perdu).
 - Calendly : webhooks réservés aux offres payantes ; l'API en lecture (GET) est annoncée sur toutes les offres. Piste gratuite : import des rendez-vous à la demande avec un jeton personnel.
+- Import Calendly : lib/clients/calendly.ts + bouton « Importer mes RDV Calendly » sur /clients (si CALENDLY_TOKEN présent). Lit les RDV de -30 à +60 jours, crée les fiches manquantes (nom, email, site trouvé dans les réponses, notes avec les réponses du formulaire). Doublons évités par email et par nom.

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getDashboardContext } from "@/lib/workspace";
 import { generateProposal } from "@/lib/clients/proposal";
+import { importCalendly } from "@/lib/clients/calendly";
 import { setActiveClientCookie } from "@/lib/clients/active";
 import { STAGES, stageOf, stageRank } from "@/lib/clients/stages";
 import { getGlobalBilling } from "@/lib/billing";
@@ -107,4 +108,15 @@ export async function setStageAction(form: FormData) {
   catch (e) { redirect(`/clients/${id}?err=${encodeURIComponent("Étape non enregistrée : lance la migration 0022_client_stage.sql dans Supabase. " + (e instanceof Error ? e.message : ""))}`); }
   revalidatePath("/clients");
   revalidatePath(`/clients/${id}`);
+}
+
+export async function importCalendlyAction() {
+  await owner();
+  let msg: string;
+  try {
+    const r = await importCalendly();
+    msg = `ok:${r.events} rendez-vous lus. ${r.created.length ? `${r.created.length} fiche(s) créée(s) : ${r.created.join(", ")}.` : "Aucune nouvelle fiche."}${r.known ? ` ${r.known} déjà présente(s).` : ""}`;
+  } catch (e) { msg = `err:${e instanceof Error ? e.message : String(e)}`; }
+  revalidatePath("/clients");
+  redirect(`/clients?cal=${encodeURIComponent(msg.slice(0, 400))}`);
 }
