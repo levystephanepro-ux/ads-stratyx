@@ -263,3 +263,5 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 - Import Calendly : lib/clients/calendly.ts + bouton « Importer mes RDV Calendly » sur /clients (si CALENDLY_TOKEN présent). Lit les RDV de -30 à +60 jours, crée les fiches manquantes (nom, email, site trouvé dans les réponses, notes avec les réponses du formulaire). Doublons évités par email et par nom.
 - Logo STRATYXMEDIA (components/BrandLogo.tsx, wordmark Syne avec « YX » orange + baseline) en tête des rapports clients, audits, proposition et devis.
 - Migration 0023_client_contact.sql : contact_name, contact_phone. Fiche : champs Entreprise / Nom du contact / Téléphone ; import Calendly les remplit ; devis les affiche.
+- RGPD : /confidentialite complétée (éditeur STRATYXMEDIA, section questionnaire et rendez-vous, Resend et Calendly, notes de travail retirées ; reste la région Supabase à préciser). Mention d'information + lien en bas du questionnaire public.
+- /mentions-legales (public) sur le modèle LCEN fourni, coordonnées STRATYXMEDIA ; liens depuis le questionnaire et la politique de confidentialité ; boutons « Retour » vers stratyxmedia.fr.

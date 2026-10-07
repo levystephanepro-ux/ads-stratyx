@@ -15,6 +15,7 @@ const PUBLIC_PREFIXES = [
   "/api/stripe/webhook",
   "/r", // liens publics des rapports clients
   "/q", // lien public du questionnaire de découverte
+  "/mentions-legales",
 ];
 
 export async function middleware(request: NextRequest) {

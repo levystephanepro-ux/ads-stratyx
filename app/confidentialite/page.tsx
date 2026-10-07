@@ -4,9 +4,9 @@ import "../artisans/artisans.css";
 import "./legal.css";
 
 export const metadata: Metadata = {
-  title: "Politique de confidentialité — Stratyx",
+  title: "Politique de confidentialité · STRATYXMEDIA",
   description:
-    "Comment Stratyx collecte, utilise et protège les données personnelles de ses visiteurs et de ses clients.",
+    "Comment STRATYXMEDIA collecte, utilise et protège les données personnelles de ses visiteurs et de ses clients.",
   robots: { index: true, follow: true },
 };
 
@@ -31,24 +31,22 @@ export const metadata: Metadata = {
    ================================================================== */
 
 const EDITEUR = {
-  raisonSociale: "[RAISON SOCIALE]",
-  formeJuridique: "[FORME JURIDIQUE]",
-  siret: "[SIRET]",
-  adresse: "[ADRESSE COMPLÈTE]",
-  email: "[EMAIL DE CONTACT]",
-  telephone: "[TÉLÉPHONE]",
-  directeur: "[NOM DU RESPONSABLE]",
+  raisonSociale: "STRATYXMEDIA (Stéphane LEVY)",
+  formeJuridique: "entrepreneur individuel (micro-entreprise)",
+  siret: "en cours d'attribution",
+  adresse: "1, avenue des Anglais, 06400 Cannes",
+  email: "contact@stratyxmedia.fr",
+  telephone: "",
+  directeur: "Stéphane LEVY",
 };
 
-const MAJ = "[JJ/MM/AAAA]";
+const MAJ = "07/10/2026";
 
 export default function ConfidentialitePage() {
   return (
     <main className="art legal">
       <header className="legal-hero">
-        <Link className="legal-retour" href="/artisans">
-          ← Retour
-        </Link>
+        <a className="legal-retour" href="https://www.stratyxmedia.fr/">← Retour au site</a>
         <h1>Politique de confidentialité</h1>
         <p className="subtitle">
           Ce document explique quelles données nous collectons, pourquoi,
@@ -70,8 +68,8 @@ export default function ConfidentialitePage() {
           <p>
             Directeur de la publication : {EDITEUR.directeur}
             <br />
-            Contact : <a href={`mailto:${EDITEUR.email}`}>{EDITEUR.email}</a> —{" "}
-            {EDITEUR.telephone}
+            Contact : <a href={`mailto:${EDITEUR.email}`}>{EDITEUR.email}</a>
+            {EDITEUR.telephone ? ` · ${EDITEUR.telephone}` : ""}
           </p>
           <p className="legal-note">
             Nous n&apos;avons pas désigné de délégué à la protection des données
@@ -84,6 +82,25 @@ export default function ConfidentialitePage() {
         {/* ------------------------------------------------------ 2 */}
         <section>
           <h2>2. Les données que nous collectons</h2>
+
+          <h3>Si vous prenez rendez-vous ou répondez à notre questionnaire de découverte</h3>
+          <ul>
+            <li>Votre nom, le nom de votre entreprise, votre email et votre téléphone</li>
+            <li>Votre site et, si vous les indiquez, les identifiants de vos comptes publicitaires</li>
+            <li>
+              Vos réponses sur votre activité, vos clients, vos objectifs, votre
+              budget et les chiffres que vous choisissez de partager
+            </li>
+            <li>Les notes prises pendant nos échanges</li>
+          </ul>
+          <p>
+            <strong>Pourquoi :</strong> préparer notre échange, analyser votre
+            situation et vous faire une proposition adaptée.
+            <br />
+            <strong>Base légale :</strong> les mesures précontractuelles prises à
+            votre demande. Toutes les questions sont facultatives, sauf celles
+            nécessaires pour vous recontacter.
+          </p>
 
           <h3>Si vous remplissez le formulaire de vérification de zone</h3>
           <ul>
@@ -129,12 +146,6 @@ export default function ConfidentialitePage() {
             déposés qu&apos;après votre accord, exprimé via le bandeau prévu à
             cet effet.
           </p>
-          <p className="legal-note">
-            [À VÉRIFIER : si vous n&apos;utilisez aucun outil de mesure
-            d&apos;audience ni aucun traceur publicitaire sur ce site,
-            simplifiez ce paragraphe en le disant clairement — c&apos;est un
-            argument de confiance.]
-          </p>
         </section>
 
         {/* ------------------------------------------------------ 3 */}
@@ -166,19 +177,14 @@ export default function ConfidentialitePage() {
                   <td>[RÉGION À PRÉCISER]</td>
                 </tr>
                 <tr>
-                  <td>Brevo</td>
-                  <td>Envoi des emails et gestion des contacts</td>
-                  <td>Union européenne</td>
-                </tr>
-                <tr>
-                  <td>Stripe</td>
-                  <td>Paiement et facturation</td>
+                  <td>Resend</td>
+                  <td>Envoi des emails</td>
                   <td>Hors UE</td>
                 </tr>
                 <tr>
-                  <td>Cal.com</td>
+                  <td>Calendly</td>
                   <td>Prise de rendez-vous</td>
-                  <td>[À PRÉCISER]</td>
+                  <td>Hors UE</td>
                 </tr>
                 <tr>
                   <td>Anthropic</td>
@@ -196,11 +202,6 @@ export default function ConfidentialitePage() {
               </tbody>
             </table>
           </div>
-          <p className="legal-note">
-            [À AJUSTER : retirez toute ligne correspondant à un outil que vous
-            n&apos;utilisez pas en production, et précisez les régions
-            d&apos;hébergement réelles.]
-          </p>
           <p>
             Certains de ces prestataires sont établis en dehors de l&apos;Union
             européenne. Ces transferts sont encadrés par les garanties prévues
@@ -216,18 +217,14 @@ export default function ConfidentialitePage() {
           <p>
             Nos analyses de campagnes s&apos;appuient sur un service
             d&apos;intelligence artificielle. Les données transmises se limitent
-            aux statistiques de campagnes nécessaires à l&apos;analyse. Elles ne
+            aux statistiques de campagnes nécessaires à l&apos;analyse et, pour
+            préparer une proposition, à vos réponses au questionnaire de découverte. Elles ne
             sont pas utilisées pour entraîner des modèles.
           </p>
           <p>
             Aucune décision produisant des effets juridiques n&apos;est prise de
             manière entièrement automatisée : toute recommandation est validée
             par une personne avant d&apos;être appliquée.
-          </p>
-          <p className="legal-note">
-            [À VÉRIFIER auprès de votre fournisseur : les conditions
-            d&apos;utilisation des données et de non-entraînement doivent
-            correspondre au contrat que vous avez réellement souscrit.]
           </p>
         </section>
 
@@ -266,11 +263,6 @@ export default function ConfidentialitePage() {
               </tbody>
             </table>
           </div>
-          <p className="legal-note">
-            [À VÉRIFIER : ces durées doivent décrire ce que vous faites
-            réellement. Une durée annoncée mais non appliquée est un manquement
-            en soi.]
-          </p>
         </section>
 
         {/* ------------------------------------------------------ 6 */}
@@ -334,10 +326,6 @@ export default function ConfidentialitePage() {
             formulaires publicitaires : mentions d&apos;information, recueil du
             consentement et bandeau de votre site vous incombent.
           </p>
-          <p className="legal-note">
-            [À FAIRE : préparer ce contrat de sous-traitance (article 28 RGPD)
-            avant la première signature. Cette section y renvoie.]
-          </p>
         </section>
 
         {/* ------------------------------------------------------ 9 */}
@@ -352,9 +340,8 @@ export default function ConfidentialitePage() {
       </article>
 
       <footer className="legal-pied">
-        <Link className="btn btn-ghost" href="/artisans">
-          Retour au site
-        </Link>
+        <a className="btn btn-ghost" href="https://www.stratyxmedia.fr/">Retour au site</a>
+        <Link className="btn btn-ghost" href="/mentions-legales">Mentions légales</Link>
       </footer>
     </main>
   );
