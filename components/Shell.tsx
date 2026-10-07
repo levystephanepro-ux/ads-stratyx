@@ -146,8 +146,7 @@ export default function Shell({
 
           {showAdmin && (
             <>
-              <div className="nav-group-label" style={{ marginTop: 14 }}>Client</div>
-              <div className="side-client"><ClientSwitcher /></div>
+              <div className="side-client" style={{ marginTop: 14 }}><ClientSwitcher /></div>
             </>
           )}
 

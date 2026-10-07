@@ -319,7 +319,10 @@ body {
   background: var(--side-bg);
   backdrop-filter: blur(12px);
   border-right: 1px solid var(--side-border);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.18) transparent;
   color: var(--side-text);
   /* les composants du menu (jauge, compte, thème) héritent des couleurs du menu */
   --text: var(--side-text);
@@ -360,10 +363,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  scrollbar-width: thin;
+  flex: 1 0 auto;
 }
 
 .nav-group-label {
@@ -771,3 +771,10 @@ select { cursor: pointer; }
 .side-pill { margin-left: auto; font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 5px; background: var(--orange); color: #0B3C5D; }
 .side-settings { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--side-border); display: flex; flex-direction: column; gap: 2px; }
 .side-settings .nav-group-label { margin-top: 2px; }
+
+/* Ascenseur unique et discret pour toute la barre latérale */
+.sidebar::-webkit-scrollbar { width: 6px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.14); border-radius: 6px; }
+.sidebar:hover::-webkit-scrollbar-thumb { background: rgba(255,255,255,.28); }
+.sidebar .brand-version { display: none; }
