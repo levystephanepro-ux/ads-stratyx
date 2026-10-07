@@ -11,7 +11,7 @@ import { createClientAction, deleteClientAction } from "./actions";
 export const dynamic = "force-dynamic";
 
 const input = { padding: "9px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface-2)", color: "var(--text)", width: "100%" } as const;
-const STATUS_LABEL = { a_envoyer: "Questionnaire à envoyer", envoye: "Envoyé, en attente", rempli: "Questionnaire rempli" } as const;
+const STATUS_LABEL = { a_envoyer: "Questionnaire à envoyer", envoye: "Envoyé, en attente", brouillon: "Brouillon en cours", rempli: "Questionnaire rempli" } as const;
 
 export default async function ClientsPage() {
   const ctx = await getDashboardContext();

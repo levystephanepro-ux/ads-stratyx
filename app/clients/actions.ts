@@ -24,6 +24,7 @@ export async function saveClientAction(form: FormData) {
   const c = await getClient(id);
   if (!c) return;
   const answers = formAnswers(form);
+  const intent = String(form.get("intent") ?? "draft");
   const cid = String(form.get("customer_id") ?? "").replace(/\D/g, "") || null;
   const filled = Object.keys(answers).length > 0;
   await updateClient(id, {
@@ -33,13 +34,13 @@ export async function saveClientAction(form: FormData) {
     contact_email: String(form.get("contact_email") ?? "").trim() || null,
     notes: String(form.get("notes") ?? "").trim() || null,
     answers,
-    status: filled && c.status === "a_envoyer" ? "rempli" : c.status,
-    submitted_at: filled ? (c.submitted_at ?? new Date().toISOString()) : c.submitted_at,
+    status: intent === "done" ? "rempli" : c.status === "rempli" ? "rempli" : filled ? "brouillon" : c.status,
+    submitted_at: intent === "done" ? new Date().toISOString() : c.submitted_at,
   });
   const fresh = await getClient(id);
   const synced = fresh && form.get("sync") === "1" ? await syncContext(fresh) : false;
   revalidatePath(`/clients/${id}`);
-  redirect(`/clients/${id}?saved=${synced ? "sync" : "1"}`);
+  redirect(`/clients/${id}?saved=${synced ? "sync" : intent === "done" ? "1" : "draft"}`);
 }
 
 export async function markSentAction(form: FormData) {

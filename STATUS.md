@@ -232,3 +232,6 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 - 6 sections : entreprise, clients, chiffres et objectifs (marge, récurrence, délai de vente), traitement des demandes (délai de rappel, qualité des leads), existant et accès, notes internes (jamais visibles du client ni envoyées à l'IA).
 - Liens : complet (~35 questions) ou court (12 questions, ?v=court). Cases à cocher multiples. Le client ne peut pas écraser les réponses qu'il ne voit pas.
 - À faire : faire relire par des pros du paid media et de la croissance, ajuster les questions.
+
+## Journal : Brouillon du questionnaire
+- Statut « Brouillon en cours » : enregistrer sans marquer comme rempli (fiche et lien public). Barres de boutons collantes, bouton Quitter, aperçu client avec retour à la fiche et au tableau de bord.

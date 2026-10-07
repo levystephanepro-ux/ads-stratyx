@@ -7,7 +7,7 @@ import { ALL_QUESTIONS, INTERNAL_KEYS } from "./questions";
 
 export interface Client {
   id: string; name: string; customer_id: string | null; website: string | null; contact_email: string | null; notes: string | null;
-  answers: Record<string, string>; status: "a_envoyer" | "envoye" | "rempli"; submitted_at: string | null;
+  answers: Record<string, string>; status: "a_envoyer" | "envoye" | "brouillon" | "rempli"; submitted_at: string | null;
   share_token: string; created_at: string; updated_at: string;
 }
 

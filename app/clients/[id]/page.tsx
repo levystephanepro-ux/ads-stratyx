@@ -4,7 +4,6 @@ import { notFound, redirect } from "next/navigation";
 import Shell from "@/components/Shell";
 import QuestionFields from "@/components/QuestionFields";
 import CopyLinkButton from "@/components/CopyLinkButton";
-import SubmitButton from "@/components/SubmitButton";
 import { getDashboardContext } from "@/lib/workspace";
 import { getAccountsInfo } from "@/lib/google-ads/default-account";
 import { getClient } from "@/lib/clients/store";
@@ -14,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 const input = { padding: "9px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface-2)", color: "var(--text)", width: "100%" } as const;
 const lab = { fontSize: 12, textTransform: "uppercase", color: "var(--muted)", display: "block", marginBottom: 4 } as const;
-const LABEL = { a_envoyer: "Questionnaire à envoyer", envoye: "Envoyé, en attente", rempli: "Questionnaire rempli" } as const;
+const LABEL = { a_envoyer: "Questionnaire à envoyer", envoye: "Envoyé, en attente", brouillon: "Brouillon en cours", rempli: "Questionnaire rempli" } as const;
 
 type P = Promise<{ id: string }>;
 type SP = Promise<{ saved?: string }>;
@@ -48,7 +47,7 @@ export default async function ClientPage({ params, searchParams }: { params: P; 
         <h1 style={{ margin: 0 }}>{c.name}</h1>
         <span className="pill">{LABEL[c.status]}</span>
       </div>
-      {sp.saved && <div className="card" style={{ borderColor: "var(--green)", margin: "12px 0" }}>{sp.saved === "sync" ? "Fiche enregistrée, et le contexte IA du compte est mis à jour (Copilote et Prévisions s'en servent)." : "Fiche enregistrée."}</div>}
+      {sp.saved && <div className="card" style={{ borderColor: "var(--green)", margin: "12px 0" }}>{sp.saved === "sync" ? "Fiche enregistrée, et le contexte IA du compte est mis à jour (Copilote et Prévisions s'en servent)." : sp.saved === "draft" ? "Brouillon enregistré. Tu peux quitter la page et reprendre plus tard." : "Fiche enregistrée et marquée comme remplie."}</div>}
 
       <div className="card" style={{ margin: "16px 0", display: "grid", gap: 10 }}>
         <strong>Lien du questionnaire à envoyer au client</strong>
@@ -56,7 +55,7 @@ export default async function ClientPage({ params, searchParams }: { params: P; 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <CopyLinkButton path={`/q/${c.share_token}`} label="Copier le lien complet" />
           <CopyLinkButton path={`/q/${c.share_token}?v=court`} label="Copier le lien court (12 questions)" />
-          <Link className="btn-ghost" href={`/q/${c.share_token}`} target="_blank">Voir ce que voit le client</Link>
+          <Link className="btn-ghost" href={`/q/${c.share_token}?apercu=1`} target="_blank">Voir ce que voit le client</Link>
           {c.status === "a_envoyer" && (
             <form action={markSentAction}><input type="hidden" name="id" value={c.id} /><button className="btn-ghost" type="submit">Marquer comme envoyé</button></form>
           )}
@@ -103,7 +102,11 @@ export default async function ClientPage({ params, searchParams }: { params: P; 
           <input type="checkbox" name="sync" value="1" defaultChecked />
           <span>Mettre à jour le contexte IA du compte lié avec ces réponses</span>
         </label>
-        <div><SubmitButton pending="Enregistrement...">Enregistrer la fiche</SubmitButton></div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", position: "sticky", bottom: 0, padding: "10px 0", background: "var(--bg)", zIndex: 5 }}>
+          <button type="submit" name="intent" value="draft">Enregistrer le brouillon</button>
+          <button type="submit" name="intent" value="done" className="btn-ghost">Enregistrer et marquer comme rempli</button>
+          <Link className="btn-ghost" href="/clients">Quitter</Link>
+        </div>
       </form>
 
       <form action={deleteClientAction} style={{ marginTop: 28 }}>
