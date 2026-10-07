@@ -87,7 +87,8 @@ export async function healthChecks(): Promise<Check[]> {
       const [hist, planner, geo, mutate] = await Promise.all([
         run("Google Ads", "Historique des modifications (rapports, Change Impact)", async () => {
           const since = new Date(Date.now() - 20 * 864e5).toISOString().slice(0, 10);
-          const r = await searchRaw({ customerId: acc }, `SELECT change_event.change_date_time FROM change_event WHERE change_event.change_date_time >= '${since}' LIMIT 5`);
+          const today = new Date().toISOString().slice(0, 10);
+          const r = await searchRaw({ customerId: acc }, `SELECT change_event.change_date_time FROM change_event WHERE change_event.change_date_time >= '${since}' AND change_event.change_date_time <= '${today} 23:59:59' LIMIT 5`);
           return { status: "ok", detail: `lecture OK (${r.length} modification(s) récente(s) lue(s)).` };
         }),
         run("Google Ads", "Planificateur de mots-clés (Prévisions, audit prospect)", async () => {
