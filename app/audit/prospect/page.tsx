@@ -32,6 +32,7 @@ export default async function ProspectAudit({ searchParams }: { searchParams: SP
         headerRight={<Link className="btn-ghost" href="/clients">Clients</Link>}>
         <h1 style={{ margin: "0 0 6px" }}>Audit prospect</h1>
         <p className="subtitle" style={{ marginTop: 0 }}>Analyse la page d&apos;un prospect et estime son potentiel Google Ads, sans accès à son compte. Résultat imprimable en PDF.</p>
+        <p className="subtitle" style={{ marginTop: 0, fontSize: 13 }}>Besoin de cerner la cible avant l&apos;audit ? <Link href="/persona">Créer un persona →</Link></p>
         <form className="card" style={{ display: "grid", gap: 10, maxWidth: 560, marginTop: 16 }} method="get">
           <input name="nom" placeholder="Nom du prospect" style={input} />
           <input name="url" placeholder="Adresse de sa page ou de son site (https://…)" required style={input} />

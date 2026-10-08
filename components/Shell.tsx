@@ -22,7 +22,8 @@ const KEY_HREF: Partial<Record<PageKey, string>> = {
   admin: "/admin", sante: "/admin/sante", "search-console": "/search-console",
 };
 
-type Item = { label: string; href: string; ic?: keyof typeof Ic; ownerOnly?: boolean };
+// hidden : page gardée (lien depuis une autre page) mais retirée du menu pour l'alléger.
+type Item = { label: string; href: string; ic?: keyof typeof Ic; ownerOnly?: boolean; hidden?: boolean };
 type Section = { id: string; label: string; ic: keyof typeof Ic; items: Item[] };
 
 // Menu à plusieurs niveaux (pages existantes uniquement).
@@ -33,24 +34,24 @@ const TOP: Item[] = [
 const SECTIONS: Section[] = [
   { id: "pilotage", label: "Pilotage", ic: "waste", items: [
     { label: "Diagnostic", href: "/waste" },
-    { label: "Journal des corrections", href: "/waste/journal" },
+    { label: "Journal des corrections", href: "/waste/journal", hidden: true }, // lien depuis le Diagnostic
     { label: "Alertes du matin", href: "/alertes" },
     { label: "Scripts", href: "/scripts" },
   ] },
   { id: "creation", label: "Création", ic: "previsions", items: [
     { label: "Prévisions et campagnes", href: "/previsions" },
-    { label: "Persona", href: "/persona" },
+    { label: "Persona", href: "/persona", hidden: true }, // lien depuis l'Audit prospect
     { label: "Audit prospect", href: "/audit/prospect" },
   ] },
   { id: "rapports", label: "Rapports", ic: "rapports", items: [
     { label: "Rapports clients", href: "/rapports" },
-    { label: "Compte rendu mensuel", href: "/rapports/compte-rendu" },
-    { label: "Impact des changements", href: "/rapports/impact" },
+    { label: "Compte rendu mensuel", href: "/rapports/compte-rendu", hidden: true }, // liens depuis Rapports
+    { label: "Impact des changements", href: "/rapports/impact", hidden: true },
   ] },
 ];
 const SETTINGS: Item[] = [
   { label: "Comptes et réglages", href: "/comptes", ic: "comptes" },
-  { label: "Bilan de santé", href: "/admin/sante", ic: "sante", ownerOnly: true },
+  { label: "Bilan de santé", href: "/admin/sante", ic: "sante", ownerOnly: true, hidden: true }, // via le témoin vert/rouge
   { label: "Aide", href: "/aide", ic: "aide" },
 ];
 
@@ -148,6 +149,16 @@ export default function Shell({
 
           <div style={{ marginTop: 10 }}>
             {SECTIONS.map((sec) => {
+              const visible = sec.items.filter((i) => !i.hidden);
+              if (visible.length === 1) {
+                const holdsOne = sec.items.some((i) => i.href === current);
+                return (
+                  <Link key={sec.id} href={withQ(visible[0].href)} className={`side-link${holdsOne ? " active" : ""}`} onClick={close}>
+                    <span className="side-ic">{Ic[sec.ic]}</span>
+                    <span className="side-label">{sec.label}</span>
+                  </Link>
+                );
+              }
               const isOpen = openId === sec.id;
               const holds = sec.items.some((i) => i.href === current);
               return (
@@ -164,7 +175,7 @@ export default function Shell({
                   </button>
                   {isOpen && (
                     <div className="side-sub">
-                      {sec.items.map((it) => (
+                      {visible.map((it) => (
                         <Link key={it.href} href={withQ(it.href)} className={`side-sublink${it.href === current ? " active" : ""}`} onClick={close}>
                           {it.label}
                         </Link>
@@ -184,7 +195,7 @@ export default function Shell({
 
           <div className="side-settings">
             <div className="nav-group-label">Réglages</div>
-            {SETTINGS.filter((i) => !i.ownerOnly || showAdmin).map(link)}
+            {SETTINGS.filter((i) => !i.hidden && (!i.ownerOnly || showAdmin)).map(link)}
           </div>
         </nav>
 
