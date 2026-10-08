@@ -10,9 +10,9 @@ export const dynamic = "force-dynamic";
 export default async function CopilotePage({
   searchParams,
 }: {
-  searchParams: Promise<{ token?: string; q?: string }>;
+  searchParams: Promise<{ token?: string; q?: string; auto?: string }>;
 }) {
-  const { q } = await searchParams;
+  const { q, auto } = await searchParams;
   // L'accès est protégé par le middleware (session Supabase). Le token utilisé
   // pour les appels API est celui du workspace de l'utilisateur connecté.
   const ctx = await getDashboardContext();
@@ -46,6 +46,7 @@ export default async function CopilotePage({
         <Copilote
           token={tok}
           initialQuestion={q ?? ""}
+          autoSend={auto === "1"}
           accountName={accountInfo?.name}
           customerId={accountInfo?.customerId}
         />

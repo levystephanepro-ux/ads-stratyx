@@ -49,11 +49,14 @@ const store = {
 export default function Copilote({
   token,
   initialQuestion = "",
+  autoSend = false,
   accountName,
   customerId,
 }: {
   token: string;
   initialQuestion?: string;
+  /** Pose la question initiale dès l'ouverture (bouton « Expliquer » du tableau de bord). */
+  autoSend?: boolean;
   accountName?: string;
   customerId?: string;
 }) {
@@ -80,7 +83,9 @@ export default function Copilote({
   function persist(id: string, msgs: Msg[]) {
     const title = msgs.find((m) => m.role === "user")?.content.slice(0, 60) ?? "Conversation";
     const date = new Date().toLocaleDateString("fr-FR");
-    const list = [{ id, title, date, messages: msgs }, ...history.filter((c) => c.id !== id)];
+    // relu depuis le stockage : l'historique en mémoire peut ne pas être encore chargé
+    const saved = store.load(storeKey);
+    const list = [{ id, title, date, messages: msgs }, ...saved.filter((c) => c.id !== id)];
     setHistory(list);
     store.save(storeKey, list);
   }
@@ -116,6 +121,17 @@ export default function Copilote({
       setLoading(false);
     }
   }
+
+  // Question envoyée automatiquement (une seule fois), puis l'URL est nettoyée
+  // pour qu'un rafraîchissement ne la renvoie pas.
+  const autoFired = useRef(false);
+  useEffect(() => {
+    if (!autoSend || autoFired.current || !initialQuestion.trim()) return;
+    autoFired.current = true;
+    window.history.replaceState(null, "", "/copilote");
+    void send(initialQuestion);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function newConversation() {
     setCurrent(null); setMessages([]); setError(null); setInput("");
