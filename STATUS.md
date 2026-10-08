@@ -300,3 +300,16 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 - En bas, replié : campagnes de travail du copilote, connecteur Claude (URL MCP). /connexions reste accessible (lien), hors menu pour l'owner.
 - Menu : Réglages = Comptes et réglages, Bilan de santé, Aide. Admin retiré du menu (lien sur /comptes seulement hors mode interne). Scripts passe dans Pilotage, section Outils supprimée.
 - components/AdsMark.tsx partagé (logo public/google-ads.svg).
+
+### 2026-10-07 · Correctif « Réponse de l'IA illisible » (Prévisions)
+- lib/planner/ai.ts : la structure IA est demandée via un outil à format imposé (tool_choice), JSON garanti ; max_tokens 16000 ; message clair si la réponse est coupée ; journalisation console de l'échec (modèle, stop_reason).
+- lib/ai/json.ts : lecture tolérante des JSON IA (blocs ```json, texte autour, virgules en trop, réponse tronquée refermée). Utilisée en repli par le planner, la proposition commerciale et la proposition de devis (max_tokens relevés : 8000 et 4000).
+
+### 2026-10-08 · Limites de caractères Google Ads
+- lib/planner/ai.ts : passe de réécriture ciblée (outil à format imposé) des titres > 30 et descriptions > 90 au lieu de les supprimer ; consignes de longueur renforcées.
+- CampaignBuilder : sous chaque champ, liste des lignes trop longues avec leur longueur (titres 30, descriptions 90, liens annexes titre 25 et descriptions 35, accroches 25) ; l'export Google Ads Editor applique les mêmes contrôles que la création.
+
+### 2026-10-08 · Prévisions : landing page alignée et historique
+- Case « Prévoir une landing page dédiée » dans Construire la campagne : l'IA (outil à format imposé, lib/planner/landing.ts) rédige le contenu à partir des groupes et annonces actuels : H1 et haut de page, une section par groupe (ancre, titres d'annonce repris), formulaire, bénéfices, étapes, FAQ, SEO, éléments à demander au client. Contrôle de cohérence annonce / page (lib/planner/landing-text.ts), alerte si les annonces ont changé, URL finale conseillée par groupe (page#ancre), export du brief en Markdown.
+- Historique des simulations (lib/planner/simulations.ts, app_settings « simulations », 40 max) : paramètres, résumé chiffré, client actif, brouillon complet de campagne et landing. Enregistrer / Mettre à jour depuis le builder ; liste sur /previsions (Ouvrir, Supprimer) ; /previsions?sim=id restaure tout.
+- Boutons « ← Nouvelle simulation » et « Historique des simulations » en haut de Prévisions.

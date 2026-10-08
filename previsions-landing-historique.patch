@@ -1,0 +1,952 @@
+diff --git a/STATUS.md b/STATUS.md
+index 8e8c60a..affabb8 100644
+--- a/STATUS.md
++++ b/STATUS.md
+@@ -300,3 +300,16 @@ exclusivité territoriale, connecteur MCP Claude Pro.
+ - En bas, replié : campagnes de travail du copilote, connecteur Claude (URL MCP). /connexions reste accessible (lien), hors menu pour l'owner.
+ - Menu : Réglages = Comptes et réglages, Bilan de santé, Aide. Admin retiré du menu (lien sur /comptes seulement hors mode interne). Scripts passe dans Pilotage, section Outils supprimée.
+ - components/AdsMark.tsx partagé (logo public/google-ads.svg).
++
++### 2026-10-07 · Correctif « Réponse de l'IA illisible » (Prévisions)
++- lib/planner/ai.ts : la structure IA est demandée via un outil à format imposé (tool_choice), JSON garanti ; max_tokens 16000 ; message clair si la réponse est coupée ; journalisation console de l'échec (modèle, stop_reason).
++- lib/ai/json.ts : lecture tolérante des JSON IA (blocs ```json, texte autour, virgules en trop, réponse tronquée refermée). Utilisée en repli par le planner, la proposition commerciale et la proposition de devis (max_tokens relevés : 8000 et 4000).
++
++### 2026-10-08 · Limites de caractères Google Ads
++- lib/planner/ai.ts : passe de réécriture ciblée (outil à format imposé) des titres > 30 et descriptions > 90 au lieu de les supprimer ; consignes de longueur renforcées.
++- CampaignBuilder : sous chaque champ, liste des lignes trop longues avec leur longueur (titres 30, descriptions 90, liens annexes titre 25 et descriptions 35, accroches 25) ; l'export Google Ads Editor applique les mêmes contrôles que la création.
++
++### 2026-10-08 · Prévisions : landing page alignée et historique
++- Case « Prévoir une landing page dédiée » dans Construire la campagne : l'IA (outil à format imposé, lib/planner/landing.ts) rédige le contenu à partir des groupes et annonces actuels : H1 et haut de page, une section par groupe (ancre, titres d'annonce repris), formulaire, bénéfices, étapes, FAQ, SEO, éléments à demander au client. Contrôle de cohérence annonce / page (lib/planner/landing-text.ts), alerte si les annonces ont changé, URL finale conseillée par groupe (page#ancre), export du brief en Markdown.
++- Historique des simulations (lib/planner/simulations.ts, app_settings « simulations », 40 max) : paramètres, résumé chiffré, client actif, brouillon complet de campagne et landing. Enregistrer / Mettre à jour depuis le builder ; liste sur /previsions (Ouvrir, Supprimer) ; /previsions?sim=id restaure tout.
++- Boutons « ← Nouvelle simulation » et « Historique des simulations » en haut de Prévisions.
+diff --git a/app/previsions/actions.ts b/app/previsions/actions.ts
+index 0c7bafa..f6b46ca 100644
+--- a/app/previsions/actions.ts
++++ b/app/previsions/actions.ts
+@@ -6,6 +6,11 @@ import { getAccountContext } from "@/lib/account-context";
+ import { createPausedSearchCampaign, validateSpec, type CampaignSpec } from "@/lib/planner/create";
+ import { proposeStructure, type BuilderTier, type Structure, type StructureInput } from "@/lib/planner/ai";
+ import { logAction } from "@/lib/fixes/store";
++import { redirect } from "next/navigation";
++import { revalidatePath } from "next/cache";
++import { proposeLanding, type LandingBrief, type LandingInput } from "@/lib/planner/landing";
++import { upsertSimulation, deleteSimulation, type BuilderDraft, type SimSummary } from "@/lib/planner/simulations";
++import { getActiveClient } from "@/lib/clients/active";
+ 
+ export interface ActionResult { ok: boolean; messages: string[]; created?: string }
+ 
+@@ -78,3 +83,50 @@ export async function createCampaignAction(customerId: string, accountName: stri
+     return { ok: false, messages: [e instanceof Error ? e.message : String(e)] };
+   }
+ }
++
++/** Contenu de landing page aligné sur les groupes d'annonces actuels (après tes modifications). */
++export async function proposeLandingAction(input: Omit<LandingInput, "accountContext"> & { customerId: string }):
++  Promise<{ ok: boolean; message: string; brief?: LandingBrief }> {
++  const ctx = await getDashboardContext();
++  if (!ctx.isOwner) return { ok: false, message: "Accès réservé." };
++  if (!process.env.ANTHROPIC_API_KEY) return { ok: false, message: "ANTHROPIC_API_KEY manquante sur Vercel." };
++  const billing = await getGlobalBilling();
++  if (!billing.allowed) return { ok: false, message: billing.reason ?? "Plafond IA atteint." };
++  const groups = input.groups.filter((g) => g.keywords.length && g.headlines.length);
++  if (!groups.length) return { ok: false, message: "Il faut au moins un groupe avec mots-clés et titres : propose d'abord la structure." };
++  try {
++    const accountContext = await getAccountContext(input.customerId, null);
++    const { customerId: _c, ...rest } = input; void _c;
++    const { brief, costUsd, model } = await proposeLanding({ ...rest, groups, accountContext });
++    const rate = Number((process.env.EUR_TO_USD ?? "1.15").replace(",", ".")) || 1.15;
++    return { ok: true, brief, message: `Contenu de landing proposé par ${model} · coût IA estimé ${(costUsd / rate).toLocaleString("fr-FR", { maximumFractionDigits: 3 })} €.` };
++  } catch (e) {
++    return { ok: false, message: e instanceof Error ? e.message : String(e) };
++  }
++}
++
++/** Enregistre (ou met à jour) la simulation dans l'historique, avec le brouillon de campagne. */
++export async function saveSimulationAction(input: { id?: string | null; name: string; query: string; summary: SimSummary; draft: BuilderDraft | null }):
++  Promise<{ ok: boolean; id?: string; message: string }> {
++  const ctx = await getDashboardContext();
++  if (!ctx.isOwner) return { ok: false, message: "Accès réservé." };
++  try {
++    const client = await getActiveClient().catch(() => null);
++    const sim = await upsertSimulation({
++      id: input.id ?? null, name: input.name.trim().slice(0, 120) || "Simulation", query: input.query.slice(0, 4000),
++      clientId: client?.id ?? null, clientName: client?.name ?? null, summary: input.summary, draft: input.draft,
++    });
++    revalidatePath("/previsions");
++    return { ok: true, id: sim.id, message: `Simulation « ${sim.name} » enregistrée dans l'historique.` };
++  } catch (e) {
++    return { ok: false, message: e instanceof Error ? e.message : String(e) };
++  }
++}
++
++export async function deleteSimulationAction(form: FormData) {
++  const ctx = await getDashboardContext();
++  if (!ctx.isOwner) throw new Error("Accès réservé.");
++  await deleteSimulation(String(form.get("id") ?? ""));
++  revalidatePath("/previsions");
++  redirect("/previsions?historique=1");
++}
+diff --git a/app/previsions/page.tsx b/app/previsions/page.tsx
+index dc72aac..659f405 100644
+--- a/app/previsions/page.tsx
++++ b/app/previsions/page.tsx
+@@ -10,7 +10,9 @@ import { getDashboardContext } from "@/lib/workspace";
+ import { getAccountsInfo } from "@/lib/google-ads/default-account";
+ import { isLive } from "@/lib/google-ads/config";
+ import { suggestGeo, keywordIdeas, accountCvr, forecast, COUNTRIES, LANGUAGES, type Geo, type Idea, type Forecast } from "@/lib/planner/ideas";
+-import { createCampaignAction, proposeStructureAction } from "./actions";
++import { createCampaignAction, proposeStructureAction, proposeLandingAction, saveSimulationAction, deleteSimulationAction } from "./actions";
++import { listSimulations, getSimulation } from "@/lib/planner/simulations";
++import { getActiveClient } from "@/lib/clients/active";
+ 
+ export const dynamic = "force-dynamic";
+ export const maxDuration = 180; // structure IA (Opus) : jusqu'à ~90 s ; Fluid compute (Hobby : 300 s max)
+@@ -18,6 +20,7 @@ export const maxDuration = 180; // structure IA (Opus) : jusqu'à ~90 s ; Fluid
+ type SP = Promise<{
+   account?: string; mots?: string; url?: string; lieux?: string; budget?: string; k?: string | string[];
+   pays?: string; langue?: string; objectif?: string; panier?: string; marge?: string; closing?: string; frais?: string; scan?: string;
++  sim?: string; historique?: string;
+ }>;
+ const eur = (n: number) => `${Math.round(n).toLocaleString("fr-FR")} €`;
+ const eur2 = (n: number | null) => (n === null ? "–" : `${n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`);
+@@ -35,6 +38,16 @@ export default async function PrevisionsPage({ searchParams }: { searchParams: S
+   const ctx = await getDashboardContext();
+   if (!ctx.isOwner) redirect("/dashboard");
+   const sp = await searchParams;
++  // Paramètres de la simulation (sans les clés de navigation) : sert à la rouvrir depuis l'historique.
++  const qp = new URLSearchParams();
++  for (const [k, v] of Object.entries(sp)) {
++    if (k === "sim" || k === "historique" || v === undefined) continue;
++    for (const x of Array.isArray(v) ? v : [v]) qp.append(k, x);
++  }
++  const query = qp.toString();
++  const savedSim = sp.sim ? await getSimulation(sp.sim) : null;
++  if (savedSim && !query && savedSim.query) redirect(`/previsions?${savedSim.query}&sim=${savedSim.id}`);
++  const [history, activeClient] = await Promise.all([listSimulations(), getActiveClient().catch(() => null)]);
+   const { accounts, defaultCustomerId } = isLive() ? await getAccountsInfo({ workspaceId: ctx.workspaceId, isOwner: true }) : { accounts: [], defaultCustomerId: null };
+   const account = accounts.some((a) => a.customerId === sp.account) ? sp.account! : defaultCustomerId ?? accounts[0]?.customerId ?? "";
+   const accName = accounts.find((a) => a.customerId === account)?.name ?? "";
+@@ -110,6 +123,46 @@ export default async function PrevisionsPage({ searchParams }: { searchParams: S
+       <p className="subtitle" style={{ marginTop: 0 }}>
+         Simuler avant de dépenser : recherches, clics, coût et rentabilité de la campagne, puis structure proposée par l&apos;IA et création en pause.
+       </p>
++      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "0 0 14px" }}>
++        {(query || sp.historique) && <Link className="btn-ghost" href="/previsions">← Nouvelle simulation</Link>}
++        {!sp.historique && <Link className="btn-ghost" href="/previsions?historique=1">Historique des simulations ({history.length})</Link>}
++        {savedSim && <span className="pill" style={{ alignSelf: "center" }}>Simulation ouverte : {savedSim.name}</span>}
++      </div>
++
++      {(sp.historique || !query) && (
++        <div className="card" style={{ marginBottom: 14 }}>
++          <strong>Historique des simulations</strong>
++          {history.length === 0 ? (
++            <p className="subtitle" style={{ margin: "6px 0 0", fontSize: 13 }}>Aucune simulation enregistrée. Après une simulation, clique sur « Enregistrer la simulation » dans « Construire la campagne » : paramètres, structure, annonces et landing sont gardés.</p>
++          ) : (
++            <div style={{ overflowX: "auto", marginTop: 8 }}>
++              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
++                <thead><tr>{["Simulation", "Client", "Date", "Budget / mois", "Mots-clés", "Coût / lead", "Contenu", ""].map((h, i) => <th key={i} style={{ ...th, textAlign: i < 3 ? "left" : "right" }}>{h}</th>)}</tr></thead>
++                <tbody>
++                  {history.map((h) => (
++                    <tr key={h.id}>
++                      <td style={{ ...td, textAlign: "left" }}><Link href={`/previsions?sim=${h.id}`}><strong>{h.name}</strong></Link><div className="subtitle" style={{ margin: 0, fontSize: 11 }}>{h.summary.places}</div></td>
++                      <td style={{ ...td, textAlign: "left" }}>{h.clientName ?? "–"}</td>
++                      <td style={{ ...td, textAlign: "left", whiteSpace: "nowrap" }}>{new Date(h.updatedAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "Europe/Paris" })}</td>
++                      <td style={td}>{eur(h.summary.monthly)}</td>
++                      <td style={td}>{h.summary.keywords}</td>
++                      <td style={td}>{h.summary.cpa ? eur(h.summary.cpa) : "–"}</td>
++                      <td style={{ ...td, whiteSpace: "nowrap" }}>{h.draft ? `${h.draft.groups.length} groupe(s)` : "paramètres"}{h.draft?.landing ? " · landing" : ""}</td>
++                      <td style={{ ...td, whiteSpace: "nowrap" }}>
++                        <Link href={`/previsions?sim=${h.id}`}>Ouvrir</Link>
++                        <form action={deleteSimulationAction} style={{ display: "inline", marginLeft: 10 }}>
++                          <input type="hidden" name="id" value={h.id} />
++                          <button type="submit" className="btn-ghost" style={{ padding: "3px 8px", fontSize: 12 }}>Supprimer</button>
++                        </form>
++                      </td>
++                    </tr>
++                  ))}
++                </tbody>
++              </table>
++            </div>
++          )}
++        </div>
++      )}
+ 
+       <form method="get" className="card" style={{ marginBottom: 14 }}>
+         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 10 }}>
+@@ -216,9 +269,20 @@ export default async function PrevisionsPage({ searchParams }: { searchParams: S
+             </div>
+           </form>
+ 
+-          <CampaignBuilder customerId={account} accountName={accName} languageId={lang.id}
++          <CampaignBuilder key={savedSim?.id ?? "nouvelle"} customerId={account} accountName={accName} languageId={lang.id}
+             geos={geos.map((g) => ({ id: g.id, label: geoLabel(g) }))} initial={initial} aiInput={aiInput}
+-            propose={proposeStructureAction} create={createCampaignAction} />
++            propose={proposeStructureAction} create={createCampaignAction}
++            proposeLanding={proposeLandingAction} save={saveSimulationAction} saved={savedSim?.draft ?? null}
++            sim={{
++              id: savedSim?.id ?? null,
++              name: savedSim?.name ?? [activeClient?.name, cap(seeds[0] ?? selected[0]?.text ?? "Simulation"), lieux[0], `${n0(monthly)} €/mois`].filter(Boolean).join(" · "),
++              query,
++              summary: {
++                keywords: selected.length, searches: Math.round(fc.searches), cpc: fc.cpc, monthly,
++                leads: mine ? Math.round(mine.conv * 10) / 10 : null, cpa: mine?.cpa ?? null,
++                places: lieux.length ? geos.map((g) => g.name).join(", ") : country.label,
++              },
++            }} />
+           <p className="subtitle" style={{ fontSize: 12, marginTop: 8 }}>Après création : ajoute les extensions (appel, liens, accroches), tes négatifs habituels et les horaires dans Google Ads avant d&apos;activer. <Link href="/waste/journal">Journal des corrections</Link></p>
+         </>
+       )}
+diff --git a/components/CampaignBuilder.tsx b/components/CampaignBuilder.tsx
+index 0d4db06..50e9e18 100644
+--- a/components/CampaignBuilder.tsx
++++ b/components/CampaignBuilder.tsx
+@@ -3,10 +3,13 @@
+ // proposition par l'IA, vérification et création EN PAUSE dans Google Ads.
+ import { useState, useTransition } from "react";
+ import type { AdGroupSpec, CampaignSpec, Extensions } from "@/lib/planner/create";
+-import { DAY_FR } from "@/lib/planner/create";
++import { DAY_FR, validateSpec } from "@/lib/planner/create";
+ import { toEditorCsv } from "@/lib/planner/editor";
+ import type { BuilderTier, Structure, StructureInput } from "@/lib/planner/ai";
+ import type { ActionResult } from "@/app/previsions/actions";
++import type { LandingBrief, LandingInput } from "@/lib/planner/landing";
++import { messageMatchGaps, landingToMarkdown } from "@/lib/planner/landing-text";
++import type { BuilderDraft, SimSummary } from "@/lib/planner/simulations";
+ 
+ type Propose = (input: Omit<StructureInput, "accountContext"> & { customerId: string; tier?: BuilderTier }) => Promise<{ ok: boolean; message: string; structure?: Structure }>;
+ type Create = (customerId: string, accountName: string, spec: CampaignSpec, mode: "check" | "create") => Promise<ActionResult>;
+@@ -25,31 +28,58 @@ function Counter({ text, max, min, maxCount }: { text: string; max: number; min:
+   return <span style={{ color: bad ? "var(--red)" : "var(--muted)" }}> ({l.length} / {min} à {maxCount}{tooLong ? `, ${tooLong} trop long${tooLong > 1 ? "s" : ""} (${max} car. max)` : ""})</span>;
+ }
+ 
+-export default function CampaignBuilder({ customerId, accountName, languageId, geos, initial, aiInput, propose, create }: {
++/** Lignes qui dépassent la limite, avec leur longueur, sous le champ concerné. */
++function TooLong({ items, max }: { items: string[]; max: number }) {
++  const bad = items.filter((x) => x.length > max);
++  if (!bad.length) return null;
++  return (
++    <ul style={{ margin: "4px 0 0", paddingLeft: 16, fontSize: 12, color: "var(--red)" }}>
++      {bad.map((x, k) => <li key={k}>« {x} » : {x.length} / {max} caractères</li>)}
++    </ul>
++  );
++}
++const sitelinkParts = (v: string) => lines(v).map((l) => l.split("|").map((x) => x.trim()));
++
++type ProposeLanding = (i: Omit<LandingInput, "accountContext"> & { customerId: string }) => Promise<{ ok: boolean; message: string; brief?: LandingBrief }>;
++type Save = (i: { id?: string | null; name: string; query: string; summary: SimSummary; draft: BuilderDraft | null }) => Promise<{ ok: boolean; id?: string; message: string }>;
++
++export default function CampaignBuilder({ customerId, accountName, languageId, geos, initial, aiInput, propose, create, proposeLanding, save, sim, saved }: {
+   customerId: string; accountName: string; languageId: string;
+   geos: { id: string; label: string }[];
+   initial: { name: string; budget: string; url: string; group: AdGroupSpec };
+   aiInput: Omit<StructureInput, "accountContext">;
+-  propose: Propose; create: Create;
++  propose: Propose; create: Create; proposeLanding: ProposeLanding; save: Save;
++  sim: { id: string | null; name: string; query: string; summary: SimSummary };
++  saved?: BuilderDraft | null;
+ }) {
+-  const [name, setName] = useState(initial.name);
+-  const [budget, setBudget] = useState(initial.budget);
+-  const [bidding, setBidding] = useState<CampaignSpec["bidding"]>("MAXIMIZE_CLICKS");
+-  const [maxCpc, setMaxCpc] = useState("");
+-  const [match, setMatch] = useState<CampaignSpec["matchType"]>("PHRASE");
+-  const [url, setUrl] = useState(initial.url);
+-  const [geoSel, setGeoSel] = useState<string[]>(geos.map((g) => g.id));
+-  const [groups, setGroups] = useState<GroupDraft[]>([toDraft(initial.group)]);
+-  const [negatives, setNegatives] = useState("");
+-  const [notes, setNotes] = useState("");
+-  const [phone, setPhone] = useState("");
+-  const [sitelinks, setSitelinks] = useState("");
+-  const [callouts, setCallouts] = useState("");
+-  const [sched, setSched] = useState("");
++  const d = saved ?? null;
++  const [name, setName] = useState(d?.name ?? initial.name);
++  const [budget, setBudget] = useState(d?.budget ?? initial.budget);
++  const [bidding, setBidding] = useState<CampaignSpec["bidding"]>((d?.bidding as CampaignSpec["bidding"]) ?? "MAXIMIZE_CLICKS");
++  const [maxCpc, setMaxCpc] = useState(d?.maxCpc ?? "");
++  const [match, setMatch] = useState<CampaignSpec["matchType"]>((d?.match as CampaignSpec["matchType"]) ?? "PHRASE");
++  const [url, setUrl] = useState(d?.url ?? initial.url);
++  const [geoSel, setGeoSel] = useState<string[]>(d?.geoSel?.length ? d.geoSel.filter((id) => geos.some((g) => g.id === id)) : geos.map((g) => g.id));
++  const [groups, setGroups] = useState<GroupDraft[]>(d?.groups?.length ? d.groups : [toDraft(initial.group)]);
++  const [negatives, setNegatives] = useState(d?.negatives ?? "");
++  const [notes, setNotes] = useState(d?.notes ?? "");
++  const [phone, setPhone] = useState(d?.phone ?? "");
++  const [sitelinks, setSitelinks] = useState(d?.sitelinks ?? "");
++  const [callouts, setCallouts] = useState(d?.callouts ?? "");
++  const [sched, setSched] = useState(d?.sched ?? "");
+   const [tier, setTier] = useState<BuilderTier>("sonnet");
+   const [msg, setMsg] = useState<{ ok: boolean; lines: string[] } | null>(null);
+   const [created, setCreated] = useState(false);
+-  const [busy, setBusy] = useState<"" | "ia" | "check" | "create">("");
++  const [busy, setBusy] = useState<"" | "ia" | "check" | "create" | "landing" | "save">("");
++  // Landing page dédiée, alignée sur les annonces.
++  const [landingOn, setLandingOn] = useState(d?.landingOn ?? false);
++  const [landingUrl, setLandingUrl] = useState(d?.landingUrl ?? "");
++  const [landing, setLanding] = useState<LandingBrief | null>(d?.landing ?? null);
++  const adsKey = (gs: GroupDraft[]) => gs.map((g) => `${g.name}|${g.headlines}|${g.descriptions}`).join("§");
++  const [landingFor, setLandingFor] = useState<string>(d?.landing ? adsKey(d.groups) : "");
++  // Historique
++  const [simId, setSimId] = useState<string | null>(sim.id);
++  const [simName, setSimName] = useState(sim.name);
+   const [, start] = useTransition();
+ 
+   const setG = (i: number, k: keyof GroupDraft, v: string) => setGroups((gs) => gs.map((g, j) => (j === i ? { ...g, [k]: v } : g)));
+@@ -62,6 +92,9 @@ export default function CampaignBuilder({ customerId, accountName, languageId, g
+   };
+   const exportCsv = () => {
+     const sp = spec();
++    // Mêmes règles que la création (longueurs Google, nombres de titres et descriptions) : Editor refuserait sinon.
++    const problems = validateSpec(sp);
++    if (problems.length) { setMsg({ ok: false, lines: ["Export bloqué, à corriger d'abord :", ...problems] }); return; }
+     const csv = toEditorCsv({ ...sp, groups: sp.groups.map((g) => ({ ...g, path1: g.path1 || undefined, path2: g.path2 || undefined })) });
+     const a = document.createElement("a");
+     a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+@@ -91,6 +124,43 @@ export default function CampaignBuilder({ customerId, accountName, languageId, g
+       setBusy("");
+     });
+   };
++  const draft = (): BuilderDraft => ({
++    name, budget, bidding, maxCpc, match, url, geoSel, groups, negatives, notes, phone, sitelinks, callouts, sched,
++    landingOn, landingUrl, landing,
++  });
++  const saveSim = () => {
++    setBusy("save");
++    start(async () => {
++      const r = await save({ id: simId, name: simName, query: sim.query, summary: sim.summary, draft: draft() });
++      if (r.ok && r.id) setSimId(r.id);
++      setMsg({ ok: r.ok, lines: [r.message] });
++      setBusy("");
++    });
++  };
++  const runLanding = () => {
++    setBusy("landing"); setMsg(null);
++    start(async () => {
++      const sp = spec();
++      const r = await proposeLanding({
++        customerId, campaignName: name, url: landingUrl || url, objectif: aiInput.objectif, places: aiInput.places,
++        groups: sp.groups, callouts: lines(callouts), phone: phone.trim() || undefined,
++      });
++      if (r.ok && r.brief) { setLanding(r.brief); setLandingFor(adsKey(groups)); }
++      setMsg({ ok: r.ok, lines: [r.message, ...(r.ok ? ["Pense à enregistrer la simulation pour garder ce contenu."] : [])] });
++      setBusy("");
++    });
++  };
++  const downloadLanding = () => {
++    if (!landing) return;
++    const a = document.createElement("a");
++    a.href = URL.createObjectURL(new Blob([landingToMarkdown(landing, name, landingUrl || url)], { type: "text/markdown;charset=utf-8" }));
++    a.download = `${(name || "landing").replace(/[^\w-]+/g, "_")}_landing.md`;
++    a.click();
++    URL.revokeObjectURL(a.href);
++  };
++  const landingStale = !!landing && landingFor !== adsKey(groups);
++  const gaps = landing ? messageMatchGaps(landing, spec().groups) : [];
++
+   const send = (mode: "check" | "create") => {
+     setBusy(mode); setMsg(null);
+     start(async () => {
+@@ -118,6 +188,13 @@ export default function CampaignBuilder({ customerId, accountName, languageId, g
+           </button>
+         </div>
+       </div>
++      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 10, padding: "8px 10px", borderRadius: 10, background: "var(--surface-2)" }}>
++        <span style={{ fontSize: 13, color: "var(--muted)" }}>{simId ? "Simulation enregistrée :" : "Garder cette simulation :"}</span>
++        <input value={simName} onChange={(e) => setSimName(e.target.value)} style={{ flex: "1 1 220px", padding: "7px 10px", fontSize: 13 }} aria-label="Nom de la simulation" />
++        <button type="button" className="btn-ghost" onClick={saveSim} disabled={!!busy} style={{ padding: "7px 12px", fontSize: 13 }}>
++          {busy === "save" ? "Enregistrement…" : simId ? "Mettre à jour" : "Enregistrer la simulation"}
++        </button>
++      </div>
+       {notes && <p style={{ fontSize: 13, margin: "10px 0 0", padding: "8px 12px", borderRadius: 8, background: "var(--surface-2)" }}>{notes}</p>}
+ 
+       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
+@@ -155,9 +232,9 @@ export default function CampaignBuilder({ customerId, accountName, languageId, g
+           </div>
+           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 10 }}>
+             <div><span style={lab}>Mots-clés, un par ligne ({lines(g.keywords).length})</span><textarea rows={9} value={g.keywords} onChange={(e) => setG(i, "keywords", e.target.value)} style={ta} /></div>
+-            <div><span style={lab}>Titres, un par ligne<Counter text={g.headlines} max={30} min={3} maxCount={15} /></span><textarea rows={9} value={g.headlines} onChange={(e) => setG(i, "headlines", e.target.value)} style={ta} /></div>
++            <div><span style={lab}>Titres, un par ligne<Counter text={g.headlines} max={30} min={3} maxCount={15} /></span><textarea rows={9} value={g.headlines} onChange={(e) => setG(i, "headlines", e.target.value)} style={ta} /><TooLong items={lines(g.headlines)} max={30} /></div>
+             <div>
+-              <span style={lab}>Descriptions, une par ligne<Counter text={g.descriptions} max={90} min={2} maxCount={4} /></span><textarea rows={6} value={g.descriptions} onChange={(e) => setG(i, "descriptions", e.target.value)} style={ta} />
++              <span style={lab}>Descriptions, une par ligne<Counter text={g.descriptions} max={90} min={2} maxCount={4} /></span><textarea rows={6} value={g.descriptions} onChange={(e) => setG(i, "descriptions", e.target.value)} style={ta} /><TooLong items={lines(g.descriptions)} max={90} />
+               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                 <div><span style={lab}>Chemin 1</span><input value={g.path1} maxLength={15} onChange={(e) => setG(i, "path1", e.target.value)} style={{ padding: "7px 10px", fontSize: 13 }} /></div>
+                 <div><span style={lab}>Chemin 2</span><input value={g.path2} maxLength={15} onChange={(e) => setG(i, "path2", e.target.value)} style={{ padding: "7px 10px", fontSize: 13 }} /></div>
+@@ -178,10 +255,13 @@ export default function CampaignBuilder({ customerId, accountName, languageId, g
+           <div>
+             <span style={lab}>Liens annexes, un par ligne : titre (25) | description 1 (35) | description 2 (35) | URL ({lines(sitelinks).length})</span>
+             <textarea rows={5} value={sitelinks} onChange={(e) => setSitelinks(e.target.value)} style={ta} placeholder={"Devis gratuit | Réponse sous 24 h | Sans engagement | https://…\nNos réalisations"} />
++            <TooLong items={sitelinkParts(sitelinks).map((p) => p[0] ?? "")} max={25} />
++            <TooLong items={sitelinkParts(sitelinks).flatMap((p) => [p[1] ?? "", p[2] ?? ""])} max={35} />
+           </div>
+           <div>
+             <span style={lab}>Accroches, une par ligne, 25 caractères max ({lines(callouts).length})</span>
+             <textarea rows={5} value={callouts} onChange={(e) => setCallouts(e.target.value)} style={ta} placeholder={"Devis gratuit\nPose par nos équipes\nGarantie décennale"} />
++            <TooLong items={lines(callouts)} max={25} />
+           </div>
+           <div>
+             <span style={lab}>Téléphone (extension d&apos;appel)</span>
+@@ -196,6 +276,70 @@ export default function CampaignBuilder({ customerId, accountName, languageId, g
+         </div>
+       </div>
+ 
++      <div style={{ marginTop: 16, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
++        <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 600, fontSize: 14 }}>
++          <input type="checkbox" checked={landingOn} onChange={(e) => setLandingOn(e.target.checked)} />
++          Prévoir une landing page dédiée à cette campagne
++        </label>
++        {landingOn && (
++          <div style={{ display: "grid", gap: 10, marginTop: 8 }}>
++            <p className="subtitle" style={{ margin: 0, fontSize: 13 }}>Le contenu de la page est rédigé à partir des groupes et annonces ci-dessus : chaque groupe a sa section, ses titres d&apos;annonce sont repris sur la page (cohérence annonce, page, conversion).</p>
++            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 8, alignItems: "end" }}>
++              <div><span style={lab}>URL prévue de la landing (facultatif)</span><input value={landingUrl} onChange={(e) => setLandingUrl(e.target.value)} placeholder="https://www.client.fr/devis-pergola" /></div>
++              <button type="button" className="btn-ghost" disabled={!landingUrl.trim()} onClick={() => setUrl(landingUrl.trim())} style={{ padding: "9px 12px", fontSize: 13 }}>Utiliser comme URL finale</button>
++            </div>
++            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
++              <button type="button" onClick={runLanding} disabled={!!busy}>
++                {busy === "landing" ? "L'IA rédige la page… (20 à 60 s)" : landing ? "✦ Régénérer la landing à partir des annonces" : "✦ Rédiger la landing à partir des annonces"}
++              </button>
++              {landing && <button type="button" className="btn-ghost" onClick={downloadLanding}>Télécharger le brief (.md)</button>}
++            </div>
++            {landingStale && <div style={{ fontSize: 13, color: "#d9820b" }}>Les annonces ont changé depuis la rédaction de la page : régénère-la pour garder la cohérence.</div>}
++            {landing && (
++              <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 14, display: "grid", gap: 10, fontSize: 14 }}>
++                <div>
++                  <div style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase" }}>Haut de page</div>
++                  <div style={{ fontSize: 20, fontWeight: 700 }}>{landing.hero.titre}</div>
++                  <div>{landing.hero.sousTitre}</div>
++                  {landing.hero.preuvesRapides.length > 0 && <div style={{ fontSize: 13, color: "var(--muted)" }}>{landing.hero.preuvesRapides.join(" · ")}</div>}
++                  <div style={{ marginTop: 4 }}><span className="pill">{landing.hero.cta}</span></div>
++                </div>
++                {landing.sections.map((x, k) => (
++                  <div key={k} style={{ borderTop: "1px solid var(--border)", paddingTop: 8 }}>
++                    <div style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase" }}>Section #{x.ancre} · groupe « {x.groupe} »</div>
++                    <strong>{x.titre}</strong>
++                    <div>{x.texte}</div>
++                    {x.points.length > 0 && <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>{x.points.map((p, j) => <li key={j}>{p}</li>)}</ul>}
++                    {x.titresAnnonceRepris.length > 0 && <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>Titres d&apos;annonce repris : {x.titresAnnonceRepris.join(" | ")}</div>}
++                    {(landingUrl || url) && <div style={{ fontSize: 12, color: "var(--muted)" }}>URL finale conseillée pour ce groupe : {(landingUrl || url).replace(/#.*$/, "")}#{x.ancre}</div>}
++                  </div>
++                ))}
++                <div style={{ borderTop: "1px solid var(--border)", paddingTop: 8, display: "grid", gap: 4 }}>
++                  <div><strong>Formulaire :</strong> {landing.formulaire.champs.join(", ")} · bouton « {landing.formulaire.bouton} » · {landing.formulaire.reassurance}</div>
++                  {landing.benefices.length > 0 && <div><strong>Pourquoi nous :</strong> {landing.benefices.join(" · ")}</div>}
++                  {landing.etapes.length > 0 && <div><strong>Étapes :</strong> {landing.etapes.join(" → ")}</div>}
++                  {landing.faq.length > 0 && <div><strong>FAQ :</strong> {landing.faq.length} questions (dans le brief)</div>}
++                  <div style={{ fontSize: 12, color: "var(--muted)" }}>SEO : {landing.metaTitle} · {landing.metaDescription}</div>
++                </div>
++                {landing.aFournir.length > 0 && (
++                  <div style={{ borderTop: "1px solid var(--border)", paddingTop: 8 }}>
++                    <strong>À demander au client :</strong>
++                    <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>{landing.aFournir.map((p, j) => <li key={j}>{p}</li>)}</ul>
++                  </div>
++                )}
++                {gaps.length > 0 ? (
++                  <div style={{ fontSize: 13, color: "#d9820b" }}>
++                    Cohérence à vérifier, titres d&apos;annonce absents de la page :
++                    <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>{gaps.map((g) => <li key={g.groupe}>« {g.groupe} » : {g.manquants.join(" | ")}</li>)}</ul>
++                  </div>
++                ) : <div style={{ fontSize: 13, color: "var(--green)" }}>✓ Chaque titre d&apos;annonce retrouve ses mots sur la page.</div>}
++                {landing.notes && <div style={{ fontSize: 13, color: "var(--muted)" }}>{landing.notes}</div>}
++              </div>
++            )}
++          </div>
++        )}
++      </div>
++
+       {msg && (
+         <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 10, border: `1px solid ${msg.ok ? "var(--green)" : "var(--red)"}` }}>
+           {msg.lines.map((m, i) => <div key={i} style={{ fontSize: 13 }}>{msg.ok ? "✓ " : "• "}{m}</div>)}
+diff --git a/lib/ai/json.ts b/lib/ai/json.ts
+new file mode 100644
+index 0000000..066f3e0
+--- /dev/null
++++ b/lib/ai/json.ts
+@@ -0,0 +1,61 @@
++// Lecture tolérante d'un JSON renvoyé par l'IA : blocs ```json, texte autour,
++// virgules en trop, réponse coupée (on referme chaînes, tableaux et objets).
++
++function closeTruncated(s: string): string {
++  const stack: string[] = [];
++  let inStr = false, esc = false;
++  for (const ch of s) {
++    if (inStr) {
++      if (esc) esc = false;
++      else if (ch === "\\") esc = true;
++      else if (ch === '"') inStr = false;
++      continue;
++    }
++    if (ch === '"') inStr = true;
++    else if (ch === "{" || ch === "[") stack.push(ch === "{" ? "}" : "]");
++    else if (ch === "}" || ch === "]") stack.pop();
++  }
++  let out = s;
++  if (inStr) out += '"';
++  // Retire une clé ou un élément laissé incomplet en fin de texte.
++  out = out.replace(/,\s*"[^"]*"\s*:?\s*$/, "").replace(/[,:]\s*$/, "");
++  return out + stack.reverse().join("");
++}
++
++/** Fin du premier bloc équilibré à partir de `start` (en ignorant le contenu des chaînes), ou -1. */
++function balancedEnd(s: string, start: number): number {
++  let depth = 0, inStr = false, esc = false;
++  for (let i = start; i < s.length; i++) {
++    const ch = s[i];
++    if (inStr) {
++      if (esc) esc = false; else if (ch === "\\") esc = true; else if (ch === '"') inStr = false;
++      continue;
++    }
++    if (ch === '"') inStr = true;
++    else if (ch === "{" || ch === "[") depth++;
++    else if (ch === "}" || ch === "]") { depth--; if (depth === 0) return i; }
++  }
++  return -1;
++}
++
++const noTrailingCommas = (s: string) => s.replace(/,\s*([}\]])/g, "$1");
++
++/** Extrait et parse le premier objet (ou tableau) JSON d'un texte. Lance une erreur si impossible. */
++export function parseAiJson<T = unknown>(text: string, kind: "object" | "array" = "object"): T {
++  const open = kind === "object" ? "{" : "[", close = kind === "object" ? "}" : "]";
++  const t = text.replace(/```(?:json)?/gi, "");
++  const start = t.indexOf(open);
++  if (start < 0) throw new Error("no json");
++  const end = t.lastIndexOf(close), bal = balancedEnd(t, start);
++  const candidates = [
++    bal > start ? t.slice(start, bal + 1) : "",
++    end > start ? t.slice(start, end + 1) : "",
++    t.slice(start),
++  ].filter(Boolean);
++  for (const c of candidates) {
++    for (const v of [c, noTrailingCommas(c), noTrailingCommas(closeTruncated(c))]) {
++      try { return JSON.parse(v) as T; } catch { /* essai suivant */ }
++    }
++  }
++  throw new Error("invalid json");
++}
+diff --git a/lib/clients/proposal.ts b/lib/clients/proposal.ts
+index 2912d8e..8be1853 100644
+--- a/lib/clients/proposal.ts
++++ b/lib/clients/proposal.ts
+@@ -1,6 +1,7 @@
+ // Synthèse de découverte + proposition commerciale, à partir du questionnaire.
+ // Les calculs de rentabilité sont faits ici (sans IA) ; l'IA rédige à partir de ces chiffres.
+ import Anthropic from "@anthropic-ai/sdk";
++import { parseAiJson } from "@/lib/ai/json";
+ import { calcCost, addMonthlyCost } from "@/lib/agent/cost";
+ import { getSetting, setSetting } from "@/lib/agent/store";
+ import { analyzeSite, type SiteAudit } from "@/lib/audit/site";
+@@ -92,7 +93,7 @@ export async function generateProposal(c: Client): Promise<StoredProposal> {
+   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+   let res: Awaited<ReturnType<typeof client.messages.create>> | null = null, model = "", last: unknown = null;
+   for (const m of [...new Set(CHAIN)]) {
+-    try { model = m; res = await client.messages.create({ model: m, max_tokens: 4000, messages: [{ role: "user", content: prompt(c, e, site) }] }); break; }
++    try { model = m; res = await client.messages.create({ model: m, max_tokens: 8000, messages: [{ role: "user", content: prompt(c, e, site) }] }); break; }
+     catch (err) { last = err; if (!/model|not_found|404/i.test(String(err))) throw err; }
+   }
+   if (!res || !("content" in res)) throw new Error(`Aucun modèle disponible : ${String(last).slice(0, 160)}`);
+@@ -100,7 +101,7 @@ export async function generateProposal(c: Client): Promise<StoredProposal> {
+   await addMonthlyCost(usage.costUsd, "copilote", null).catch(() => undefined);
+   const text = res.content.map((b) => (b.type === "text" ? b.text : "")).join("");
+   let p: Proposal;
+-  try { p = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)); } catch { throw new Error("Réponse de l'IA illisible, relance."); }
++  try { p = parseAiJson<Proposal>(text); } catch { throw new Error("Réponse de l'IA illisible, relance."); }
+   const arr = (v: unknown) => (Array.isArray(v) ? v.map((x) => String(x).replace(/\s*—\s*/g, ", ")) : []);
+   const clean: Proposal = {
+     resume: String(p.resume ?? ""), enjeux: arr(p.enjeux), strategie: String(p.strategie ?? ""),
+diff --git a/lib/clients/quote-ai.ts b/lib/clients/quote-ai.ts
+index b262966..fa2a027 100644
+--- a/lib/clients/quote-ai.ts
++++ b/lib/clients/quote-ai.ts
+@@ -1,6 +1,7 @@
+ // Proposition de devis par l'IA : choisit les prestations du catalogue d'après la découverte.
+ // L'IA ne fixe aucun prix : elle choisit des prestations et des quantités, tes tarifs restent ceux du catalogue.
+ import Anthropic from "@anthropic-ai/sdk";
++import { parseAiJson } from "@/lib/ai/json";
+ import { calcCost, addMonthlyCost } from "@/lib/agent/cost";
+ import { ALL_QUESTIONS, INTERNAL_KEYS } from "./questions";
+ import type { Client } from "./store";
+@@ -45,7 +46,7 @@ export async function suggestQuote(c: Client, s: QuoteSettings, prop: StoredProp
+   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+   let res: Awaited<ReturnType<typeof client.messages.create>> | null = null, model = "", last: unknown = null;
+   for (const m of [...new Set(CHAIN)]) {
+-    try { model = m; res = await client.messages.create({ model: m, max_tokens: 2000, messages: [{ role: "user", content: prompt }] }); break; }
++    try { model = m; res = await client.messages.create({ model: m, max_tokens: 4000, messages: [{ role: "user", content: prompt }] }); break; }
+     catch (err) { last = err; if (!/model|not_found|404/i.test(String(err))) throw err; }
+   }
+   if (!res || !("content" in res)) throw new Error(`Aucun modèle disponible : ${String(last).slice(0, 160)}`);
+@@ -55,7 +56,7 @@ export async function suggestQuote(c: Client, s: QuoteSettings, prop: StoredProp
+   const text = res.content.map((b) => (b.type === "text" ? b.text : "")).join("");
+   type Pick = { id?: string; qte?: number; raison?: string };
+   let j: { titre?: string; engagementMois?: number; budgetPub?: number; items?: Pick[]; options?: Pick[]; note?: string };
+-  try { j = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)); } catch { throw new Error("Réponse de l'IA illisible, relance."); }
++  try { j = parseAiJson<typeof j>(text); } catch { throw new Error("Réponse de l'IA illisible, relance."); }
+ 
+   const budget = Number(j.budgetPub) > 0 ? Number(j.budgetPub) : p?.budget_mensuel || null;
+   const nbSearch = (j.items ?? []).find((x) => x.id === "search")?.qte ?? p?.campagnes.length ?? null;
+diff --git a/lib/planner/ai.ts b/lib/planner/ai.ts
+index 49007ea..fe5661c 100644
+--- a/lib/planner/ai.ts
++++ b/lib/planner/ai.ts
+@@ -5,6 +5,7 @@ import Anthropic from "@anthropic-ai/sdk";
+ import { calcCost, addMonthlyCost } from "@/lib/agent/cost";
+ import { negativeBlocks } from "@/lib/audit/negatives";
+ import type { AdGroupSpec } from "./create";
++import { parseAiJson } from "@/lib/ai/json";
+ 
+ export interface StructureInput {
+   url: string;
+@@ -54,8 +55,8 @@ function prompt(i: StructureInput): string {
+     `Règles :`,
+     `1. 2 à 6 groupes d'annonces, un par intention distincte (produit, service, urgence, zone…). Pas de groupe fourre-tout.`,
+     `2. Chaque groupe : 3 à 20 mots-clés, en minuscules, tirés en priorité des mots-clés retenus (*), tu peux en ajouter de la liste s'ils sont pertinents. Aucun mot-clé dans deux groupes. Écarte le hors cible (emploi, formation, gratuit, bricolage, occasion, marques concurrentes).`,
+-    `3. Chaque groupe : 12 à 15 titres de 30 caractères MAXIMUM (espaces compris, compte bien), variés : mot-clé principal, zone, bénéfice, preuve, appel à l'action. Pas de point d'exclamation dans les titres, pas de MAJUSCULES abusives, pas de « n°1 » ni « meilleur » sans preuve.`,
+-    `4. Chaque groupe : 4 descriptions de 90 caractères MAXIMUM, complètes, avec un appel à l'action.`,
++    `3. Chaque groupe : 12 à 15 titres de 30 caractères MAXIMUM (espaces et accents compris, compte chaque caractère ; vise 20 à 30), variés : mot-clé principal, zone, bénéfice, preuve, appel à l'action. Pas de point d'exclamation dans les titres, pas de MAJUSCULES abusives, pas de « n°1 » ni « meilleur » sans preuve.`,
++    `4. Chaque groupe : 4 descriptions de 90 caractères MAXIMUM (vise 70 à 90), complètes, avec un appel à l'action.`,
+     `5. path1 et path2 : 15 caractères maximum, sans espace (ex. "fenetres", "toulon").`,
+     `6. 10 à 30 négatifs de campagne (expressions courtes) qui ne bloquent aucun des mots-clés retenus.`,
+     `7. N'invente aucun fait (prix, années d'expérience, certifications) absent du contexte ; reste générique sinon.`,
+@@ -85,9 +86,98 @@ export function sanitize(raw: unknown): Structure {
+   return { campaignName: clean(r.campaignName).slice(0, 120), groups, negatives, notes: clean(r.notes).slice(0, 600) };
+ }
+ 
++// Format de réponse imposé (outil) : l'API garantit un JSON valide et complet.
++const STRUCTURE_TOOL = {
++  name: "structure_campagne",
++  description: "Structure de campagne Search prête à créer.",
++  input_schema: {
++    type: "object" as const,
++    properties: {
++      campaignName: { type: "string" },
++      notes: { type: "string" },
++      negatives: { type: "array", items: { type: "string" } },
++      groups: {
++        type: "array",
++        items: {
++          type: "object",
++          properties: {
++            name: { type: "string" },
++            keywords: { type: "array", items: { type: "string" } },
++            headlines: { type: "array", items: { type: "string" } },
++            descriptions: { type: "array", items: { type: "string" } },
++            path1: { type: "string" },
++            path2: { type: "string" },
++          },
++          required: ["name", "keywords", "headlines", "descriptions"],
++        },
++      },
++    },
++    required: ["campaignName", "groups", "negatives", "notes"],
++  },
++};
++
++// ---------------------------------------------------------------------------
++// Limites Google Ads : une passe de réécriture pour les textes trop longs
++// (au lieu de les supprimer, ce qui pouvait laisser moins de 3 titres ou 2 descriptions).
++// ---------------------------------------------------------------------------
++export const LIMITS = { headline: 30, description: 90, path: 15 } as const;
++
++const FIX_TOOL = {
++  name: "textes_corriges",
++  description: "Textes réécrits dans la limite de caractères.",
++  input_schema: {
++    type: "object" as const,
++    properties: { items: { type: "array", items: { type: "object", properties: { id: { type: "string" }, texte: { type: "string" } }, required: ["id", "texte"] } } },
++    required: ["items"],
++  },
++};
++
++type RawGroup = { headlines?: unknown[]; descriptions?: unknown[] };
++
++async function fixLengths(client: Anthropic, model: string, raw: unknown): Promise<number> {
++  const groups = ((raw as { groups?: RawGroup[] })?.groups ?? []);
++  const todo: { id: string; kind: "titre" | "description"; max: number; text: string; set: (v: string) => void }[] = [];
++  groups.forEach((g, gi) => {
++    (["headlines", "descriptions"] as const).forEach((field) => {
++      const arr = Array.isArray(g[field]) ? g[field]! : [];
++      const max = field === "headlines" ? LIMITS.headline : LIMITS.description;
++      arr.forEach((v, k) => {
++        const t = clean(v);
++        if (t.length > max) todo.push({ id: `${gi}-${field[0]}-${k}`, kind: field === "headlines" ? "titre" : "description", max, text: t, set: (nv) => { arr[k] = nv; } });
++      });
++    });
++  });
++  if (!todo.length) return 0;
++  const list = todo.map((x) => `${x.id} | ${x.kind} | ${x.max} caractères max | actuellement ${x.text.length} | ${x.text}`).join("\n");
++  const res = await client.messages.create({
++    model, max_tokens: 4000, tools: [FIX_TOOL], tool_choice: { type: "tool", name: FIX_TOOL.name },
++    messages: [{ role: "user", content: [
++      "Ces textes d'annonces Google Ads dépassent la limite de caractères (espaces compris).",
++      "Réécris chacun pour tenir dans sa limite, en gardant le sens, le mot-clé principal et le ton. Abrège intelligemment, ne coupe pas un mot.",
++      "Compte précisément les caractères. Pas de point d'exclamation dans les titres.",
++      "", "id | type | limite | longueur actuelle | texte", list,
++    ].join("\n") }],
++  });
++  const usage = calcCost(model, res.usage.input_tokens, res.usage.output_tokens);
++  await addMonthlyCost(usage.costUsd, "copilote", null).catch(() => undefined);
++  const block = res.content.find((b) => b.type === "tool_use");
++  const items = ((block && block.type === "tool_use" ? block.input : null) as { items?: { id?: string; texte?: string }[] } | null)?.items ?? [];
++  const byId = new Map(items.map((x) => [String(x.id), clean(x.texte)]));
++  let fixed = 0;
++  for (const x of todo) {
++    const nv = byId.get(x.id);
++    if (nv && nv.length <= x.max) { x.set(nv); fixed++; }
++  }
++  return fixed;
++}
++
+ export async function proposeStructure(input: StructureInput, tier: BuilderTier = "sonnet"): Promise<{ structure: Structure; costUsd: number; model: string }> {
+   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+-  const call = (model: string) => client.messages.create({ model, max_tokens: 8000, messages: [{ role: "user", content: prompt(input) }] });
++  const call = (model: string) => client.messages.create({
++    model, max_tokens: 16000,
++    tools: [STRUCTURE_TOOL], tool_choice: { type: "tool", name: STRUCTURE_TOOL.name },
++    messages: [{ role: "user", content: prompt(input) + "\n\nRéponds en appelant l'outil structure_campagne." }],
++  });
+   let model = "";
+   let res: Awaited<ReturnType<typeof call>> | null = null;
+   let lastErr: unknown = null;
+@@ -101,11 +191,28 @@ export async function proposeStructure(input: StructureInput, tier: BuilderTier
+   if (!res) throw new Error(`Aucun modèle ${tier} disponible sur la clé API : ${String(lastErr).slice(0, 200)}`);
+   const usage = calcCost(model, res.usage.input_tokens, res.usage.output_tokens);
+   await addMonthlyCost(usage.costUsd, "copilote", null).catch(() => undefined);
+-  const text = res.content.map((b) => (b.type === "text" ? b.text : "")).join("");
+-  const json = text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
+-  let parsed: unknown;
+-  try { parsed = JSON.parse(json); } catch { throw new Error("Réponse de l'IA illisible, relance la proposition."); }
++
++  // 1. Réponse structurée (outil). 2. Repli : texte lu de façon tolérante.
++  const toolBlock = res.content.find((b) => b.type === "tool_use");
++  let parsed: unknown = toolBlock && toolBlock.type === "tool_use" ? toolBlock.input : null;
++  if (!parsed) {
++    const text = res.content.map((b) => (b.type === "text" ? b.text : "")).join("");
++    try { parsed = parseAiJson(text); }
++    catch {
++      console.error("[planner] réponse IA illisible", { model, stop: res.stop_reason, len: text.length, head: text.slice(0, 300) });
++      throw new Error(res.stop_reason === "max_tokens"
++        ? "La réponse de l'IA était trop longue et a été coupée. Retire quelques mots-clés retenus ou relance."
++        : "Réponse de l'IA illisible, relance la proposition.");
++    }
++  }
++  // Textes trop longs : réécriture ciblée (les textes encore trop longs seront écartés par sanitize).
++  await fixLengths(client, model, parsed).catch((e) => console.error("[planner] réécriture des longueurs", String(e).slice(0, 200)));
+   const structure = sanitize(parsed);
+-  if (!structure.groups.length) throw new Error("L'IA n'a proposé aucun groupe exploitable, relance.");
++  if (!structure.groups.length) {
++    console.error("[planner] aucun groupe exploitable", { model, stop: res.stop_reason });
++    throw new Error(res.stop_reason === "max_tokens"
++      ? "La réponse de l'IA a été coupée avant la fin. Retire quelques mots-clés retenus ou relance."
++      : "L'IA n'a proposé aucun groupe exploitable, relance.");
++  }
+   return { structure, costUsd: usage.costUsd, model };
+ }
+diff --git a/lib/planner/landing-text.ts b/lib/planner/landing-text.ts
+new file mode 100644
+index 0000000..3c9c642
+--- /dev/null
++++ b/lib/planner/landing-text.ts
+@@ -0,0 +1,40 @@
++// Fonctions sans dépendance serveur (utilisables côté navigateur) pour la landing page.
++import type { AdGroupSpec } from "./create";
++import type { LandingBrief } from "./landing";
++
++/** Contrôle du message match : titres d'annonce dont aucun mot important n'apparaît sur la page. */
++export function messageMatchGaps(brief: LandingBrief, groups: AdGroupSpec[]): { groupe: string; manquants: string[] }[] {
++  const page = [brief.hero.titre, brief.hero.sousTitre, ...brief.hero.preuvesRapides, ...brief.sections.flatMap((x) => [x.titre, x.texte, ...x.points]), ...brief.benefices, ...brief.preuves]
++    .join(" ").toLowerCase();
++  const norm = (t: string) => t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
++  const pageN = norm(page);
++  return groups.map((g) => ({
++    groupe: g.name,
++    manquants: g.headlines.filter((h) => {
++      const words = norm(h).split(/[^a-z0-9]+/).filter((w) => w.length >= 4);
++      return words.length > 0 && !words.some((w) => pageN.includes(w));
++    }),
++  })).filter((x) => x.manquants.length);
++}
++
++export function landingToMarkdown(b: LandingBrief, campaign: string, pageUrl: string): string {
++  const L: string[] = [];
++  L.push(`# Landing page : ${b.titrePage || campaign}`, "");
++  L.push(`Campagne : ${campaign}`, pageUrl ? `URL prévue : ${pageUrl}` : "", "");
++  L.push("## SEO", `- Meta title : ${b.metaTitle}`, `- Meta description : ${b.metaDescription}`, "");
++  L.push("## Haut de page", `# ${b.hero.titre}`, b.hero.sousTitre, "", ...b.hero.preuvesRapides.map((p) => `- ${p}`), "", `Bouton : **${b.hero.cta}**`, "");
++  for (const x of b.sections) {
++    L.push(`## ${x.titre}  (ancre #${x.ancre}, groupe « ${x.groupe} »)`, x.texte, "", ...x.points.map((p) => `- ${p}`));
++    if (x.titresAnnonceRepris.length) L.push("", `_Titres d'annonce repris : ${x.titresAnnonceRepris.join(" | ")}_`);
++    L.push("");
++  }
++  if (b.benefices.length) L.push("## Pourquoi nous choisir", ...b.benefices.map((p) => `- ${p}`), "");
++  if (b.etapes.length) L.push("## Comment ça se passe", ...b.etapes.map((p, i) => `${i + 1}. ${p}`), "");
++  if (b.preuves.length) L.push("## Preuves", ...b.preuves.map((p) => `- ${p}`), "");
++  L.push("## Formulaire", ...b.formulaire.champs.map((c) => `- ${c}`), `Bouton : **${b.formulaire.bouton}**`, b.formulaire.reassurance, "");
++  if (b.faq.length) { L.push("## Questions fréquentes"); for (const f of b.faq) L.push(`**${f.q}**`, f.r, ""); }
++  L.push("## Appel final", b.ctaFinal, "");
++  if (b.aFournir.length) L.push("## À fournir par le client", ...b.aFournir.map((p) => `- [ ] ${p}`), "");
++  if (b.notes) L.push("## Notes", b.notes, "");
++  return L.filter((l, i, a) => !(l === "" && a[i - 1] === "")).join("\n");
++}
+diff --git a/lib/planner/landing.ts b/lib/planner/landing.ts
+new file mode 100644
+index 0000000..7efcffb
+--- /dev/null
++++ b/lib/planner/landing.ts
+@@ -0,0 +1,110 @@
++// Contenu de landing page cohérent avec la structure d'annonces (message match) :
++// chaque groupe d'annonces retrouve sa promesse, ses mots-clés et son appel à l'action sur la page.
++// Payant (API Anthropic), soumis au plafond IA de l'owner.
++import Anthropic from "@anthropic-ai/sdk";
++import { calcCost, addMonthlyCost } from "@/lib/agent/cost";
++import type { AdGroupSpec } from "./create";
++
++export interface LandingInput {
++  campaignName: string; url: string; objectif: "leads" | "ventes"; places: string[];
++  groups: AdGroupSpec[]; callouts: string[]; phone?: string; accountContext: string;
++}
++
++export interface LandingBrief {
++  titrePage: string; metaTitle: string; metaDescription: string;
++  hero: { titre: string; sousTitre: string; cta: string; preuvesRapides: string[] };
++  sections: { groupe: string; ancre: string; titre: string; texte: string; points: string[]; titresAnnonceRepris: string[] }[];
++  benefices: string[]; etapes: string[]; preuves: string[];
++  faq: { q: string; r: string }[];
++  formulaire: { champs: string[]; bouton: string; reassurance: string };
++  ctaFinal: string; aFournir: string[]; notes: string;
++}
++
++const TOOL = {
++  name: "contenu_landing",
++  description: "Contenu complet de la landing page, aligné sur les annonces.",
++  input_schema: {
++    type: "object" as const,
++    properties: {
++      titrePage: { type: "string" }, metaTitle: { type: "string" }, metaDescription: { type: "string" },
++      hero: { type: "object", properties: { titre: { type: "string" }, sousTitre: { type: "string" }, cta: { type: "string" }, preuvesRapides: { type: "array", items: { type: "string" } } }, required: ["titre", "sousTitre", "cta", "preuvesRapides"] },
++      sections: { type: "array", items: { type: "object", properties: {
++        groupe: { type: "string" }, ancre: { type: "string" }, titre: { type: "string" }, texte: { type: "string" },
++        points: { type: "array", items: { type: "string" } }, titresAnnonceRepris: { type: "array", items: { type: "string" } },
++      }, required: ["groupe", "ancre", "titre", "texte", "points", "titresAnnonceRepris"] } },
++      benefices: { type: "array", items: { type: "string" } }, etapes: { type: "array", items: { type: "string" } },
++      preuves: { type: "array", items: { type: "string" } },
++      faq: { type: "array", items: { type: "object", properties: { q: { type: "string" }, r: { type: "string" } }, required: ["q", "r"] } },
++      formulaire: { type: "object", properties: { champs: { type: "array", items: { type: "string" } }, bouton: { type: "string" }, reassurance: { type: "string" } }, required: ["champs", "bouton", "reassurance"] },
++      ctaFinal: { type: "string" }, aFournir: { type: "array", items: { type: "string" } }, notes: { type: "string" },
++    },
++    required: ["titrePage", "metaTitle", "metaDescription", "hero", "sections", "benefices", "etapes", "preuves", "faq", "formulaire", "ctaFinal", "aFournir", "notes"],
++  },
++};
++
++const CHAIN = [process.env.BUILDER_MODEL ?? "claude-sonnet-5-5", "claude-sonnet-4-6"];
++const s = (v: unknown) => String(v ?? "").replace(/\s*—\s*/g, ", ").trim();
++const arr = (v: unknown) => (Array.isArray(v) ? v.map(s).filter(Boolean) : []);
++
++function prompt(i: LandingInput): string {
++  const groups = i.groups.map((g, k) => [
++    `Groupe ${k + 1} « ${g.name} »`,
++    `  mots-clés : ${g.keywords.slice(0, 15).join(", ")}`,
++    `  titres d'annonce : ${g.headlines.join(" | ")}`,
++    `  descriptions : ${g.descriptions.join(" | ")}`,
++  ].join("\n")).join("\n");
++  return [
++    `Tu es un expert en landing pages pour la publicité Google Ads (conversion, message match), en France. Rédige le contenu d'une landing page dédiée à la campagne « ${i.campaignName} ».`,
++    ``, `Contexte :`,
++    `- Objectif : ${i.objectif === "ventes" ? "ventes en ligne" : "demandes (formulaire, appel, rendez-vous)"}`,
++    `- Zone : ${i.places.join(", ") || "non précisée"}`,
++    i.url ? `- Site ou page actuelle : ${i.url}` : "",
++    i.phone ? `- Téléphone : ${i.phone}` : "",
++    i.callouts.length ? `- Accroches de la campagne : ${i.callouts.join(" | ")}` : "",
++    i.accountContext ? `- Ce que le client a dit de son activité :\n${i.accountContext.slice(0, 4000)}` : "",
++    ``, `Structure des annonces (la page doit tenir exactement ces promesses) :`, groups,
++    ``, `Règles :`,
++    `1. Message match : le titre principal (H1) reprend l'intention du groupe principal et son mot-clé ; chaque groupe d'annonces a SA section avec une ancre courte en minuscules sans accent (ex. "pergola-bioclimatique"), qui reprend ses titres d'annonce et ses promesses mot pour mot quand c'est possible. Liste dans titresAnnonceRepris les titres d'annonce effectivement repris.`,
++    `2. Tout ce que promettent les annonces et accroches (devis gratuit, délai, garantie, zone) apparaît sur la page, au-dessus de la ligne de flottaison si possible.`,
++    `3. N'invente aucun fait (prix, années d'expérience, certifications, chiffres, avis) absent du contexte ou des annonces. Quand une preuve manque, mets-la dans aFournir (ex. "3 photos de chantiers récents", "note et nombre d'avis Google").`,
++    `4. Formulaire court : 3 à 5 champs, adaptés au métier. Un seul appel à l'action principal, répété.`,
++    `5. metaTitle 60 caractères max, metaDescription 155 max. Français clair, vouvoiement, pas de tirets longs, pas d'emoji.`,
++    `6. notes : 2 phrases sur la logique de la page et l'URL finale à mettre dans chaque groupe (page#ancre).`,
++    ``, `Réponds en appelant l'outil contenu_landing.`,
++  ].filter((l) => l !== "").join("\n");
++}
++
++export async function proposeLanding(input: LandingInput): Promise<{ brief: LandingBrief; costUsd: number; model: string }> {
++  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
++  let res: Awaited<ReturnType<typeof client.messages.create>> | null = null, model = "", last: unknown = null;
++  for (const m of [...new Set(CHAIN)]) {
++    try {
++      model = m;
++      res = await client.messages.create({ model: m, max_tokens: 8000, tools: [TOOL], tool_choice: { type: "tool", name: TOOL.name }, messages: [{ role: "user", content: prompt(input) }] });
++      break;
++    } catch (e) { last = e; if (!/model|not_found|404/i.test(String(e))) throw e; }
++  }
++  if (!res || !("content" in res)) throw new Error(`Aucun modèle disponible : ${String(last).slice(0, 160)}`);
++  const usage = calcCost(model, res.usage.input_tokens, res.usage.output_tokens);
++  await addMonthlyCost(usage.costUsd, "copilote", null).catch(() => undefined);
++  const block = res.content.find((b) => b.type === "tool_use");
++  const r = (block && block.type === "tool_use" ? block.input : null) as Record<string, unknown> | null;
++  if (!r) throw new Error(res.stop_reason === "max_tokens" ? "Réponse de l'IA coupée, relance." : "Réponse de l'IA illisible, relance.");
++  const h = (r.hero ?? {}) as Record<string, unknown>, f = (r.formulaire ?? {}) as Record<string, unknown>;
++  const brief: LandingBrief = {
++    titrePage: s(r.titrePage), metaTitle: s(r.metaTitle).slice(0, 70), metaDescription: s(r.metaDescription).slice(0, 170),
++    hero: { titre: s(h.titre), sousTitre: s(h.sousTitre), cta: s(h.cta), preuvesRapides: arr(h.preuvesRapides) },
++    sections: (Array.isArray(r.sections) ? r.sections : []).map((x: Record<string, unknown>) => ({
++      groupe: s(x.groupe), ancre: s(x.ancre).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9-]+/g, "-").replace(/^-|-$/g, ""),
++      titre: s(x.titre), texte: s(x.texte), points: arr(x.points), titresAnnonceRepris: arr(x.titresAnnonceRepris),
++    })),
++    benefices: arr(r.benefices), etapes: arr(r.etapes), preuves: arr(r.preuves),
++    faq: (Array.isArray(r.faq) ? r.faq : []).map((x: Record<string, unknown>) => ({ q: s(x.q), r: s(x.r) })).filter((x) => x.q),
++    formulaire: { champs: arr(f.champs), bouton: s(f.bouton), reassurance: s(f.reassurance) },
++    ctaFinal: s(r.ctaFinal), aFournir: arr(r.aFournir), notes: s(r.notes),
++  };
++  if (!brief.hero.titre || !brief.sections.length) throw new Error("L'IA n'a pas produit de contenu exploitable, relance.");
++  return { brief, costUsd: usage.costUsd, model };
++}
++
++export { messageMatchGaps, landingToMarkdown } from "./landing-text";
+diff --git a/lib/planner/simulations.ts b/lib/planner/simulations.ts
+new file mode 100644
+index 0000000..79bd318
+--- /dev/null
++++ b/lib/planner/simulations.ts
+@@ -0,0 +1,42 @@
++// Historique des simulations de Prévisions : paramètres (pour relancer), résumé chiffré,
++// brouillon de campagne (structure, annonces, extensions) et contenu de landing page.
++// Stocké dans app_settings (clé "simulations"), sans migration.
++import { getSetting, setSetting } from "@/lib/agent/store";
++import type { LandingBrief } from "./landing";
++
++export interface BuilderDraft {
++  name: string; budget: string; bidding: string; maxCpc: string; match: string; url: string; geoSel: string[];
++  groups: { name: string; keywords: string; headlines: string; descriptions: string; path1: string; path2: string }[];
++  negatives: string; notes: string; phone: string; sitelinks: string; callouts: string; sched: string;
++  landingOn: boolean; landingUrl: string; landing: LandingBrief | null;
++}
++export interface SimSummary { keywords: number; searches: number; cpc: number | null; monthly: number; leads: number | null; cpa: number | null; places: string }
++export interface Simulation {
++  id: string; name: string; at: string; updatedAt: string; query: string;
++  clientId: string | null; clientName: string | null; summary: SimSummary; draft: BuilderDraft | null;
++}
++
++const KEY = "simulations";
++const MAX = 40;
++
++export async function listSimulations(): Promise<Simulation[]> {
++  const v = await getSetting(KEY, null);
++  if (!v) return [];
++  try { const a = JSON.parse(v); return Array.isArray(a) ? (a as Simulation[]) : []; } catch { return []; }
++}
++export async function getSimulation(id: string): Promise<Simulation | null> {
++  return (await listSimulations()).find((s) => s.id === id) ?? null;
++}
++export async function upsertSimulation(sim: Omit<Simulation, "id" | "at" | "updatedAt"> & { id?: string | null }): Promise<Simulation> {
++  const all = await listSimulations();
++  const now = new Date().toISOString();
++  const prev = sim.id ? all.find((s) => s.id === sim.id) : undefined;
++  const saved: Simulation = { ...sim, id: prev?.id ?? crypto.randomUUID(), at: prev?.at ?? now, updatedAt: now };
++  const next = [saved, ...all.filter((s) => s.id !== saved.id)].slice(0, MAX);
++  await setSetting(KEY, JSON.stringify(next), null);
++  return saved;
++}
++export async function deleteSimulation(id: string): Promise<void> {
++  const all = await listSimulations();
++  await setSetting(KEY, JSON.stringify(all.filter((s) => s.id !== id)), null);
++}

@@ -1,6 +1,7 @@
 // Proposition de devis par l'IA : choisit les prestations du catalogue d'après la découverte.
 // L'IA ne fixe aucun prix : elle choisit des prestations et des quantités, tes tarifs restent ceux du catalogue.
 import Anthropic from "@anthropic-ai/sdk";
+import { parseAiJson } from "@/lib/ai/json";
 import { calcCost, addMonthlyCost } from "@/lib/agent/cost";
 import { ALL_QUESTIONS, INTERNAL_KEYS } from "./questions";
 import type { Client } from "./store";
@@ -45,7 +46,7 @@ export async function suggestQuote(c: Client, s: QuoteSettings, prop: StoredProp
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   let res: Awaited<ReturnType<typeof client.messages.create>> | null = null, model = "", last: unknown = null;
   for (const m of [...new Set(CHAIN)]) {
-    try { model = m; res = await client.messages.create({ model: m, max_tokens: 2000, messages: [{ role: "user", content: prompt }] }); break; }
+    try { model = m; res = await client.messages.create({ model: m, max_tokens: 4000, messages: [{ role: "user", content: prompt }] }); break; }
     catch (err) { last = err; if (!/model|not_found|404/i.test(String(err))) throw err; }
   }
   if (!res || !("content" in res)) throw new Error(`Aucun modèle disponible : ${String(last).slice(0, 160)}`);
@@ -55,7 +56,7 @@ export async function suggestQuote(c: Client, s: QuoteSettings, prop: StoredProp
   const text = res.content.map((b) => (b.type === "text" ? b.text : "")).join("");
   type Pick = { id?: string; qte?: number; raison?: string };
   let j: { titre?: string; engagementMois?: number; budgetPub?: number; items?: Pick[]; options?: Pick[]; note?: string };
-  try { j = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)); } catch { throw new Error("Réponse de l'IA illisible, relance."); }
+  try { j = parseAiJson<typeof j>(text); } catch { throw new Error("Réponse de l'IA illisible, relance."); }
 
   const budget = Number(j.budgetPub) > 0 ? Number(j.budgetPub) : p?.budget_mensuel || null;
   const nbSearch = (j.items ?? []).find((x) => x.id === "search")?.qte ?? p?.campagnes.length ?? null;

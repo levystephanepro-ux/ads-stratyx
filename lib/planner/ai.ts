@@ -5,6 +5,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { calcCost, addMonthlyCost } from "@/lib/agent/cost";
 import { negativeBlocks } from "@/lib/audit/negatives";
 import type { AdGroupSpec } from "./create";
+import { parseAiJson } from "@/lib/ai/json";
 
 export interface StructureInput {
   url: string;
@@ -54,8 +55,8 @@ function prompt(i: StructureInput): string {
     `Règles :`,
     `1. 2 à 6 groupes d'annonces, un par intention distincte (produit, service, urgence, zone…). Pas de groupe fourre-tout.`,
     `2. Chaque groupe : 3 à 20 mots-clés, en minuscules, tirés en priorité des mots-clés retenus (*), tu peux en ajouter de la liste s'ils sont pertinents. Aucun mot-clé dans deux groupes. Écarte le hors cible (emploi, formation, gratuit, bricolage, occasion, marques concurrentes).`,
-    `3. Chaque groupe : 12 à 15 titres de 30 caractères MAXIMUM (espaces compris, compte bien), variés : mot-clé principal, zone, bénéfice, preuve, appel à l'action. Pas de point d'exclamation dans les titres, pas de MAJUSCULES abusives, pas de « n°1 » ni « meilleur » sans preuve.`,
-    `4. Chaque groupe : 4 descriptions de 90 caractères MAXIMUM, complètes, avec un appel à l'action.`,
+    `3. Chaque groupe : 12 à 15 titres de 30 caractères MAXIMUM (espaces et accents compris, compte chaque caractère ; vise 20 à 30), variés : mot-clé principal, zone, bénéfice, preuve, appel à l'action. Pas de point d'exclamation dans les titres, pas de MAJUSCULES abusives, pas de « n°1 » ni « meilleur » sans preuve.`,
+    `4. Chaque groupe : 4 descriptions de 90 caractères MAXIMUM (vise 70 à 90), complètes, avec un appel à l'action.`,
     `5. path1 et path2 : 15 caractères maximum, sans espace (ex. "fenetres", "toulon").`,
     `6. 10 à 30 négatifs de campagne (expressions courtes) qui ne bloquent aucun des mots-clés retenus.`,
     `7. N'invente aucun fait (prix, années d'expérience, certifications) absent du contexte ; reste générique sinon.`,
@@ -85,9 +86,98 @@ export function sanitize(raw: unknown): Structure {
   return { campaignName: clean(r.campaignName).slice(0, 120), groups, negatives, notes: clean(r.notes).slice(0, 600) };
 }
 
+// Format de réponse imposé (outil) : l'API garantit un JSON valide et complet.
+const STRUCTURE_TOOL = {
+  name: "structure_campagne",
+  description: "Structure de campagne Search prête à créer.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      campaignName: { type: "string" },
+      notes: { type: "string" },
+      negatives: { type: "array", items: { type: "string" } },
+      groups: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            keywords: { type: "array", items: { type: "string" } },
+            headlines: { type: "array", items: { type: "string" } },
+            descriptions: { type: "array", items: { type: "string" } },
+            path1: { type: "string" },
+            path2: { type: "string" },
+          },
+          required: ["name", "keywords", "headlines", "descriptions"],
+        },
+      },
+    },
+    required: ["campaignName", "groups", "negatives", "notes"],
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Limites Google Ads : une passe de réécriture pour les textes trop longs
+// (au lieu de les supprimer, ce qui pouvait laisser moins de 3 titres ou 2 descriptions).
+// ---------------------------------------------------------------------------
+export const LIMITS = { headline: 30, description: 90, path: 15 } as const;
+
+const FIX_TOOL = {
+  name: "textes_corriges",
+  description: "Textes réécrits dans la limite de caractères.",
+  input_schema: {
+    type: "object" as const,
+    properties: { items: { type: "array", items: { type: "object", properties: { id: { type: "string" }, texte: { type: "string" } }, required: ["id", "texte"] } } },
+    required: ["items"],
+  },
+};
+
+type RawGroup = { headlines?: unknown[]; descriptions?: unknown[] };
+
+async function fixLengths(client: Anthropic, model: string, raw: unknown): Promise<number> {
+  const groups = ((raw as { groups?: RawGroup[] })?.groups ?? []);
+  const todo: { id: string; kind: "titre" | "description"; max: number; text: string; set: (v: string) => void }[] = [];
+  groups.forEach((g, gi) => {
+    (["headlines", "descriptions"] as const).forEach((field) => {
+      const arr = Array.isArray(g[field]) ? g[field]! : [];
+      const max = field === "headlines" ? LIMITS.headline : LIMITS.description;
+      arr.forEach((v, k) => {
+        const t = clean(v);
+        if (t.length > max) todo.push({ id: `${gi}-${field[0]}-${k}`, kind: field === "headlines" ? "titre" : "description", max, text: t, set: (nv) => { arr[k] = nv; } });
+      });
+    });
+  });
+  if (!todo.length) return 0;
+  const list = todo.map((x) => `${x.id} | ${x.kind} | ${x.max} caractères max | actuellement ${x.text.length} | ${x.text}`).join("\n");
+  const res = await client.messages.create({
+    model, max_tokens: 4000, tools: [FIX_TOOL], tool_choice: { type: "tool", name: FIX_TOOL.name },
+    messages: [{ role: "user", content: [
+      "Ces textes d'annonces Google Ads dépassent la limite de caractères (espaces compris).",
+      "Réécris chacun pour tenir dans sa limite, en gardant le sens, le mot-clé principal et le ton. Abrège intelligemment, ne coupe pas un mot.",
+      "Compte précisément les caractères. Pas de point d'exclamation dans les titres.",
+      "", "id | type | limite | longueur actuelle | texte", list,
+    ].join("\n") }],
+  });
+  const usage = calcCost(model, res.usage.input_tokens, res.usage.output_tokens);
+  await addMonthlyCost(usage.costUsd, "copilote", null).catch(() => undefined);
+  const block = res.content.find((b) => b.type === "tool_use");
+  const items = ((block && block.type === "tool_use" ? block.input : null) as { items?: { id?: string; texte?: string }[] } | null)?.items ?? [];
+  const byId = new Map(items.map((x) => [String(x.id), clean(x.texte)]));
+  let fixed = 0;
+  for (const x of todo) {
+    const nv = byId.get(x.id);
+    if (nv && nv.length <= x.max) { x.set(nv); fixed++; }
+  }
+  return fixed;
+}
+
 export async function proposeStructure(input: StructureInput, tier: BuilderTier = "sonnet"): Promise<{ structure: Structure; costUsd: number; model: string }> {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  const call = (model: string) => client.messages.create({ model, max_tokens: 8000, messages: [{ role: "user", content: prompt(input) }] });
+  const call = (model: string) => client.messages.create({
+    model, max_tokens: 16000,
+    tools: [STRUCTURE_TOOL], tool_choice: { type: "tool", name: STRUCTURE_TOOL.name },
+    messages: [{ role: "user", content: prompt(input) + "\n\nRéponds en appelant l'outil structure_campagne." }],
+  });
   let model = "";
   let res: Awaited<ReturnType<typeof call>> | null = null;
   let lastErr: unknown = null;
@@ -101,11 +191,28 @@ export async function proposeStructure(input: StructureInput, tier: BuilderTier 
   if (!res) throw new Error(`Aucun modèle ${tier} disponible sur la clé API : ${String(lastErr).slice(0, 200)}`);
   const usage = calcCost(model, res.usage.input_tokens, res.usage.output_tokens);
   await addMonthlyCost(usage.costUsd, "copilote", null).catch(() => undefined);
-  const text = res.content.map((b) => (b.type === "text" ? b.text : "")).join("");
-  const json = text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
-  let parsed: unknown;
-  try { parsed = JSON.parse(json); } catch { throw new Error("Réponse de l'IA illisible, relance la proposition."); }
+
+  // 1. Réponse structurée (outil). 2. Repli : texte lu de façon tolérante.
+  const toolBlock = res.content.find((b) => b.type === "tool_use");
+  let parsed: unknown = toolBlock && toolBlock.type === "tool_use" ? toolBlock.input : null;
+  if (!parsed) {
+    const text = res.content.map((b) => (b.type === "text" ? b.text : "")).join("");
+    try { parsed = parseAiJson(text); }
+    catch {
+      console.error("[planner] réponse IA illisible", { model, stop: res.stop_reason, len: text.length, head: text.slice(0, 300) });
+      throw new Error(res.stop_reason === "max_tokens"
+        ? "La réponse de l'IA était trop longue et a été coupée. Retire quelques mots-clés retenus ou relance."
+        : "Réponse de l'IA illisible, relance la proposition.");
+    }
+  }
+  // Textes trop longs : réécriture ciblée (les textes encore trop longs seront écartés par sanitize).
+  await fixLengths(client, model, parsed).catch((e) => console.error("[planner] réécriture des longueurs", String(e).slice(0, 200)));
   const structure = sanitize(parsed);
-  if (!structure.groups.length) throw new Error("L'IA n'a proposé aucun groupe exploitable, relance.");
+  if (!structure.groups.length) {
+    console.error("[planner] aucun groupe exploitable", { model, stop: res.stop_reason });
+    throw new Error(res.stop_reason === "max_tokens"
+      ? "La réponse de l'IA a été coupée avant la fin. Retire quelques mots-clés retenus ou relance."
+      : "L'IA n'a proposé aucun groupe exploitable, relance.");
+  }
   return { structure, costUsd: usage.costUsd, model };
 }

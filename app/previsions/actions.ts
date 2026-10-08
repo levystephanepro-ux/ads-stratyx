@@ -6,6 +6,11 @@ import { getAccountContext } from "@/lib/account-context";
 import { createPausedSearchCampaign, validateSpec, type CampaignSpec } from "@/lib/planner/create";
 import { proposeStructure, type BuilderTier, type Structure, type StructureInput } from "@/lib/planner/ai";
 import { logAction } from "@/lib/fixes/store";
+import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { proposeLanding, type LandingBrief, type LandingInput } from "@/lib/planner/landing";
+import { upsertSimulation, deleteSimulation, type BuilderDraft, type SimSummary } from "@/lib/planner/simulations";
+import { getActiveClient } from "@/lib/clients/active";
 
 export interface ActionResult { ok: boolean; messages: string[]; created?: string }
 
@@ -77,4 +82,51 @@ export async function createCampaignAction(customerId: string, accountName: stri
   } catch (e) {
     return { ok: false, messages: [e instanceof Error ? e.message : String(e)] };
   }
+}
+
+/** Contenu de landing page aligné sur les groupes d'annonces actuels (après tes modifications). */
+export async function proposeLandingAction(input: Omit<LandingInput, "accountContext"> & { customerId: string }):
+  Promise<{ ok: boolean; message: string; brief?: LandingBrief }> {
+  const ctx = await getDashboardContext();
+  if (!ctx.isOwner) return { ok: false, message: "Accès réservé." };
+  if (!process.env.ANTHROPIC_API_KEY) return { ok: false, message: "ANTHROPIC_API_KEY manquante sur Vercel." };
+  const billing = await getGlobalBilling();
+  if (!billing.allowed) return { ok: false, message: billing.reason ?? "Plafond IA atteint." };
+  const groups = input.groups.filter((g) => g.keywords.length && g.headlines.length);
+  if (!groups.length) return { ok: false, message: "Il faut au moins un groupe avec mots-clés et titres : propose d'abord la structure." };
+  try {
+    const accountContext = await getAccountContext(input.customerId, null);
+    const { customerId: _c, ...rest } = input; void _c;
+    const { brief, costUsd, model } = await proposeLanding({ ...rest, groups, accountContext });
+    const rate = Number((process.env.EUR_TO_USD ?? "1.15").replace(",", ".")) || 1.15;
+    return { ok: true, brief, message: `Contenu de landing proposé par ${model} · coût IA estimé ${(costUsd / rate).toLocaleString("fr-FR", { maximumFractionDigits: 3 })} €.` };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** Enregistre (ou met à jour) la simulation dans l'historique, avec le brouillon de campagne. */
+export async function saveSimulationAction(input: { id?: string | null; name: string; query: string; summary: SimSummary; draft: BuilderDraft | null }):
+  Promise<{ ok: boolean; id?: string; message: string }> {
+  const ctx = await getDashboardContext();
+  if (!ctx.isOwner) return { ok: false, message: "Accès réservé." };
+  try {
+    const client = await getActiveClient().catch(() => null);
+    const sim = await upsertSimulation({
+      id: input.id ?? null, name: input.name.trim().slice(0, 120) || "Simulation", query: input.query.slice(0, 4000),
+      clientId: client?.id ?? null, clientName: client?.name ?? null, summary: input.summary, draft: input.draft,
+    });
+    revalidatePath("/previsions");
+    return { ok: true, id: sim.id, message: `Simulation « ${sim.name} » enregistrée dans l'historique.` };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+export async function deleteSimulationAction(form: FormData) {
+  const ctx = await getDashboardContext();
+  if (!ctx.isOwner) throw new Error("Accès réservé.");
+  await deleteSimulation(String(form.get("id") ?? ""));
+  revalidatePath("/previsions");
+  redirect("/previsions?historique=1");
 }

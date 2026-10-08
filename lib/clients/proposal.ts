@@ -1,6 +1,7 @@
 // Synthèse de découverte + proposition commerciale, à partir du questionnaire.
 // Les calculs de rentabilité sont faits ici (sans IA) ; l'IA rédige à partir de ces chiffres.
 import Anthropic from "@anthropic-ai/sdk";
+import { parseAiJson } from "@/lib/ai/json";
 import { calcCost, addMonthlyCost } from "@/lib/agent/cost";
 import { getSetting, setSetting } from "@/lib/agent/store";
 import { analyzeSite, type SiteAudit } from "@/lib/audit/site";
@@ -92,7 +93,7 @@ export async function generateProposal(c: Client): Promise<StoredProposal> {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   let res: Awaited<ReturnType<typeof client.messages.create>> | null = null, model = "", last: unknown = null;
   for (const m of [...new Set(CHAIN)]) {
-    try { model = m; res = await client.messages.create({ model: m, max_tokens: 4000, messages: [{ role: "user", content: prompt(c, e, site) }] }); break; }
+    try { model = m; res = await client.messages.create({ model: m, max_tokens: 8000, messages: [{ role: "user", content: prompt(c, e, site) }] }); break; }
     catch (err) { last = err; if (!/model|not_found|404/i.test(String(err))) throw err; }
   }
   if (!res || !("content" in res)) throw new Error(`Aucun modèle disponible : ${String(last).slice(0, 160)}`);
@@ -100,7 +101,7 @@ export async function generateProposal(c: Client): Promise<StoredProposal> {
   await addMonthlyCost(usage.costUsd, "copilote", null).catch(() => undefined);
   const text = res.content.map((b) => (b.type === "text" ? b.text : "")).join("");
   let p: Proposal;
-  try { p = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)); } catch { throw new Error("Réponse de l'IA illisible, relance."); }
+  try { p = parseAiJson<Proposal>(text); } catch { throw new Error("Réponse de l'IA illisible, relance."); }
   const arr = (v: unknown) => (Array.isArray(v) ? v.map((x) => String(x).replace(/\s*—\s*/g, ", ")) : []);
   const clean: Proposal = {
     resume: String(p.resume ?? ""), enjeux: arr(p.enjeux), strategie: String(p.strategie ?? ""),

@@ -10,7 +10,9 @@ import { getDashboardContext } from "@/lib/workspace";
 import { getAccountsInfo } from "@/lib/google-ads/default-account";
 import { isLive } from "@/lib/google-ads/config";
 import { suggestGeo, keywordIdeas, accountCvr, forecast, COUNTRIES, LANGUAGES, type Geo, type Idea, type Forecast } from "@/lib/planner/ideas";
-import { createCampaignAction, proposeStructureAction } from "./actions";
+import { createCampaignAction, proposeStructureAction, proposeLandingAction, saveSimulationAction, deleteSimulationAction } from "./actions";
+import { listSimulations, getSimulation } from "@/lib/planner/simulations";
+import { getActiveClient } from "@/lib/clients/active";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 180; // structure IA (Opus) : jusqu'à ~90 s ; Fluid compute (Hobby : 300 s max)
@@ -18,6 +20,7 @@ export const maxDuration = 180; // structure IA (Opus) : jusqu'à ~90 s ; Fluid 
 type SP = Promise<{
   account?: string; mots?: string; url?: string; lieux?: string; budget?: string; k?: string | string[];
   pays?: string; langue?: string; objectif?: string; panier?: string; marge?: string; closing?: string; frais?: string; scan?: string;
+  sim?: string; historique?: string;
 }>;
 const eur = (n: number) => `${Math.round(n).toLocaleString("fr-FR")} €`;
 const eur2 = (n: number | null) => (n === null ? "–" : `${n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`);
@@ -35,6 +38,16 @@ export default async function PrevisionsPage({ searchParams }: { searchParams: S
   const ctx = await getDashboardContext();
   if (!ctx.isOwner) redirect("/dashboard");
   const sp = await searchParams;
+  // Paramètres de la simulation (sans les clés de navigation) : sert à la rouvrir depuis l'historique.
+  const qp = new URLSearchParams();
+  for (const [k, v] of Object.entries(sp)) {
+    if (k === "sim" || k === "historique" || v === undefined) continue;
+    for (const x of Array.isArray(v) ? v : [v]) qp.append(k, x);
+  }
+  const query = qp.toString();
+  const savedSim = sp.sim ? await getSimulation(sp.sim) : null;
+  if (savedSim && !query && savedSim.query) redirect(`/previsions?${savedSim.query}&sim=${savedSim.id}`);
+  const [history, activeClient] = await Promise.all([listSimulations(), getActiveClient().catch(() => null)]);
   const { accounts, defaultCustomerId } = isLive() ? await getAccountsInfo({ workspaceId: ctx.workspaceId, isOwner: true }) : { accounts: [], defaultCustomerId: null };
   const account = accounts.some((a) => a.customerId === sp.account) ? sp.account! : defaultCustomerId ?? accounts[0]?.customerId ?? "";
   const accName = accounts.find((a) => a.customerId === account)?.name ?? "";
@@ -110,6 +123,46 @@ export default async function PrevisionsPage({ searchParams }: { searchParams: S
       <p className="subtitle" style={{ marginTop: 0 }}>
         Simuler avant de dépenser : recherches, clics, coût et rentabilité de la campagne, puis structure proposée par l&apos;IA et création en pause.
       </p>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "0 0 14px" }}>
+        {(query || sp.historique) && <Link className="btn-ghost" href="/previsions">← Nouvelle simulation</Link>}
+        {!sp.historique && <Link className="btn-ghost" href="/previsions?historique=1">Historique des simulations ({history.length})</Link>}
+        {savedSim && <span className="pill" style={{ alignSelf: "center" }}>Simulation ouverte : {savedSim.name}</span>}
+      </div>
+
+      {(sp.historique || !query) && (
+        <div className="card" style={{ marginBottom: 14 }}>
+          <strong>Historique des simulations</strong>
+          {history.length === 0 ? (
+            <p className="subtitle" style={{ margin: "6px 0 0", fontSize: 13 }}>Aucune simulation enregistrée. Après une simulation, clique sur « Enregistrer la simulation » dans « Construire la campagne » : paramètres, structure, annonces et landing sont gardés.</p>
+          ) : (
+            <div style={{ overflowX: "auto", marginTop: 8 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead><tr>{["Simulation", "Client", "Date", "Budget / mois", "Mots-clés", "Coût / lead", "Contenu", ""].map((h, i) => <th key={i} style={{ ...th, textAlign: i < 3 ? "left" : "right" }}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {history.map((h) => (
+                    <tr key={h.id}>
+                      <td style={{ ...td, textAlign: "left" }}><Link href={`/previsions?sim=${h.id}`}><strong>{h.name}</strong></Link><div className="subtitle" style={{ margin: 0, fontSize: 11 }}>{h.summary.places}</div></td>
+                      <td style={{ ...td, textAlign: "left" }}>{h.clientName ?? "–"}</td>
+                      <td style={{ ...td, textAlign: "left", whiteSpace: "nowrap" }}>{new Date(h.updatedAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "Europe/Paris" })}</td>
+                      <td style={td}>{eur(h.summary.monthly)}</td>
+                      <td style={td}>{h.summary.keywords}</td>
+                      <td style={td}>{h.summary.cpa ? eur(h.summary.cpa) : "–"}</td>
+                      <td style={{ ...td, whiteSpace: "nowrap" }}>{h.draft ? `${h.draft.groups.length} groupe(s)` : "paramètres"}{h.draft?.landing ? " · landing" : ""}</td>
+                      <td style={{ ...td, whiteSpace: "nowrap" }}>
+                        <Link href={`/previsions?sim=${h.id}`}>Ouvrir</Link>
+                        <form action={deleteSimulationAction} style={{ display: "inline", marginLeft: 10 }}>
+                          <input type="hidden" name="id" value={h.id} />
+                          <button type="submit" className="btn-ghost" style={{ padding: "3px 8px", fontSize: 12 }}>Supprimer</button>
+                        </form>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       <form method="get" className="card" style={{ marginBottom: 14 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 10 }}>
@@ -216,9 +269,20 @@ export default async function PrevisionsPage({ searchParams }: { searchParams: S
             </div>
           </form>
 
-          <CampaignBuilder customerId={account} accountName={accName} languageId={lang.id}
+          <CampaignBuilder key={savedSim?.id ?? "nouvelle"} customerId={account} accountName={accName} languageId={lang.id}
             geos={geos.map((g) => ({ id: g.id, label: geoLabel(g) }))} initial={initial} aiInput={aiInput}
-            propose={proposeStructureAction} create={createCampaignAction} />
+            propose={proposeStructureAction} create={createCampaignAction}
+            proposeLanding={proposeLandingAction} save={saveSimulationAction} saved={savedSim?.draft ?? null}
+            sim={{
+              id: savedSim?.id ?? null,
+              name: savedSim?.name ?? [activeClient?.name, cap(seeds[0] ?? selected[0]?.text ?? "Simulation"), lieux[0], `${n0(monthly)} €/mois`].filter(Boolean).join(" · "),
+              query,
+              summary: {
+                keywords: selected.length, searches: Math.round(fc.searches), cpc: fc.cpc, monthly,
+                leads: mine ? Math.round(mine.conv * 10) / 10 : null, cpa: mine?.cpa ?? null,
+                places: lieux.length ? geos.map((g) => g.name).join(", ") : country.label,
+              },
+            }} />
           <p className="subtitle" style={{ fontSize: 12, marginTop: 8 }}>Après création : ajoute les extensions (appel, liens, accroches), tes négatifs habituels et les horaires dans Google Ads avant d&apos;activer. <Link href="/waste/journal">Journal des corrections</Link></p>
         </>
       )}
