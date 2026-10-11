@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: { params: P }): Promise<Metad
   const { token } = await params;
   const c = await getClientByToken(token);
   const title = c?.name ? `Questionnaire de découverte — ${c.name}` : "Questionnaire de découverte";
-  const description = "Quelques questions pour préparer votre proposition Google Ads. Environ 10 minutes, sans engagement.";
+  const description = "Quelques questions pour préparer votre stratégie d'acquisition. Environ 10 minutes, sans engagement.";
   return {
     title,
     description,
