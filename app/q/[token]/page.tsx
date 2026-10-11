@@ -1,14 +1,31 @@
 // Lien public du questionnaire de découverte : pas de connexion.
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import QuestionFields from "@/components/QuestionFields";
 import { getClientByToken } from "@/lib/clients/store";
 import { submitQuestionnaireAction, submitDraftAction, submitDoneAction } from "./actions";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Questionnaire de découverte", robots: { index: false, follow: false } };
 
 type P = Promise<{ token: string }>;
 type SP = Promise<{ ok?: string; v?: string; apercu?: string }>;
+
+// Métadonnées propres au client (titre + aperçu WhatsApp/iMessage) : on
+// n'hérite plus du titre/description de la landing Stratyx, qui n'a rien à
+// faire sous les yeux du client quand on lui envoie ce lien.
+export async function generateMetadata({ params }: { params: P }): Promise<Metadata> {
+  const { token } = await params;
+  const c = await getClientByToken(token);
+  const title = c?.name ? `Questionnaire de découverte — ${c.name}` : "Questionnaire de découverte";
+  const description = "Quelques questions pour préparer votre proposition Google Ads. Environ 10 minutes, sans engagement.";
+  return {
+    title,
+    description,
+    robots: { index: false, follow: false },
+    openGraph: { title, description, siteName: "STRATYXMEDIA" },
+    twitter: { card: "summary", title, description },
+  };
+}
 
 export default async function PublicQuestionnaire({ params, searchParams }: { params: P; searchParams: SP }) {
   const { token } = await params;
