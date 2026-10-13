@@ -5,10 +5,28 @@ export interface Question {
   key: string; label: string; help?: string; type: "text" | "long" | "number" | "choice" | "multi"; choices?: string[];
   /** fait partie de la version courte */
   core?: boolean;
+  /** parcours concernés (absent = tous) */
+  parcours?: Parcours[];
 }
-export interface QSection { title: string; intro?: string; internal?: boolean; questions: Question[] }
+export interface QSection { title: string; intro?: string; internal?: boolean; parcours?: Parcours[]; questions: Question[] }
+
+// Parcours d'onboarding : choisi sur la fiche, il décide des questions envoyées au client.
+export const P_LOCAL = "Demandes locales (artisans, services de proximité)";
+export const P_ECOM = "E-commerce";
+export const P_B2B = "Services et B2B";
+export const PARCOURS = [P_LOCAL, P_ECOM, P_B2B] as const;
+export type Parcours = (typeof PARCOURS)[number];
+/** Parcours d'une fiche ; par défaut « demandes locales » (le questionnaire d'origine). */
+export const parcoursOf = (answers?: Record<string, string> | null): Parcours =>
+  (PARCOURS as readonly string[]).includes(answers?.parcours ?? "") ? (answers!.parcours as Parcours) : P_LOCAL;
+const LEADS: Parcours[] = [P_LOCAL, P_B2B];
 
 export const QUESTIONNAIRE: QSection[] = [
+  { title: "Onboarding (toi seul)", internal: true, intro: "Le parcours décide des questions envoyées au client. Enregistre la fiche après l'avoir changé pour voir les bonnes questions.", questions: [
+    { key: "parcours", label: "Parcours du client", type: "choice", choices: [...PARCOURS] },
+    { key: "data_room", label: "Lien du dossier partagé (data room)", help: "Un dossier Google Drive partagé en modification avec le client. Il s'affiche sur sa page de questionnaire avec la liste des documents à déposer.", type: "text" },
+    { key: "acces_obtenus", label: "Accès obtenus", help: "Coche au fur et à mesure. Les accès manquants retardent le lancement.", type: "multi", choices: ["Google Ads", "Google Analytics", "Google Tag Manager", "Search Console", "Fiche Google Business", "Meta Business", "Site (administration)"] },
+  ] },
   { title: "Votre entreprise", questions: [
     { key: "activite", core: true, label: "Que faites-vous exactement ?", help: "En 2 ou 3 phrases, comme si vous parliez à un nouveau client.", type: "long" },
     { key: "services", core: true, label: "Vos produits ou services, du plus rentable au moins rentable", type: "long" },
@@ -31,18 +49,37 @@ export const QUESTIONNAIRE: QSection[] = [
     { key: "valeur_lead", core: true, label: "Valeur moyenne d'un client signé (€)", help: "Panier moyen ou chiffre d'affaires moyen par chantier ou vente.", type: "number" },
     { key: "marge", label: "Marge moyenne sur cette vente (%)", help: "Une estimation suffit.", type: "number" },
     { key: "recurrence", label: "Un client achète-t-il une seule fois ou revient-il ?", type: "choice", choices: ["Achat unique", "Revient de temps en temps", "Contrat ou abonnement récurrent", "Il recommande beaucoup"] },
-    { key: "closing", core: true, label: "Sur 10 demandes reçues, combien deviennent clientes ?", type: "number" },
+    { key: "closing", parcours: LEADS, core: true, label: "Sur 10 demandes reçues, combien deviennent clientes ?", type: "number" },
     { key: "delai_vente", label: "Délai moyen entre la première demande et la signature", type: "choice", choices: ["Le jour même", "Moins d'une semaine", "1 à 4 semaines", "Plus d'un mois"] },
-    { key: "cpl_cible", label: "Coût maximum acceptable par demande (€)", type: "number" },
+    { key: "cpl_cible", parcours: LEADS, label: "Coût maximum acceptable par demande (€)", type: "number" },
     { key: "budget", core: true, label: "Budget publicitaire mensuel envisagé (€)", type: "number" },
-    { key: "capacite", label: "Combien de demandes pouvez-vous traiter par mois ?", type: "number" },
+    { key: "capacite", parcours: LEADS, label: "Combien de demandes pouvez-vous traiter par mois ?", type: "number" },
     { key: "saison", label: "Périodes fortes et périodes creuses", type: "text" },
   ] },
-  { title: "Le traitement des demandes", intro: "Une publicité efficace perd son intérêt si la demande n'est pas rappelée vite.", questions: [
+  { title: "Le traitement des demandes", parcours: LEADS, intro: "Une publicité efficace perd son intérêt si la demande n'est pas rappelée vite.", questions: [
     { key: "delai_rappel", label: "Sous quel délai rappelez-vous une demande ?", type: "choice", choices: ["Moins de 15 minutes", "Dans l'heure", "Dans la journée", "Plus d'un jour"] },
     { key: "qui_repond", label: "Qui répond au téléphone et aux formulaires ?", help: "Vous, un commercial, une assistante, un répondeur. Horaires d'ouverture.", type: "text" },
     { key: "bonne_demande", label: "Qu'est-ce qu'une bonne demande ? Et une mauvaise ?", type: "long" },
     { key: "suivi", label: "Comment suivez-vous vos demandes et vos ventes ?", help: "CRM, tableur, papier, rien. Savez-vous d'où vient chaque client ?", type: "long" },
+  ] },
+  { title: "Votre boutique en ligne", parcours: [P_ECOM], intro: "Pour investir d'abord sur ce qui se vend déjà.", questions: [
+    { key: "best_sellers", label: "Vos produits phares, et pour qui", help: "Les 1 à 3 produits qui se vendent le mieux, leur prix et le type de client qui les achète.", type: "long" },
+    { key: "livraison_retours", label: "Livraison, retours et garanties", help: "Frais et délais de livraison, politique de retour, garantie.", type: "long" },
+    { key: "tunnel", label: "Le parcours d'achat", help: "De la publicité à la commande : page produit, quiz ou diagnostic, panier, paiement.", type: "long" },
+    { key: "temps_forts", label: "Promotions et temps forts commerciaux", help: "Soldes, Black Friday, fêtes, lancements, codes promo habituels.", type: "long" },
+    { key: "reseaux", label: "Vos réseaux sociaux et créateurs", help: "Instagram, TikTok, Facebook, Pinterest, et les créateurs ou influenceurs avec qui vous travaillez.", type: "long" },
+  ] },
+  { title: "Vos clients professionnels", parcours: [P_B2B], questions: [
+    { key: "secteurs", label: "Secteurs et taille des entreprises visées", type: "text" },
+    { key: "decideur_client", label: "Qui décide l'achat chez vos clients ?", help: "Fonction, et qui d'autre intervient dans la décision.", type: "text" },
+    { key: "preuves", label: "Vos preuves : références, études de cas, contenus", help: "Clients connus, cas concrets, livres blancs, démonstrations.", type: "long" },
+  ] },
+  { title: "Votre image et votre ton", intro: "Pour écrire des annonces qui vous ressemblent.", questions: [
+    { key: "ton", label: "Vous adressez-vous à vos clients en les vouvoyant ou en les tutoyant ?", type: "choice", choices: ["Vouvoiement", "Tutoiement", "Les deux selon le support"] },
+    { key: "style", label: "Le style de votre marque", help: "Les mots que vous aimez employer, ceux à éviter, emojis ou non.", type: "long" },
+    { key: "pub_reussie", label: "Une annonce, un texte ou un visuel qui a bien marché", help: "Copiez-le ou décrivez-le : il servira de point de départ.", type: "long" },
+    { key: "garanties", label: "Garanties, facilités et aides", help: "Garantie, SAV, paiement en plusieurs fois, satisfait ou remboursé, aides de l'État, devis gratuit.", type: "long" },
+    { key: "liens_avis", label: "Liens vers vos avis clients", help: "Fiche Google, Trustpilot, Pages Jaunes, autre.", type: "text" },
   ] },
   { title: "Ce qui existe déjà", questions: [
     { key: "site", core: true, label: "Adresse de votre site ou page de vente", type: "text" },
@@ -70,8 +107,27 @@ export const ALL_QUESTIONS = QUESTIONNAIRE.flatMap((s) => s.questions);
 const PUBLIC = QUESTIONNAIRE.filter((s) => !s.internal);
 export const INTERNAL_KEYS = new Set(QUESTIONNAIRE.filter((s) => s.internal).flatMap((s) => s.questions.map((q) => q.key)));
 
-/** Sections visibles par le client (version complète ou courte). */
-export function publicSections(short: boolean): QSection[] {
-  return PUBLIC.map((s) => ({ ...s, questions: short ? s.questions.filter((q) => q.core) : s.questions })).filter((s) => s.questions.length);
+const fits = (list: Parcours[] | undefined, p: Parcours) => !list || list.includes(p);
+
+/** Sections d'un parcours (questions comprises), en gardant l'ordre du questionnaire. */
+function forParcours(sections: QSection[], p: Parcours): QSection[] {
+  return sections.filter((s) => fits(s.parcours, p)).map((s) => ({ ...s, questions: s.questions.filter((q) => fits(q.parcours, p)) })).filter((s) => s.questions.length);
 }
-export const publicKeys = (short: boolean) => new Set(publicSections(short).flatMap((s) => s.questions.map((q) => q.key)));
+
+/** Sections visibles par le client (version complète ou courte) pour son parcours. */
+export function publicSections(short: boolean, p: Parcours = P_LOCAL): QSection[] {
+  return forParcours(PUBLIC, p).map((s) => ({ ...s, questions: short ? s.questions.filter((q) => q.core) : s.questions })).filter((s) => s.questions.length);
+}
+export const publicKeys = (short: boolean, p: Parcours = P_LOCAL) => new Set(publicSections(short, p).flatMap((s) => s.questions.map((q) => q.key)));
+
+/** Sections affichées sur la fiche (notes internes comprises) pour un parcours. */
+export const ficheSections = (p: Parcours) => forParcours(QUESTIONNAIRE, p);
+export const ficheKeys = (p: Parcours) => new Set(ficheSections(p).flatMap((s) => s.questions.map((q) => q.key)));
+
+/** Documents à déposer dans la data room, selon le parcours. */
+export function dataRoomChecklist(p: Parcours): string[] {
+  const base = ["Logo et charte graphique", "Photos (réalisations, produits, équipe, locaux)", "Vidéos, même tournées au téléphone", "Documents commerciaux (plaquette, tarifs, devis type)", "Captures de vos meilleurs avis clients", "Anciennes publicités et leurs résultats, si vous en avez"];
+  if (p === P_ECOM) return [...base, "Visuels produits (fond blanc et en situation)", "Calendrier des promotions et codes promo"];
+  if (p === P_B2B) return [...base, "Références et études de cas", "Présentations, livres blancs, démonstrations"];
+  return [...base, "Certifications, labels et attestations (RGE, Qualibat, assurance…)"];
+}

@@ -172,15 +172,19 @@ const GUIDE: { title: string; steps: { t: string; d: string; href?: string }[] }
     steps: [
       { t: "Le RDV arrive par Calendly", d: "Chaque matin, l'app importe les rendez-vous pris sur Calendly et crée une fiche client par nouvelle personne (nom, email, téléphone, site, réponses du formulaire). Tu reçois un email « Nouveau client Calendly ». Pour ne pas attendre le lendemain : Clients → « Importer mes RDV Calendly ».", href: "/clients" },
       { t: "Sinon, crée la fiche à la main", d: "Clients → nom de l'entreprise → Créer. Un client avec plusieurs activités ou plusieurs sites = une fiche par activité.", href: "/clients" },
-      { t: "Envoie le questionnaire", d: "Sur la fiche : « Copier le lien complet » (10–15 min) ou « Copier le lien court » (12 questions), à coller dans WhatsApp ou un email. « Voir ce que voit le client » pour vérifier avant d'envoyer." },
+      { t: "Choisis le parcours", d: "Sur la fiche, bloc « Onboarding (toi seul) » : Demandes locales (artisans), E-commerce ou Services et B2B, puis Enregistrer. Le parcours décide des questions envoyées au client (ex. boutique, livraison et réseaux pour l'e-commerce ; taux de signature et rappel des demandes pour les artisans et le B2B)." },
+      { t: "Crée la data room", d: "Dans ton Google Drive : un dossier au nom du client, partagé en modification avec lui. Colle le lien dans « Lien du dossier partagé » sur la fiche. Sa page de questionnaire affiche alors « Déposez vos documents » avec la liste adaptée à son parcours (logo, photos, vidéos, documents commerciaux, avis…)." },
+      { t: "Envoie le questionnaire", d: "Sur la fiche : « Copier le lien complet » (10–15 min) ou « Copier le lien court », à coller dans WhatsApp ou un email. « Voir ce que voit le client » pour vérifier avant d'envoyer." },
       { t: "Tu es prévenu quand il répond", d: "Dès que le client clique « Envoyer mes réponses », un email part sur contact@stratyxmedia.fr avec un lien vers sa fiche. La fiche passe à « Questionnaire rempli » avec la date." },
-      { t: "Proposition et devis", d: "Sur la fiche : passe l'étape à « Découverte faite », puis génère la synthèse et la proposition, et le devis. La prochaine action conseillée s'affiche sur chaque carte de la page Clients." },
+      { t: "Proposition et devis", d: "Avant de générer, renseigne dans les notes internes le coût réel estimé d'une demande sur Google : la proposition calcule alors, à partir de l'objectif de chiffre d'affaires du client, le nombre de demandes nécessaires et le budget nécessaire (à côté du plafond rentable). Passe l'étape à « Découverte faite », génère la synthèse, la proposition et le devis." },
     ],
   },
   {
     title: "Client signé",
     steps: [
+      { t: "Récupère les accès", d: "Fiche → « Demander les accès au client » : message prêt à envoyer. Coche chaque accès obtenu dans « Accès obtenus » (Google Ads, Analytics, Tag Manager, Search Console, fiche Google, Meta, site) : le compteur en haut de la fiche montre ce qui manque." },
       { t: "Lie le compte Google Ads", d: "Comptes et réglages pour connecter le compte, puis choisis-le dans « Compte Google Ads lié » sur la fiche.", href: "/comptes" },
+      { t: "Prépare le lancement", d: "Avant le rendez-vous de lancement : analyse de la marque, de l'offre, de la cible, des avis clients, de la concurrence (bibliothèques publicitaires Meta et Google) et de l'historique du compte. Le Persona (lien sur la fiche) et l'Audit prospect aident.", href: "/audit/prospect" },
       { t: "Prépare les campagnes", d: "Création → Prévisions et campagnes : budget, mots-clés, structure, et création des campagnes en pause. Vérifie le suivi des conversions avant d'activer.", href: "/previsions" },
     ],
   },

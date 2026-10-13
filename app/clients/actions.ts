@@ -8,6 +8,7 @@ import { setActiveClientCookie } from "@/lib/clients/active";
 import { STAGES, stageOf, stageRank } from "@/lib/clients/stages";
 import { getGlobalBilling } from "@/lib/billing";
 import { createClientRow, updateClient, deleteClient, getClient, formAnswers, syncContext } from "@/lib/clients/store";
+import { ficheKeys, parcoursOf } from "@/lib/clients/questions";
 
 async function owner() {
   const ctx = await getDashboardContext();
@@ -34,7 +35,10 @@ async function saveClient(form: FormData, intent: "draft" | "done") {
   const id = String(form.get("id") ?? "");
   const c = await getClient(id);
   if (!c) return;
-  const answers = formAnswers(form);
+  // La fiche n'affiche que les questions du parcours : on garde les réponses des autres.
+  const shown = ficheKeys(parcoursOf(c.answers));
+  const hidden = Object.fromEntries(Object.entries(c.answers ?? {}).filter(([k]) => !shown.has(k)));
+  const answers = { ...hidden, ...formAnswers(form, shown) };
   const cid = String(form.get("customer_id") ?? "").replace(/\D/g, "") || null;
   const filled = Object.keys(answers).length > 0;
   await updateClient(id, {

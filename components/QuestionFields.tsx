@@ -1,10 +1,11 @@
-import { QUESTIONNAIRE, publicSections, type QSection } from "@/lib/clients/questions";
+import { ficheSections, publicSections, parcoursOf, type QSection } from "@/lib/clients/questions";
 
 const field = { padding: "10px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface-2)", color: "var(--text)", width: "100%", font: "inherit" } as const;
 
 /** mode "fiche" : toutes les questions, notes internes comprises. mode "public" / "court" : ce que voit le client. */
 export default function QuestionFields({ answers, mode = "fiche" }: { answers: Record<string, string>; mode?: "fiche" | "public" | "court" }) {
-  const sections: QSection[] = mode === "fiche" ? QUESTIONNAIRE : publicSections(mode === "court");
+  const p = parcoursOf(answers);
+  const sections: QSection[] = mode === "fiche" ? ficheSections(p) : publicSections(mode === "court", p);
   return (
     <div style={{ display: "grid", gap: 16 }}>
       {sections.map((s) => (

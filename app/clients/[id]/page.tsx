@@ -14,6 +14,7 @@ import { getProposal } from "@/lib/clients/proposal";
 import { getOAuthMeta } from "@/lib/oauth-store";
 import CopyTextButton from "@/components/CopyTextButton";
 import { STAGES, stageOf, nextAction } from "@/lib/clients/stages";
+import { parcoursOf, ALL_QUESTIONS } from "@/lib/clients/questions";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -54,6 +55,9 @@ export default async function ClientPage({ params, searchParams }: { params: P; 
   const next = nextAction(c, !!prop);
   const acc = c.customer_id ? `?account=${c.customer_id}` : "";
 
+  const accesAll = ALL_QUESTIONS.find((q) => q.key === "acces_obtenus")?.choices ?? [];
+  const accesOk = (c.answers?.acces_obtenus ?? "").split(",").map((x) => x.trim()).filter((x) => accesAll.includes(x));
+
   return (
     <Shell active="clients" token={ctx.mcpToken} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}
       headerRight={<Link className="btn-ghost" href="/clients">Tous les clients</Link>}>
@@ -88,8 +92,19 @@ export default async function ClientPage({ params, searchParams }: { params: P; 
         <span className="subtitle" style={{ margin: 0 }}>Meta Ads : bientôt</span>
       </div>
 
+      {(() => {
+        const dr = c.answers?.data_room ?? "";
+        return (
+          <div className="card" style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center", fontSize: 13, marginBottom: 16 }}>
+            <span><strong>Parcours :</strong> {parcoursOf(c.answers)}</span>
+            <span><strong>Data room :</strong> {/^https:\/\//i.test(dr) ? <a href={dr} target="_blank" rel="noopener noreferrer">ouvrir le dossier</a> : <a href="#q_data_room">à créer (colle le lien Drive)</a>}</span>
+            <span><strong>Accès :</strong> {accesOk.length}/{accesAll.length} obtenus{accesOk.length < accesAll.length ? ` · manque ${accesAll.filter((x) => !accesOk.includes(x)).join(", ")}` : ""}</span>
+          </div>
+        );
+      })()}
+
       <details className="card" style={{ marginBottom: 16 }}>
-        <summary style={{ cursor: "pointer", fontWeight: 700 }}>Demander les accès au client (Google Ads, Tag Manager, Analytics, Meta)</summary>
+        <summary style={{ cursor: "pointer", fontWeight: 700 }}>Demander les accès au client (Google Ads, Tag Manager, Analytics, Meta) · {accesOk.length}/{accesAll.length} obtenus</summary>
         <p className="subtitle" style={{ fontSize: 13 }}>
           Message prêt à envoyer. Les accès Tag Manager, Analytics et Search Console se donnent à l&apos;adresse Google connectée dans Connexions
           {gscEmail ? ` (${gscEmail})` : " (aucune pour l'instant : connecte Search Console dans Connexions pour l'afficher ici)"}.
@@ -106,7 +121,7 @@ export default async function ClientPage({ params, searchParams }: { params: P; 
         <summary style={{ cursor: "pointer", fontWeight: 700 }}>Questionnaire de découverte · {LABEL[c.status]}{c.submitted_at ? ` · ${new Date(c.submitted_at).toLocaleDateString("fr-FR")}` : ""}</summary>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "12px 0" }}>
           <CopyLinkButton path={`/q/${c.share_token}`} label="Copier le lien complet" />
-          <CopyLinkButton path={`/q/${c.share_token}?v=court`} label="Copier le lien court (12 questions)" />
+          <CopyLinkButton path={`/q/${c.share_token}?v=court`} label="Copier le lien court" />
           <Link className="btn-ghost" href={`/q/${c.share_token}?apercu=1`} target="_blank">Voir ce que voit le client</Link>
           {c.status === "a_envoyer" && (
             <form action={markSentAction}><input type="hidden" name="id" value={c.id} /><button className="btn-ghost" type="submit">Marquer comme envoyé</button></form>

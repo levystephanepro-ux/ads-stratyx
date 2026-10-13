@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import QuestionFields from "@/components/QuestionFields";
 import { getClientByToken } from "@/lib/clients/store";
+import { dataRoomChecklist, parcoursOf } from "@/lib/clients/questions";
 import { submitQuestionnaireAction, submitDraftAction, submitDoneAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -45,6 +46,16 @@ export default async function PublicQuestionnaire({ params, searchParams }: { pa
         ni vendues ni partagées, et toutes les questions sont facultatives.{" "}
         <a href="/confidentialite" target="_blank">Politique de confidentialité</a>
       </p>
+      {/^https:\/\//i.test(c.answers?.data_room ?? "") && (
+        <div className="card" style={{ margin: "0 0 12px", display: "grid", gap: 8 }}>
+          <strong>Déposez vos documents</strong>
+          <span className="subtitle" style={{ margin: 0, fontSize: 13 }}>Un dossier partagé a été créé pour vous. Déposez-y ce que vous avez, même incomplet : cela nous fait gagner du temps pour préparer vos campagnes.</span>
+          <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.6 }}>
+            {dataRoomChecklist(parcoursOf(c.answers)).map((x) => <li key={x}>{x}</li>)}
+          </ul>
+          <div><a className="btn" href={c.answers.data_room} target="_blank" rel="noopener noreferrer">Ouvrir le dossier partagé</a></div>
+        </div>
+      )}
       {sp.apercu === "1" && (
         <div className="card" style={{ borderColor: "var(--accent)", margin: "0 0 12px" }}>
           Aperçu de ce que voit le client. <a href={`/clients/${c.id}`}>Retour à la fiche</a> · <a href="/dashboard">Tableau de bord</a>

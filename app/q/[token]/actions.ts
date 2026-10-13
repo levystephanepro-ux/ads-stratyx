@@ -1,7 +1,7 @@
 "use server";
 import { redirect } from "next/navigation";
 import { getClientByToken, updateClient, formAnswers, syncContext, getClient } from "@/lib/clients/store";
-import { publicKeys } from "@/lib/clients/questions";
+import { publicKeys, parcoursOf } from "@/lib/clients/questions";
 import { sendAgentEmail } from "@/lib/agent/email";
 
 const NOTIFY_EMAIL = "contact@stratyxmedia.fr";
@@ -20,7 +20,7 @@ async function submit(form: FormData, draft: boolean) {
   const done = `${back}${short ? "&" : "?"}${draft ? "ok=draft" : "ok=1"}`;
   if (String(form.get("website_hp") ?? "")) redirect(done); // champ piège anti-robot
   // Le client ne modifie que les questions qu'il voit : le reste (dont les notes internes) est conservé.
-  const keys = publicKeys(short);
+  const keys = publicKeys(short, parcoursOf(c.answers));
   const mine = formAnswers(form, keys);
   if (Object.keys(mine).length === 0) redirect(back);
   const kept = Object.fromEntries(Object.entries(c.answers ?? {}).filter(([k]) => !keys.has(k)));
