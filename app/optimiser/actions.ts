@@ -55,3 +55,37 @@ export async function addNegativesAction(form: FormData): Promise<void> {
   const sep = back.includes("?") ? "&" : "?";
   redirect(`${back.startsWith("/") ? back : "/optimiser/termes"}${sep}msg=${encodeURIComponent(msg.slice(0, 400))}`);
 }
+
+/** Budget Optimizer : cible du mois (compte) et budgets du mois par campagne. */
+export async function saveBudgetTargetsAction(form: FormData): Promise<void> {
+  const ctx = await getDashboardContext();
+  if (!ctx.isOwner) throw new Error("Accès réservé.");
+  const { setSetting } = await import("@/lib/agent/store");
+  const { budgetKey } = await import("@/lib/optimize/budget");
+  const customerId = String(form.get("customer_id") ?? "");
+  const month = String(form.get("month") ?? "");
+  const back = String(form.get("back") ?? "/optimiser/budget");
+  const parse = (v: FormDataEntryValue | null) => {
+    const n = Number(String(v ?? "").replace(/\s/g, "").replace(",", "."));
+    return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : null;
+  };
+  let msg: string;
+  try {
+    if (!/^\d+$/.test(customerId) || !/^\d{4}-\d{2}$/.test(month)) throw new Error("Compte ou mois manquant.");
+    const targets: Record<string, number> = {};
+    const total = parse(form.get("total"));
+    if (total !== null && String(form.get("total") ?? "").trim() !== "") targets.total = total;
+    for (const [k, v] of form.entries()) {
+      if (!k.startsWith("c_") || String(v).trim() === "") continue;
+      const n = parse(v);
+      if (n !== null && /^\d+$/.test(k.slice(2))) targets[k.slice(2)] = n;
+    }
+    await setSetting(budgetKey(customerId, month), JSON.stringify(targets));
+    msg = "ok:Budgets du mois enregistrés : la prévision est recalculée.";
+  } catch (e) {
+    msg = `err:${e instanceof Error ? e.message : String(e)}`;
+  }
+  revalidatePath("/optimiser/budget");
+  const sep = back.includes("?") ? "&" : "?";
+  redirect(`${back.startsWith("/") ? back : "/optimiser/budget"}${sep}msg=${encodeURIComponent(msg)}`);
+}
