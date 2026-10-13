@@ -32,20 +32,28 @@ const TOP: Item[] = [
   { label: "Clients", href: "/clients", ic: "clients" },
 ];
 const SECTIONS: Section[] = [
-  { id: "pilotage", label: "Pilotage", ic: "waste", items: [
+  { id: "optimiser", label: "Optimiser", ic: "waste", items: [
     { label: "Diagnostic", href: "/waste" },
     { label: "Journal des corrections", href: "/waste/journal", hidden: true }, // lien depuis le Diagnostic
-    { label: "Alertes du matin", href: "/alertes" },
-    { label: "Scripts", href: "/scripts" },
+    { label: "Mots-clés", href: "/optimiser/mots-cles" },
+    { label: "Termes de recherche", href: "/optimiser/termes" },
+    { label: "Budget Optimizer", href: "/optimiser/budget" },
   ] },
-  { id: "creation", label: "Création", ic: "previsions", items: [
+  { id: "analyser", label: "Analyser", ic: "chart", items: [
+    { label: "Carte des causes", href: "/analyser/carte" },
+    { label: "CPC vs marché", href: "/analyser/cpc" },
+    { label: "Audit", href: "/analyser/audit" },
+    { label: "Alertes du matin", href: "/alertes" },
+  ] },
+  { id: "creation", label: "Créer", ic: "previsions", items: [
     { label: "Prévisions et campagnes", href: "/previsions" },
     { label: "Persona", href: "/persona", hidden: true }, // lien depuis l'Audit prospect
     { label: "Audit prospect", href: "/audit/prospect" },
+    { label: "Scripts", href: "/scripts" },
   ] },
   { id: "rapports", label: "Rapports", ic: "rapports", items: [
     { label: "Rapports clients", href: "/rapports" },
-    { label: "Compte rendu mensuel", href: "/rapports/compte-rendu", hidden: true }, // liens depuis Rapports
+    { label: "Compte rendu mensuel", href: "/rapports/compte-rendu" },
     { label: "Impact des changements", href: "/rapports/impact", hidden: true },
   ] },
 ];
