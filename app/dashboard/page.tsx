@@ -8,7 +8,9 @@ import { getDashboardContext } from "@/lib/workspace";
 import { requireSub } from "@/lib/subscription";
 import Shell from "@/components/Shell";
 import UsageWidget from "@/components/UsageWidget";
-import { Icons } from "@/components/Icons";
+import { PageHeader, Panel } from "@/components/ui";
+import { WatchBanner } from "@/components/opt/OptPage";
+import { latestAuditReports } from "@/lib/audit/run";
 import { getDefaultAccountInfo, getAccountsInfo } from "@/lib/google-ads/default-account";
 import { isLive } from "@/lib/google-ads/config";
 import { buildDashboard, type Dashboard as DashData } from "@/lib/dashboard";
@@ -55,121 +57,68 @@ export default async function Dashboard({ searchParams }: { searchParams: SP }) 
     } catch { /* table clients absente : on n'affiche rien */ }
   }
 
-  const headerRight = (
-    <span className={`pill ${ctx.mode === "live" ? "ok" : "warn"}`}>
-      {ctx.mode === "live" ? "● Live" : "Mode démo"}
-    </span>
-  );
+  // Comptes surveillés : constats du dernier diagnostic, du plus urgent au plus calme.
+  let reports: Awaited<ReturnType<typeof latestAuditReports>> = [];
+  if (ctx.isOwner) { try { reports = await latestAuditReports(); } catch { /* pas de diagnostic */ } }
 
   return (
-    <Shell active="home" token={ctx.mcpToken} headerRight={headerRight} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}>
-      {todo.length > 0 && (
-        <div className="card" style={{ marginBottom: 18 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
-            <strong>À faire sur tes clients</strong>
-            <Link href="/clients" style={{ fontSize: 13 }}>Pipeline complet</Link>
-          </div>
-          <div style={{ display: "grid", gap: 6, marginTop: 10 }}>
-            {todo.map((t) => (
-              <div key={t.id} style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: "8px 10px", borderRadius: 8, background: "var(--surface-2)" }}>
-                <Link href={`/clients/${t.id}`} style={{ fontWeight: 600, color: "inherit", minWidth: 140 }}>{t.name}</Link>
-                <span className="pill" style={{ fontSize: 11 }}>{t.stage}</span>
-                <Link href={t.href} style={{ flex: 1, fontSize: 13 }}>→ {t.text}</Link>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {/* Hero de bienvenue */}
-      <div className="hero" style={{ marginBottom: 18 }}>
-        <div style={{ position: "relative", zIndex: 1 }}>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14, alignItems: "center" }}>
-            <div className="pill ok">
-              {ctx.mode === "live" ? "● Connecté · données réelles" : "Mode démo"}
+    <Shell active="home" token={ctx.mcpToken} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}>
+      {ctx.isOwner && <WatchBanner customerId={accountInfo?.customerId} />}
+      <PageHeader
+        title="Aujourd'hui"
+        lede={<>{ctx.mode === "live" ? "Données réelles" : "Mode démo"}{accountInfo ? <> · <strong>{accountInfo.name}</strong></> : null}. Tes comptes relus chaque matin, du plus urgent au plus calme.</>}
+        actions={<>
+          <Link className="ui-btn ui-btn-ghost" href={`/copilote${q}&q=${encodeURIComponent(AUDIT_PROMPT)}&auto=1`}>✦ Analyser avec l&apos;IA</Link>
+          <Link className="ui-btn ui-btn-ghost" href="/waste">Diagnostic</Link>
+          {ctx.isOwner && <Link className="ui-btn ui-btn-primary" href="/comptes">+ Lier des comptes</Link>}
+        </>}
+      />
+
+      {ctx.isOwner && (
+        <Panel title={<span className="op-h2">Comptes, du plus urgent au plus calme</span>} flush>
+          {reports.length === 0 ? (
+            <p className="dg-empty">Aucun diagnostic pour l&apos;instant : <Link href="/waste">lance le premier</Link>.</p>
+          ) : (
+            <div className="op-table-wrap" style={{ border: 0, boxShadow: "none", margin: 0, borderRadius: 0 }}>
+              <table className="op-table">
+                <thead><tr><th>Compte</th><th className="num">Santé</th><th className="num">Prioritaires</th><th className="num">À traiter</th><th className="num">Faible priorité</th><th className="num">À récupérer</th><th className="num">Dépense 30 j</th><th /></tr></thead>
+                <tbody>
+                  {reports.map((r) => {
+                    const n = (sev: string) => r.constats.filter((c) => c.severity === sev).length;
+                    return (
+                      <tr key={r.customer_id}>
+                        <td><Link href={`/waste?account=${r.customer_id}`} className="op-kw-text" style={{ color: "var(--text)" }}>{r.account_name ?? r.customer_id}</Link><div className="op-kw-sub">{r.customer_id.replace(/(\d{3})(\d{3})(\d{4})/, "$1-$2-$3")}</div></td>
+                        <td className="num"><strong className={r.health_score >= 80 ? "op-good" : r.health_score >= 60 ? "" : "op-bad"}>{r.health_score}</strong></td>
+                        <td className="num">{n("critique") ? <strong className="op-bad">{n("critique")}</strong> : 0}</td>
+                        <td className="num">{n("important") ? <strong style={{ color: "#d97706" }}>{n("important")}</strong> : 0}</td>
+                        <td className="num">{n("mineur")}</td>
+                        <td className="num">{Number(r.waste_proven) > 0 ? <span className="op-bad">{Math.round(Number(r.waste_proven)).toLocaleString("fr-FR")} €</span> : "–"}</td>
+                        <td className="num">{Number(r.total_cost).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                        <td><Link className="op-link" href={`/waste?account=${r.customer_id}`}>Ouvrir →</Link></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-            {accountInfo && (
-              <div className="pill" style={{ fontSize: 13 }}>
-                <span style={{ width: 14, height: 14, display: "inline-flex", verticalAlign: "-2px", marginRight: 4 }}>{Icons.building}</span>{accountInfo.name}
-              </div>
-            )}
-          </div>
-          <h1 style={{ fontSize: 32, margin: "0 0 8px", letterSpacing: "-0.02em" }}>
-            Ravi de te revoir.
-          </h1>
-          <p className="subtitle" style={{ margin: "0 0 20px", fontSize: 15, maxWidth: 560 }}>
-            Tes comptes relus chaque matin : le diagnostic dit par où commencer,
-            les scripts donnent les chiffres, le copilote répond à tes questions.
-          </p>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <Link className="btn" href={`/copilote${q}&q=${encodeURIComponent(AUDIT_PROMPT)}`}>
-              Lancer un audit avec Stratyx →
-            </Link>
-            <Link className="btn btn-ghost" href="/waste">
-              Ouvrir le diagnostic
-            </Link>
-          </div>
-        </div>
-      </div>
+          )}
+        </Panel>
+      )}
+
+      {todo.length > 0 && (
+        <Panel title={<span className="op-h2">À faire sur tes clients</span>} right={<Link href="/clients" className="op-link">Pipeline complet →</Link>} flush>
+          {todo.map((t) => (
+            <div key={t.id} className="op-hist" style={{ gridTemplateColumns: "minmax(140px, 1fr) auto 2fr" }}>
+              <Link href={`/clients/${t.id}`} style={{ fontWeight: 600, color: "inherit" }}>{t.name}</Link>
+              <span className="op-tag">{t.stage}</span>
+              <Link href={t.href} className="op-link" style={{ whiteSpace: "normal" }}>→ {t.text}</Link>
+            </div>
+          ))}
+        </Panel>
+      )}
 
       {perf && <DashboardPerf d={perf.d} account={perf.account} accounts={perf.accounts} period={period} />}
       {perfError && <div className="card" style={{ marginBottom: 18, borderColor: "var(--red)", fontSize: 13 }}>Tableau de bord indisponible : {perfError.slice(0, 200)}</div>}
-
-      {/* Accès rapides */}
-      <div className="tpl-grid" style={{ marginBottom: 26 }}>
-        <Link
-          href={`/copilote${q}`}
-          className="card interactive tpl-card"
-          style={{
-            color: "inherit",
-            background:
-              "linear-gradient(150deg, color-mix(in srgb, var(--accent) 20%, var(--surface)), var(--surface))",
-          }}
-        >
-          <div className="tpl-head">
-            <div className="tpl-ic">{Icons.copilote}</div>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 16 }}>Copilote</div>
-              <div className="subtitle" style={{ fontSize: 13 }}>
-                Une question, une réponse lue dans tes données.
-              </div>
-            </div>
-          </div>
-        </Link>
-        <Link
-          href="/waste"
-          className="card interactive tpl-card"
-          style={{
-            color: "inherit",
-            background:
-              "linear-gradient(150deg, color-mix(in srgb, var(--green) 16%, var(--surface)), var(--surface))",
-          }}
-        >
-          <div className="tpl-head">
-            <div className="tpl-ic">{Icons.waste}</div>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 16 }}>Diagnostic</div>
-              <div className="subtitle" style={{ fontSize: 13 }}>
-                Santé /100 et par où commencer, chaque matin.
-              </div>
-            </div>
-          </div>
-        </Link>
-        <Link
-          href="/scripts"
-          className="card interactive tpl-card"
-          style={{ color: "inherit" }}
-        >
-          <div className="tpl-head">
-            <div className="tpl-ic">{Icons.scripts}</div>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 16 }}>Scripts</div>
-              <div className="subtitle" style={{ fontSize: 13 }}>
-                98 rapports chiffrés, sans crédit IA.
-              </div>
-            </div>
-          </div>
-        </Link>
-      </div>
 
       {/* Usage API */}
       <UsageWidget />
