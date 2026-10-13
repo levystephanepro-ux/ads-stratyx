@@ -1217,7 +1217,9 @@ label.op-crit-row { cursor: pointer; }
   .op-head { align-items: flex-start; }
   .op-stats4, .op-stats3 { grid-template-columns: 1fr 1fr; }
   .op-grid2 { grid-template-columns: 1fr; }
-  .op-search { min-width: 0; flex: 1; }
+  .op-search { min-width: 0; flex: 1 1 100%; }
+  .op-filters { gap: 6px; }
+  .op-select { height: 38px; font-size: 14px; }
   .op-select select { max-width: 190px; }
   .op-table { font-size: 13.5px; }
   .op-histo { gap: 4px; }
