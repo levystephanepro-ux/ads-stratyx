@@ -197,3 +197,17 @@ export function alertsMarkdown(run: AlertsRun): string {
   }
   return lines.join("\n");
 }
+
+// --- Suivi des envois d'email d'alertes ---
+// Les erreurs d'envoi étaient avalées (réponse du cron que personne ne lit) :
+// on garde le dernier résultat pour l'afficher sur la page Alertes.
+export interface EmailStatus { at: string; ok: boolean; detail: string; source: "matin" | "manuel" }
+
+export async function saveEmailStatus(s: EmailStatus): Promise<void> {
+  await setSetting("alerts_email_last", JSON.stringify(s)).catch(() => undefined);
+}
+
+export async function lastEmailStatus(): Promise<EmailStatus | null> {
+  const raw = await getSetting("alerts_email_last");
+  try { return raw ? (JSON.parse(raw) as EmailStatus) : null; } catch { return null; }
+}

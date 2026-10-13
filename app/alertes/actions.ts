@@ -3,7 +3,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getDashboardContext } from "@/lib/workspace";
 import { getAlertsConfig, saveAlertsConfig, TEMPLATES, METRICS, type CustomRule, type Metric } from "@/lib/alerts/config";
-import { runAlertsForOwner } from "@/lib/alerts/run";
+import { runAlertsForOwner, alertsMarkdown, saveEmailStatus } from "@/lib/alerts/run";
+import { sendAgentEmail } from "@/lib/agent/email";
 
 async function owner() {
   const ctx = await getDashboardContext();
@@ -60,7 +61,19 @@ export async function runAlertsNowAction(): Promise<void> {
   try {
     const run = await runAlertsForOwner();
     const n = run.accounts.reduce((s, a) => s + a.alerts.length, 0);
-    msg = run.accounts.length === 0 ? "err:Aucun compte surveillé (mode démo ou Comptes liés)." : n ? `err:${n} alerte(s) déclenchée(s), détail ci-dessous.` : "ok:Vérifié : aucune alerte.";
+    let mail = "";
+    if (n) {
+      try {
+        await sendAgentEmail(`🚨 ${n} alerte(s) · vérification manuelle`, alertsMarkdown(run));
+        mail = ` Email envoyé à ${process.env.AGENT_EMAIL_TO ?? "?"}.`;
+        await saveEmailStatus({ at: new Date().toISOString(), ok: true, detail: `envoyé à ${process.env.AGENT_EMAIL_TO ?? "?"}`, source: "manuel" });
+      } catch (e) {
+        const d = e instanceof Error ? e.message : String(e);
+        mail = ` Email NON envoyé : ${d}`;
+        await saveEmailStatus({ at: new Date().toISOString(), ok: false, detail: d, source: "manuel" });
+      }
+    }
+    msg = run.accounts.length === 0 ? "err:Aucun compte surveillé (mode démo ou Comptes liés)." : n ? `err:${n} alerte(s) déclenchée(s), détail ci-dessous.${mail}` : "ok:Vérifié : aucune alerte.";
   } catch (e) { msg = `err:${e instanceof Error ? e.message : String(e)}`; }
   revalidatePath("/alertes");
   redirect(`/alertes?msg=${encodeURIComponent(msg)}`);

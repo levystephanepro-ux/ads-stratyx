@@ -3,7 +3,7 @@
 import { NextResponse } from "next/server";
 import { runAuditForOwner } from "@/lib/audit/run";
 import { sendAgentEmail } from "@/lib/agent/email";
-import { runAlertsForOwner, alertsMarkdown, type AlertsRun } from "@/lib/alerts/run";
+import { runAlertsForOwner, alertsMarkdown, saveEmailStatus, type AlertsRun } from "@/lib/alerts/run";
 import { healthChecks, saveHealthSummary } from "@/lib/health";
 
 export const dynamic = "force-dynamic";
@@ -29,8 +29,10 @@ export async function GET(req: Request) {
     try {
       await sendAgentEmail(subject, [alertsMarkdown(alerts), r.markdown].filter(Boolean).join("\n\n"));
       email = "envoyé";
+      await saveEmailStatus({ at: new Date().toISOString(), ok: true, detail: `envoyé à ${process.env.AGENT_EMAIL_TO ?? "?"}`, source: "matin" });
     } catch (e) {
       email = `non envoyé : ${e instanceof Error ? e.message : String(e)}`;
+      await saveEmailStatus({ at: new Date().toISOString(), ok: false, detail: email, source: "matin" });
     }
   }
 

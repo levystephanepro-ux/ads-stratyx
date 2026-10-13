@@ -5,7 +5,7 @@ import Shell from "@/components/Shell";
 import SubmitButton from "@/components/SubmitButton";
 import { getDashboardContext } from "@/lib/workspace";
 import { getAlertsConfig, templateOn, TEMPLATES, METRICS, type Metric } from "@/lib/alerts/config";
-import { lastAlertsRun } from "@/lib/alerts/run";
+import { lastAlertsRun, lastEmailStatus } from "@/lib/alerts/run";
 import { ownerAccounts } from "@/lib/audit/run";
 import { saveTemplatesAction, addRuleAction, deleteRuleAction, runAlertsNowAction } from "./actions";
 
@@ -19,7 +19,7 @@ export default async function AlertesPage({ searchParams }: { searchParams: SP }
   const ctx = await getDashboardContext();
   if (!ctx.isOwner) redirect("/dashboard");
   const sp = await searchParams;
-  const [cfg, last, accounts] = await Promise.all([getAlertsConfig(), lastAlertsRun().catch(() => null), ownerAccounts().catch(() => [])]);
+  const [cfg, last, accounts, mail] = await Promise.all([getAlertsConfig(), lastAlertsRun().catch(() => null), ownerAccounts().catch(() => []), lastEmailStatus().catch(() => null)]);
   const msg = sp.msg ? { ok: sp.msg.startsWith("ok:"), text: sp.msg.replace(/^(ok|err):/, "") } : null;
   const sel = { padding: "8px 10px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface-2)", color: "var(--text)", fontSize: 14 } as const;
 
@@ -33,7 +33,7 @@ export default async function AlertesPage({ searchParams }: { searchParams: SP }
     <Shell active="alertes" token={ctx.mcpToken} headerRight={headerRight} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}>
       <h1 style={{ margin: "0 0 4px" }}>Alertes</h1>
       <p className="subtitle" style={{ marginTop: 0 }}>
-        Vérifiées chaque matin sur les comptes surveillés, en même temps que le diagnostic. Si une alerte se déclenche, elle arrive en tête de l&apos;email. Sans IA, aucun crédit.
+        Vérifiées chaque matin sur les comptes surveillés, en même temps que le diagnostic. Si une alerte se déclenche, elle arrive en tête de l&apos;email (aussi lors d&apos;une vérification manuelle). Sans IA, aucun crédit.
       </p>
       {msg && <div className="card" style={{ borderColor: msg.ok ? "var(--green)" : "#f59e0b", margin: "10px 0" }}>{msg.text}</div>}
 
@@ -43,6 +43,11 @@ export default async function AlertesPage({ searchParams }: { searchParams: SP }
             <strong>Dernière vérification</strong>
             <span className="subtitle" style={{ margin: 0, fontSize: 12 }}>{new Date(last.ranAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Paris" })}</span>
           </div>
+          {mail && (
+            <p className="subtitle" style={{ margin: "6px 0 0", fontSize: 12, color: mail.ok ? undefined : "var(--red)", wordBreak: "break-word" }}>
+              Dernier email ({mail.source === "matin" ? "envoi du matin" : "vérification manuelle"}, {new Date(mail.at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Paris" })}) : {mail.ok ? "✓ " : "✗ "}{mail.detail}
+            </p>
+          )}
           {last.accounts.length === 0 && <p className="subtitle" style={{ margin: "6px 0 0" }}>Aucun compte vérifié.</p>}
           {last.accounts.map((a) => (
             <div key={a.customerId} style={{ marginTop: 10 }}>
