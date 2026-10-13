@@ -123,11 +123,15 @@ export async function runAgentLoop(
     messages.push({ role: "assistant", content: res.content });
 
     if (res.stop_reason !== "tool_use") {
-      const finalText = res.content
+      let finalText = res.content
         .filter((b): b is Anthropic.TextBlock => b.type === "text")
         .map((b) => b.text)
         .join("\n")
         .trim();
+      // Réponse coupée par la limite de longueur : on le dit au lieu de laisser une phrase en suspens.
+      if (res.stop_reason === "max_tokens") {
+        finalText += "\n\n_(Réponse coupée car trop longue : demande la suite, ou une partie précise du bilan.)_";
+      }
       return {
         finalText: finalText || "(aucun texte renvoyé)",
         messages,

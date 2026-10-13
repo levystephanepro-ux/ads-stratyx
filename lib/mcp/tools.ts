@@ -15,6 +15,7 @@ import {
   type AdsContext,
 } from "@/lib/google-ads/client";
 import { isLive } from "@/lib/google-ads/config";
+import { auditGridText, AUDIT_GRID, type AccountTag } from "@/lib/audit/criteria";
 import type { WorkspaceContext } from "./auth";
 
 export interface McpTool {
@@ -126,7 +127,9 @@ export const MCP_TOOLS: McpTool[] = [
   {
     name: "list_keywords",
     description:
-      "Liste les mots-clés ACTIFS (texte, correspondance, groupe, Quality Score, coût et conversions sur la période) " +
+      "Liste les mots-clés ACTIFS (texte, correspondance, groupe, Quality Score et ses 3 composantes — CTR attendu, " +
+      "pertinence de l'annonce, expérience page —, coût, clics, conversions, CPC moyen comparé à l'estimation Google " +
+      "pour le haut de page) " +
       "ET tous les mots-clés négatifs (campagne, groupe, listes partagées). À appeler AVANT de proposer un négatif, " +
       "pour vérifier qu'il ne bloque aucun mot-clé actif.",
     inputSchema: {
@@ -135,6 +138,52 @@ export const MCP_TOOLS: McpTool[] = [
         customer_id: { type: "string", description: "ID du compte (facultatif)." },
         since: { type: "string", description: "Date de début ISO YYYY-MM-DD." },
         until: { type: "string", description: "Date de fin ISO YYYY-MM-DD." },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "get_campaign_diagnostics",
+    description:
+      "Diagnostic des campagnes sur la période : part d'impressions Search, part PERDUE faute de budget et part " +
+      "perdue au CLASSEMENT (qualité/enchère), haut de page et 1re position, budget/jour, dépense réelle par jour, " +
+      "stratégie d'enchères, CPA cible, réseaux (partenaires, Display) et ciblage géographique (présence ou intérêt). " +
+      "À appeler AVANT de recommander une hausse de budget : si la part perdue au classement dépasse la part perdue " +
+      "au budget, le frein est la qualité ou l'enchère, pas le budget.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        customer_id: { type: "string", description: "ID du compte (facultatif)." },
+        since: { type: "string", description: "Début ISO YYYY-MM-DD (défaut -30j)." },
+        until: { type: "string", description: "Fin ISO YYYY-MM-DD (défaut hier)." },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "get_assets_status",
+    description:
+      "Extensions et composants (appel, liens annexes, accroches, extraits structurés, nom et logo d'entreprise…) " +
+      "rattachés aux campagnes actives et au compte, avec leur statut de validation Google (refusé, limité, approuvé) " +
+      "et le motif. Signale aussi les types manquants. Une extension d'appel refusée coupe les appels : à vérifier dans tout bilan.",
+    inputSchema: {
+      type: "object",
+      properties: { customer_id: { type: "string", description: "ID du compte (facultatif)." } },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "get_audit_grid",
+    description:
+      "Grille d'audit Google Ads de référence (139 critères de media buyers pro) : pour chaque critère, la règle, " +
+      "les seuils (parfait / incorrect / à vérifier), la sévérité et le type de compte concerné (e-commerce, leads, local). " +
+      "À appeler AU DÉBUT de tout bilan, audit ou plan d'optimisation, puis juger le compte critère par critère " +
+      "avec les seuils de la grille. Filtrable par catégorie : " + AUDIT_GRID.map((c) => c.key).join(", ") + ".",
+    inputSchema: {
+      type: "object",
+      properties: {
+        categories: { type: "array", items: { type: "string" }, description: "Clés de catégories (facultatif, défaut : toutes)." },
+        account_type: { type: "string", enum: ["ecommerce", "leads", "local"], description: "Type de compte, pour ne garder que les critères utiles (facultatif)." },
       },
       additionalProperties: false,
     },
@@ -257,6 +306,12 @@ export async function callTool(
         args.since as string | undefined,
         args.until as string | undefined,
       );
+    case "get_campaign_diagnostics":
+      return diagnosticsTool(ws, args.customer_id as string | undefined, args.since as string | undefined, args.until as string | undefined);
+    case "get_assets_status":
+      return assetsTool(ws, args.customer_id as string | undefined);
+    case "get_audit_grid":
+      return { text: auditGridText(args.categories as string[] | undefined, args.account_type as AccountTag | undefined) };
     case "set_campaign_status":
       return setStatusTool(ws, args);
     case "update_campaign_budget":
@@ -551,10 +606,13 @@ async function keywordsTool(ws: WorkspaceContext, customerId?: string, since?: s
   const ctx = resolveContext(ws, customerId);
   const range = { since: since ?? daysAgo(30), until: until ?? daysAgo(1) };
   const MT: Record<string, string> = { EXACT: "exact", PHRASE: "expression", BROAD: "large" };
+  const QL: Record<string, string> = { BELOW_AVERAGE: "faible", AVERAGE: "moyen", ABOVE_AVERAGE: "bon" };
   const fmt = (t: string, m: string) => (m === "EXACT" ? `[${t}]` : m === "PHRASE" ? `"${t}"` : t);
   const [kws, perf, campNeg, agNeg, links, shared] = await Promise.all([
     searchRaw(ctx, `SELECT campaign.name, ad_group.id, ad_group.name, ad_group_criterion.criterion_id, ad_group_criterion.keyword.text,
-        ad_group_criterion.keyword.match_type, ad_group_criterion.quality_info.quality_score
+        ad_group_criterion.keyword.match_type, ad_group_criterion.quality_info.quality_score,
+        ad_group_criterion.quality_info.creative_quality_score, ad_group_criterion.quality_info.post_click_quality_score,
+        ad_group_criterion.quality_info.search_predicted_ctr, ad_group_criterion.position_estimates.top_of_page_cpc_micros
       FROM ad_group_criterion WHERE campaign.status = 'ENABLED' AND ad_group.status = 'ENABLED' AND ad_group_criterion.status = 'ENABLED'
         AND ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.negative = FALSE`),
     searchRaw(ctx, `SELECT ad_group.id, ad_group_criterion.criterion_id, metrics.cost_micros, metrics.clicks, metrics.conversions
@@ -577,7 +635,11 @@ async function keywordsTool(ws: WorkspaceContext, customerId?: string, since?: s
   });
   const kwRows = kws.map((r) => {
     const x = p.get(`${r.adGroup?.id}|${r.adGroupCriterion?.criterionId}`) ?? { cost: 0, clicks: 0, conv: 0 };
-    return `| ${fmt(r.adGroupCriterion?.keyword?.text ?? "", r.adGroupCriterion?.keyword?.matchType)} | ${MT[r.adGroupCriterion?.keyword?.matchType] ?? ""} | ${r.campaign?.name} › ${r.adGroup?.name} | ${r.adGroupCriterion?.qualityInfo?.qualityScore ?? "–"} | ${eur(x.cost)} | ${int(x.clicks)} | ${int(x.conv)} |`;
+    const qi = r.adGroupCriterion?.qualityInfo ?? {};
+    const top = Number(r.adGroupCriterion?.positionEstimates?.topOfPageCpcMicros ?? 0) / 1e6;
+    const cpc = x.clicks ? x.cost / x.clicks : 0;
+    const vsTop = cpc && top ? ` (${cpc > top * 1.2 ? "au-dessus" : cpc < top * 0.8 ? "en dessous" : "proche"})` : "";
+    return `| ${fmt(r.adGroupCriterion?.keyword?.text ?? "", r.adGroupCriterion?.keyword?.matchType)} | ${MT[r.adGroupCriterion?.keyword?.matchType] ?? ""} | ${r.campaign?.name} › ${r.adGroup?.name} | ${qi.qualityScore ?? "–"} | ${QL[qi.searchPredictedCtr] ?? "–"} / ${QL[qi.creativeQualityScore] ?? "–"} / ${QL[qi.postClickQualityScore] ?? "–"} | ${eur(x.cost)} | ${int(x.clicks)} | ${int(x.conv)} | ${cpc ? eur(cpc) : "–"} | ${top ? eur(top) + vsTop : "–"} |`;
   }).join("\n");
   const setNames = new Map<string, string[]>();
   links.forEach((l) => setNames.set(String(l.sharedSet?.id), [...(setNames.get(String(l.sharedSet?.id)) ?? []), `${l.sharedSet?.name} → ${l.campaign?.name}`]));
@@ -589,7 +651,108 @@ async function keywordsTool(ws: WorkspaceContext, customerId?: string, since?: s
   return {
     text:
       `Mots-clés actifs — compte ${ctx.customerId} · ${range.since} → ${range.until}\n\n` +
-      `| Mot-clé | Corresp. | Campagne › groupe | QS | Coût | Clics | Conv. |\n|---|---|---|---|---|---|---|\n${kwRows || "| (aucun) |"}\n\n` +
+      `QS détaillé = CTR attendu / pertinence de l'annonce / expérience sur la page. « Haut de page » = CPC estimé par Google pour apparaître en haut de page ; un CPC moyen bien au-dessus signale un Quality Score qui fait payer plus cher.\n\n` +
+      `| Mot-clé | Corresp. | Campagne › groupe | QS | QS détaillé | Coût | Clics | Conv. | CPC moyen | Haut de page (est.) |\n|---|---|---|---|---|---|---|---|---|---|\n${kwRows || "| (aucun) |"}\n\n` +
       `Mots-clés négatifs\n\n| Négatif | Posé sur |\n|---|---|\n${negRows || "| (aucun) |"}`,
   };
 }
+
+
+const pctOrDash = (v: unknown) => (v === undefined || v === null || v === "" ? "–" : `${(Number(v) * 100).toFixed(1)} %`);
+
+async function diagnosticsTool(ws: WorkspaceContext, customerId?: string, since?: string, until?: string): Promise<ToolResult> {
+  if (!isLive()) return { text: "Mode démo : diagnostic des campagnes indisponible." };
+  const ctx = resolveContext(ws, customerId);
+  const range = { since: since ?? daysAgo(30), until: until ?? daysAgo(1) };
+  const days = Math.max(1, Math.round((Date.parse(range.until) - Date.parse(range.since)) / 864e5) + 1);
+  const BID: Record<string, string> = {
+    MANUAL_CPC: "CPC manuel", MAXIMIZE_CLICKS: "Maximiser les clics", TARGET_SPEND: "Maximiser les clics",
+    MAXIMIZE_CONVERSIONS: "Maximiser les conversions", TARGET_CPA: "CPA cible", MAXIMIZE_CONVERSION_VALUE: "Maximiser la valeur",
+    TARGET_ROAS: "ROAS cible", TARGET_IMPRESSION_SHARE: "Part d'impressions cible",
+  };
+  const GEO: Record<string, string> = { PRESENCE: "présence", PRESENCE_OR_INTEREST: "présence OU intérêt (à corriger)" };
+  const [settings, perf] = await Promise.all([
+    searchRaw(ctx, `SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, campaign.bidding_strategy_type,
+        campaign.target_cpa.target_cpa_micros, campaign.maximize_conversions.target_cpa_micros, campaign_budget.amount_micros,
+        campaign.network_settings.target_search_network, campaign.network_settings.target_content_network,
+        campaign.geo_target_type_setting.positive_geo_target_type
+      FROM campaign WHERE campaign.status != 'REMOVED'`),
+    searchRaw(ctx, `SELECT campaign.id, metrics.cost_micros, metrics.clicks, metrics.conversions,
+        metrics.search_impression_share, metrics.search_budget_lost_impression_share, metrics.search_rank_lost_impression_share,
+        metrics.search_top_impression_share, metrics.search_absolute_top_impression_share
+      FROM campaign WHERE campaign.advertising_channel_type = 'SEARCH' AND segments.date BETWEEN '${range.since}' AND '${range.until}'`).catch(() => []),
+  ]);
+  const p = new Map(perf.map((r) => [String(r.campaign?.id), r]));
+  let activeBudget = 0, pausedBudget = 0, totalCost = 0;
+  const rows = settings.map((c) => {
+    const id = String(c.campaign?.id);
+    const m = p.get(id)?.metrics ?? {};
+    const budget = Number(c.campaignBudget?.amountMicros ?? 0) / 1e6;
+    const cost = Number(m.costMicros ?? 0) / 1e6;
+    totalCost += cost;
+    if (c.campaign?.status === "ENABLED") activeBudget += budget; else pausedBudget += budget;
+    const tcpa = Number(c.campaign?.targetCpa?.targetCpaMicros ?? c.campaign?.maximizeConversions?.targetCpaMicros ?? 0) / 1e6;
+    const ns = c.campaign?.networkSettings ?? {};
+    const nets = [ns.targetSearchNetwork ? "partenaires" : null, ns.targetContentNetwork ? "Display" : null].filter(Boolean).join(" + ") || "Google seul";
+    return `| ${c.campaign?.name} | ${c.campaign?.status === "ENABLED" ? "Active" : "En pause"} | ${eur(budget)} | ${eur(cost / days)} | ${BID[c.campaign?.biddingStrategyType] ?? c.campaign?.biddingStrategyType ?? "–"}${tcpa ? ` (cible ${eur(tcpa)})` : ""} | ${pctOrDash(m.searchImpressionShare)} | ${pctOrDash(m.searchBudgetLostImpressionShare)} | ${pctOrDash(m.searchRankLostImpressionShare)} | ${pctOrDash(m.searchTopImpressionShare)} | ${pctOrDash(m.searchAbsoluteTopImpressionShare)} | ${nets} | ${GEO[c.campaign?.geoTargetTypeSetting?.positiveGeoTargetType] ?? "–"} |`;
+  }).join("\n");
+  return {
+    text:
+      `Diagnostic des campagnes — compte ${ctx.customerId} · ${range.since} → ${range.until} (${days} j)\n\n` +
+      `Budget des campagnes ACTIVES : ${eur(activeBudget)}/jour · dépense réelle moyenne : ${eur(totalCost / days)}/jour. ` +
+      `Les budgets des campagnes en pause (${eur(pausedBudget)}/jour) ne sont PAS dépensés : ne les compte jamais comme budget disponible.\n\n` +
+      `| Campagne | Statut | Budget/jour | Dépense/jour | Enchères | Part impr. | Perdue budget | Perdue classement | Haut de page | 1re position | Réseaux | Zone |\n` +
+      `|---|---|---|---|---|---|---|---|---|---|---|---|\n${rows || "| (aucune) |"}\n\n` +
+      `Lecture : si « Perdue classement » > « Perdue budget », augmenter le budget ne règle rien ; il faut améliorer la qualité (Quality Score, pertinence, page) ou l'enchère.`,
+  };
+}
+
+const ASSET_LABEL: Record<string, string> = {
+  CALL: "Appel", SITELINK: "Lien annexe", CALLOUT: "Accroche", STRUCTURED_SNIPPET: "Extrait structuré",
+  BUSINESS_NAME: "Nom d'entreprise", BUSINESS_LOGO: "Logo", LOGO: "Logo", PRICE: "Prix", PROMOTION: "Promotion",
+  LEAD_FORM: "Formulaire", IMAGE: "Image", LOCATION: "Lieu",
+};
+const APPROVAL: Record<string, string> = {
+  APPROVED: "approuvé", APPROVED_LIMITED: "LIMITÉ", DISAPPROVED: "REFUSÉ", AREA_OF_INTEREST_ONLY: "limité (zone)", UNKNOWN: "–",
+};
+
+async function assetsTool(ws: WorkspaceContext, customerId?: string): Promise<ToolResult> {
+  if (!isLive()) return { text: "Mode démo : extensions indisponibles." };
+  const ctx = resolveContext(ws, customerId);
+  const FIELDS = `asset.id, asset.type, asset.call_asset.phone_number, asset.sitelink_asset.link_text, asset.callout_asset.callout_text,
+    asset.structured_snippet_asset.header, asset.text_asset.text, asset.name,
+    asset.policy_summary.approval_status, asset.policy_summary.review_status, asset.policy_summary.policy_topic_entries`;
+  const [camp, cust] = await Promise.all([
+    searchRaw(ctx, `SELECT campaign.name, campaign_asset.field_type, ${FIELDS} FROM campaign_asset
+      WHERE campaign.status = 'ENABLED' AND campaign_asset.status = 'ENABLED'`).catch(() => null),
+    searchRaw(ctx, `SELECT customer_asset.field_type, ${FIELDS} FROM customer_asset WHERE customer_asset.status = 'ENABLED'`).catch(() => null),
+  ]);
+  if (camp === null && cust === null) return { text: "Lecture des extensions impossible sur ce compte (droits ou API)." };
+  const label = (r: RawRowLike) => {
+    const a = r.asset ?? {};
+    return a.callAsset?.phoneNumber ?? a.sitelinkAsset?.linkText ?? a.calloutAsset?.calloutText ?? a.structuredSnippetAsset?.header ?? a.textAsset?.text ?? a.name ?? `#${a.id}`;
+  };
+  const topics = (r: RawRowLike) => ((r.asset?.policySummary?.policyTopicEntries ?? []) as { topic?: string }[]).map((t) => t.topic).filter(Boolean).join(", ");
+  const line = (where: string, field: string, r: RawRowLike) => {
+    const st = r.asset?.policySummary?.approvalStatus ?? "UNKNOWN";
+    return `| ${ASSET_LABEL[field] ?? field} | ${label(r)} | ${where} | ${APPROVAL[st] ?? st}${topics(r) ? ` (${topics(r)})` : ""} |`;
+  };
+  const rows = [
+    ...(camp ?? []).map((r) => line(`campagne ${r.campaign?.name}`, r.campaignAsset?.fieldType, r)),
+    ...(cust ?? []).map((r) => line("compte", r.customerAsset?.fieldType, r)),
+  ];
+  const present = new Set([...(camp ?? []).map((r) => r.campaignAsset?.fieldType), ...(cust ?? []).map((r) => r.customerAsset?.fieldType)]);
+  const missing = ["CALL", "SITELINK", "CALLOUT", "STRUCTURED_SNIPPET", "BUSINESS_NAME", "BUSINESS_LOGO"].filter((t) => !present.has(t)).map((t) => ASSET_LABEL[t]);
+  const bad = rows.filter((r) => r.includes("REFUSÉ") || r.includes("LIMITÉ")).length;
+  return {
+    text:
+      `Extensions et composants — compte ${ctx.customerId}\n\n` +
+      `${bad ? `**${bad} composant(s) refusé(s) ou limité(s).** ` : "Aucun composant refusé. "}` +
+      `${missing.length ? `Types absents : ${missing.join(", ")}.` : "Tous les types principaux sont présents."}\n\n` +
+      `| Type | Contenu | Rattaché à | Validation |\n|---|---|---|---|\n${rows.join("\n") || "| (aucun) |"}`,
+  };
+}
+
+// Lignes GAQL brutes (champs en camelCase, structure variable selon la requête).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type RawRowLike = any;
