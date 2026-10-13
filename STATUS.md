@@ -213,6 +213,16 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 
 *Template : ajouter une ligne dans "Journal de session" à chaque ouverture*
 
+## Journal : Pages façon Ades (branche `ades`, 2026-10-14)
+- Branche `ades` = `copilote-ameliorations` + `design-diagnostic` + les pages ci-dessous (une seule fusion à faire).
+- Menu : Optimiser (Diagnostic, Mots-clés, Termes de recherche, Budget Optimizer), Analyser (Carte des causes, CPC vs marché, Audit, Alertes), Créer, Rapports.
+- Gabarit commun `components/opt/OptPage.tsx` : bandeau de veille, titre + sous-titre chiffré, Comment ça marche, Analyser avec l'IA, Tout actualiser, filtres campagne / période / vs période précédente, visite guidée à la 1re ouverture.
+- Données `lib/optimize/` (GAQL lecture seule, démo en mode mock) ; intentions et n-grammes `lib/optimize/intents.ts`.
+- Termes : ajout de négatifs en un clic via le journal des corrections (annulable 30 j). Budget : cibles dans app_settings `budget_target:<compte>:<mois>`.
+- Audit : `lib/audit/scan.ts` évalue la grille (139 critères) ; historique dans app_settings `audit_scans:<compte>`, critères désactivés `audit_criteria_off`.
+- Accueil « Aujourd'hui » : comptes du plus urgent au plus calme. Bouton flottant « Un bug ? Une demande ? ».
+- À tester en live : requêtes GAQL nouvelles (mots-clés, termes 12 mois, parts d'impressions par jour, scan d'audit).
+
 ## Journal : Fiche client + questionnaire de découverte
 - Migration 0021_clients.sql (table clients : réponses, statut, share_token).
 - lib/clients/{questions,store}.ts, pages /clients, /clients/[id], lien public /q/[token] (middleware PUBLIC_PREFIXES), menu Clients.

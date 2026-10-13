@@ -201,7 +201,17 @@ const GUIDE: { title: string; steps: { t: string; d: string; href?: string }[] }
     steps: [
       { t: "Lundi matin", d: "Compte rendu de la semaine par email, tous comptes confondus." },
       { t: "Rapport client", d: "Rapports → Rapports clients : un lien public à envoyer au client, sans connexion.", href: "/rapports" },
-      { t: "Diagnostic détaillé", d: "Pilotage → Diagnostic : dépenses inutiles, termes de recherche, corrections à appliquer.", href: "/waste" },
+      { t: "Diagnostic détaillé", d: "Optimiser → Diagnostic : constats classés par priorité sur 100, montant en jeu, « Corriger » sur chaque ligne, onglet Traité.", href: "/waste" },
+    ],
+  },
+  {
+    title: "Optimiser un compte (pages façon Ades)",
+    steps: [
+      { t: "Termes de recherche", d: "Optimiser → Termes : À exclure (coche, puis exclus en un clic, annulable 30 j), Intentions, N-grammes, Bloquées.", href: "/optimiser/termes" },
+      { t: "Mots-clés", d: "Optimiser → Mots-clés : coût, QS, CPA par mot-clé ; onglets Quality Score, Correspondance, Idées.", href: "/optimiser/mots-cles" },
+      { t: "Budget du mois", d: "Optimiser → Budget Optimizer : saisis la cible du mois, il donne le budget par jour à mettre pour tomber pile (rien n'est changé dans Google Ads).", href: "/optimiser/budget" },
+      { t: "Comprendre une variation", d: "Analyser → Carte des causes (ce qui fait bouger dépense et conversions) et CPC vs marché (budget ou classement, CPC face à l'estimation Google).", href: "/analyser/carte" },
+      { t: "Audit noté sur 100", d: "Analyser → Audit : choisis le modèle (leads, local, e-commerce), puis « Scanner le compte ». À imprimer en PDF pour un prospect ou un client.", href: "/analyser/audit" },
     ],
   },
   {
