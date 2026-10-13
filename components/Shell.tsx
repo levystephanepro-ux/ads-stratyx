@@ -263,6 +263,11 @@ export default function Shell({
           {children}
         </div>
       </main>
+      {current !== "/bug" && (
+        <Link href={`/bug?from=${encodeURIComponent(path || "/")}`} className="bug-fab">
+          {Ic.bug}<span>Un bug ? Une demande ?</span>
+        </Link>
+      )}
     </div>
   );
 }
