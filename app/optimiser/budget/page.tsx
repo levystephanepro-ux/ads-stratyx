@@ -38,6 +38,7 @@ export default async function BudgetPage({ searchParams }: { searchParams: Promi
     <OptPage
       scope={scope}
       title="Budget Optimizer"
+      tour={[{ title: "Budget Optimizer · Tenir le budget du mois", text: "Saisis la cible du mois : Stratyx projette la fin du mois au rythme des 7 derniers jours et donne le budget par jour à mettre pour tomber pile." }]}
       sub={<>Fin de mois prévue à {e0(P.projected)} pour une cible de {e0(P.target)} ({pctTxt}), au rythme récent.</>}
       ia="Analyse le rythme de dépense du mois et dis-moi comment répartir le budget restant entre les campagnes, sans dépasser la cible"
       filters="none"

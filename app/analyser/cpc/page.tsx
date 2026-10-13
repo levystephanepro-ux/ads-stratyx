@@ -70,6 +70,7 @@ export default async function CpcPage({ searchParams }: { searchParams: Promise<
     <OptPage
       scope={scope}
       title="CPC vs marché"
+      tour={[{ title: "CPC vs marché · Budget ou classement ?", text: "Les impressions se perdent faute de budget ou au classement (qualité et enchère). Le graphique jour par jour montre lequel freine vraiment." }, { title: "CPC vs marché · Payez-vous trop cher ?", text: "Chaque mot-clé face à la fourchette d'enchère estimée par Google. Au-dessus avec un Quality Score bas : tu paies la mauvaise qualité." }]}
       sub={share !== null ? <>{int(cur.eligible)} impressions possibles, {pct(lb, 0)} perdues faute de budget ; {above} mot{above > 1 ? "s" : ""}-clé{above > 1 ? "s" : ""} sur {market.length} payé{above > 1 ? "s" : ""} au-dessus du marché.</> : <>Campagnes Search sur {scope.p.days} jours.</>}
       ia="Analyse mes parts d'impressions perdues et mes CPC face au marché : est-ce un problème de budget, de qualité ou d'enchère, et que faire à budget constant"
       help={<>

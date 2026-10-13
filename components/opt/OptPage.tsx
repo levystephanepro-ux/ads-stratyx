@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import Shell from "@/components/Shell";
 import FilterBar from "./FilterBar";
+import Tour from "./Tour";
 import { Tabs, Notice } from "@/components/ui";
 import { latestAuditReports } from "@/lib/audit/run";
 import { listActions } from "@/lib/fixes/store";
@@ -46,6 +47,7 @@ export default async function OptPage({
   extraActions,
   filters = "full",
   allLabel,
+  tour,
   children,
 }: {
   scope: Scope;
@@ -58,6 +60,8 @@ export default async function OptPage({
   extraActions?: ReactNode;
   filters?: "full" | "period" | "none" | "no-compare";
   allLabel?: string;
+  /** Visite guidée affichée à la première ouverture. */
+  tour?: { title: string; text: string }[];
   children: ReactNode;
 }) {
   const { dash } = scope;
@@ -102,6 +106,7 @@ export default async function OptPage({
       {!scope.account && !scope.error && <Notice tone="warn">Aucun compte Google Ads lié. Ajoute un compte dans Comptes et réglages.</Notice>}
       {tabs && <Tabs items={tabs} />}
       {children}
+      {tour && <Tour id={scope.path} steps={tour} />}
     </Shell>
   );
 }

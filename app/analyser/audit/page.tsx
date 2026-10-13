@@ -59,6 +59,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
     <OptPage
       scope={scope}
       title="Audit"
+      tour={[{ title: "Audit · 139 critères de media buyers", text: "Choisis un modèle (leads, local, e-commerce), désactive les critères inutiles dans « Mes critères », puis « Scanner le compte » : note sur 100 et liste des corrections." }]}
       sub="Un audit complet du compte, noté sur 100, puis le rapport PDF à imprimer ou envoyer."
       filters="none"
       ia={scan ? `Lis le dernier audit noté ${scan.score}/100 et propose un plan de correction par ordre d'impact` : undefined}

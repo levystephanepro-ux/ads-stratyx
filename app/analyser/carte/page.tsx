@@ -66,6 +66,7 @@ export default async function MapPage({ searchParams }: { searchParams: Promise<
     <OptPage
       scope={scope}
       title="Carte des causes"
+      tour={[{ title: "Carte des causes · Pourquoi ça bouge", text: "De la demande aux conversions : chaque flèche dit combien la cause a fait bouger l'indicateur suivant. Vert : dans le bon sens, rouge : ce qui coûte." }]}
       sub={<>Ce qui fait bouger dépense et conversions · {scope.p.days} derniers jours vs les {scope.p.days} jours d&apos;avant</>}
       ia="Lis la carte des causes de mon compte : explique en clair pourquoi la dépense et les conversions ont bougé et quoi faire"
       filters="no-compare"

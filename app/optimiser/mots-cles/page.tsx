@@ -45,6 +45,7 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
     <OptPage
       scope={scope}
       title="Mots-clés"
+      tour={[{ title: "Mots-clés · Ce que coûte chaque mot-clé", text: "Coût, clics, conversions et Quality Score de chaque mot-clé sur la période, avec l'évolution face à la période précédente. Clique sur un en-tête pour trier." }, { title: "Mots-clés · Le Quality Score", text: "L'onglet Quality Score détaille les 3 composantes : un QS bas fait payer chaque clic plus cher. Idées : les recherches qui marchent mais ne sont pas encore des mots-clés." }]}
       sub={<>{active.length} mots-clés actifs · {scope.p.days} derniers jours</>}
       ia="Analyse mes mots-clés : lesquels coûtent sans convertir, lesquels ont un Quality Score qui fait payer trop cher, et quoi faire à budget constant"
       help={<>

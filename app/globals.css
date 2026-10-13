@@ -1227,3 +1227,16 @@ label.op-crit-row { cursor: pointer; }
 .main-inner > h1, .main-inner > div > div > h1:first-child, .main-inner > div > h1:first-child { font-size: 34px; line-height: 1.1; letter-spacing: -0.025em; margin-bottom: 8px !important; }
 .main-inner > h1 + .subtitle, .main-inner > h1 + p.subtitle { font-size: 15.5px; margin-bottom: 18px; }
 @media (max-width: 720px) { .main-inner > h1, .main-inner > div > div > h1:first-child, .main-inner > div > h1:first-child { font-size: 27px; } }
+
+/* Visite guidée */
+.tour-backdrop { position: fixed; inset: 0; z-index: 80; background: rgba(8, 24, 38, 0.35); display: flex; align-items: flex-start; justify-content: center; padding: 120px 16px 16px; }
+.tour-card { width: min(380px, 100%); background: var(--surface); border-radius: 18px; padding: 18px 20px; box-shadow: 0 24px 60px -20px rgba(8, 24, 38, 0.5); border: 1px solid var(--border); }
+.tour-top { display: flex; justify-content: space-between; align-items: center; }
+.tour-step { font-size: 12.5px; font-weight: 600; color: var(--accent-2); }
+.tour-x { background: none !important; border: 0; font-size: 22px; line-height: 1; color: var(--muted) !important; cursor: pointer; padding: 0 4px; }
+.tour-card h3 { margin: 8px 0 6px; font-size: 20px; line-height: 1.25; }
+.tour-card p { margin: 0; color: var(--text); font-size: 14.5px; line-height: 1.55; }
+.tour-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; }
+.tour-dots { display: flex; gap: 5px; }
+.tour-dots span { width: 8px; height: 6px; border-radius: 999px; background: var(--border); }
+.tour-dots span.on { width: 22px; background: var(--accent-2); }

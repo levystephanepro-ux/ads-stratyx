@@ -56,6 +56,7 @@ export default async function TermsPage({ searchParams }: { searchParams: Promis
     <OptPage
       scope={scope}
       title="Termes de recherche"
+      tour={[{ title: "Termes de recherche · Découvrir ce que vos clients tapent vraiment", text: "Les recherches exactes qui ont déclenché vos annonces. « À exclure » propose les négatifs : coche, puis exclus en un clic (annulable 30 jours)." }, { title: "Termes de recherche · Intentions et n-grammes", text: "Intentions regroupe les recherches par ce que cherche l'internaute (achat, concurrents, emploi…). N-grammes montre le coût par mot, pour trouver les négatifs qui couvrent beaucoup de recherches." }]}
       sub={<>{terms.length} recherches · {scope.p.days} derniers jours</>}
       ia="Analyse mes termes de recherche : ce qu'il faut exclure, les intentions qui coûtent sans convertir, et les recherches à ajouter en mots-clés"
       help={<>
