@@ -1144,7 +1144,32 @@ button.ui-btn-ghost, button.ui-btn-soft { font-family: inherit; }
 .op-legend .l-proj::before { background: var(--orange); }
 .op-cell-input { width: 110px; text-align: right; padding: 7px 10px; font-size: 14px; }
 
+.op-legend .l-rank::before { background: color-mix(in srgb, var(--red) 55%, var(--surface)); }
+.op-isbars { display: flex; gap: 6px; align-items: flex-end; height: 200px; overflow-x: auto; padding-bottom: 2px; }
+.op-isbar { flex: 1 0 34px; display: flex; flex-direction: column; height: 100%; }
+.op-isbar-stack { flex: 1; display: flex; flex-direction: column; border-radius: 6px; overflow: hidden; background: var(--surface-2); }
+.op-isbar-stack .rk { background: color-mix(in srgb, var(--red) 40%, var(--surface)); }
+.op-isbar-stack .bd { background: var(--orange); }
+.op-isbar-stack .ok { background: var(--accent-2); }
+.op-isbar .op-histo-x { text-align: center; white-space: nowrap; font-size: 11.5px; }
+.op-mkt { display: grid; gap: 0; }
+.op-mkt-head, .op-mkt-row { display: grid; grid-template-columns: minmax(170px, 1.3fr) minmax(160px, 2fr) 80px 120px 64px 140px; gap: 14px; align-items: center; padding: 10px 0; }
+.op-mkt-head { font-size: 11.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
+.op-mkt-row { border-bottom: 1px solid var(--border); font-size: 14.5px; }
+.op-mkt .num { text-align: right; }
+.op-mkt-track { position: relative; height: 10px; border-radius: 999px; background: var(--surface-2); }
+.op-mkt-band { position: absolute; top: 0; bottom: 0; border-radius: 999px; background: color-mix(in srgb, var(--accent-2) 30%, var(--surface)); }
+.op-mkt-dot { position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%; background: var(--accent-2); transform: translate(-50%, -50%); border: 2px solid var(--surface); }
+.op-mkt-dot.bad { background: var(--red); }
+
+.op-map-wrap { padding: 14px; }
+.op-map-scroll { overflow-x: auto; }
+.op-map { width: 100%; min-width: 860px; height: auto; display: block; font-family: inherit; }
+.op-story { margin: 0; padding-left: 18px; display: grid; gap: 8px; line-height: 1.55; }
+
 @media (max-width: 720px) {
+  .op-mkt { overflow-x: auto; }
+  .op-mkt-head, .op-mkt-row { min-width: 760px; }
   .op-head { align-items: flex-start; }
   .op-stats4, .op-stats3 { grid-template-columns: 1fr 1fr; }
   .op-grid2 { grid-template-columns: 1fr; }
