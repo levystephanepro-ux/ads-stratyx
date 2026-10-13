@@ -89,3 +89,45 @@ export async function saveBudgetTargetsAction(form: FormData): Promise<void> {
   const sep = back.includes("?") ? "&" : "?";
   redirect(`${back.startsWith("/") ? back : "/optimiser/budget"}${sep}msg=${encodeURIComponent(msg)}`);
 }
+
+/** Audit noté sur 100 : lance le scan et l'enregistre dans l'historique. */
+export async function scanAuditAction(form: FormData): Promise<void> {
+  const ctx = await getDashboardContext();
+  if (!ctx.isOwner) throw new Error("Accès réservé.");
+  const { fetchScanData, evaluate, readOff, saveScan, MODELS } = await import("@/lib/audit/scan");
+  const customerId = String(form.get("customer_id") ?? "");
+  const model = String(form.get("modele") ?? "complet") as keyof typeof MODELS;
+  const back = String(form.get("back") ?? "/analyser/audit");
+  let to: string;
+  try {
+    if (!/^\d+$/.test(customerId)) throw new Error("Compte manquant.");
+    const { data, skipped } = await fetchScanData({ customerId });
+    const r = evaluate(data, model in MODELS ? model : "complet", await readOff(), skipped);
+    await saveScan(customerId, r);
+    to = `/analyser/audit?account=${customerId}&scan=0`;
+  } catch (e) {
+    to = `${back}${back.includes("?") ? "&" : "?"}msg=${encodeURIComponent(`err:${e instanceof Error ? e.message : String(e)}`.slice(0, 300))}`;
+  }
+  revalidatePath("/analyser/audit");
+  redirect(to);
+}
+
+/** Mes critères : coche / décoche les critères de l'audit. */
+export async function saveCriteriaAction(form: FormData): Promise<void> {
+  const ctx = await getDashboardContext();
+  if (!ctx.isOwner) throw new Error("Accès réservé.");
+  const { saveOff } = await import("@/lib/audit/scan");
+  const { AUDIT_GRID } = await import("@/lib/audit/criteria");
+  const on = new Set(form.getAll("on").map(String));
+  const all = AUDIT_GRID.flatMap((c) => c.items.map((_, i) => `${c.key}.${i}`));
+  const back = String(form.get("back") ?? "/analyser/audit?onglet=criteres");
+  let msg: string;
+  try {
+    await saveOff(all.filter((id) => !on.has(id)));
+    msg = `ok:${on.size} critères actifs enregistrés.`;
+  } catch (e) {
+    msg = `err:${e instanceof Error ? e.message : String(e)}`;
+  }
+  revalidatePath("/analyser/audit");
+  redirect(`${back}${back.includes("?") ? "&" : "?"}msg=${encodeURIComponent(msg)}`);
+}
