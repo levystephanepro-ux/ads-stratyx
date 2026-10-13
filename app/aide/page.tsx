@@ -163,6 +163,53 @@ const SECTIONS = [
   },
 ];
 
+
+// Guide de l'agence (visible seulement par le propriétaire) : les gestes du
+// quotidien, dans l'ordre où on s'en sert. À tenir à jour quand un flux change.
+const GUIDE: { title: string; steps: { t: string; d: string; href?: string }[] }[] = [
+  {
+    title: "Nouveau prospect",
+    steps: [
+      { t: "Le RDV arrive par Calendly", d: "Chaque matin, l'app importe les rendez-vous pris sur Calendly et crée une fiche client par nouvelle personne (nom, email, téléphone, site, réponses du formulaire). Tu reçois un email « Nouveau client Calendly ». Pour ne pas attendre le lendemain : Clients → « Importer mes RDV Calendly ».", href: "/clients" },
+      { t: "Sinon, crée la fiche à la main", d: "Clients → nom de l'entreprise → Créer. Un client avec plusieurs activités ou plusieurs sites = une fiche par activité.", href: "/clients" },
+      { t: "Envoie le questionnaire", d: "Sur la fiche : « Copier le lien complet » (10–15 min) ou « Copier le lien court » (12 questions), à coller dans WhatsApp ou un email. « Voir ce que voit le client » pour vérifier avant d'envoyer." },
+      { t: "Tu es prévenu quand il répond", d: "Dès que le client clique « Envoyer mes réponses », un email part sur contact@stratyxmedia.fr avec un lien vers sa fiche. La fiche passe à « Questionnaire rempli » avec la date." },
+      { t: "Proposition et devis", d: "Sur la fiche : passe l'étape à « Découverte faite », puis génère la synthèse et la proposition, et le devis. La prochaine action conseillée s'affiche sur chaque carte de la page Clients." },
+    ],
+  },
+  {
+    title: "Client signé",
+    steps: [
+      { t: "Lie le compte Google Ads", d: "Comptes et réglages pour connecter le compte, puis choisis-le dans « Compte Google Ads lié » sur la fiche.", href: "/comptes" },
+      { t: "Prépare les campagnes", d: "Création → Prévisions et campagnes : budget, mots-clés, structure, et création des campagnes en pause. Vérifie le suivi des conversions avant d'activer.", href: "/previsions" },
+    ],
+  },
+  {
+    title: "Chaque jour, sans rien faire",
+    steps: [
+      { t: "Diagnostic + alertes du matin", d: "Vers 6–7 h, chaque compte surveillé est vérifié (compte à l'arrêt, dépense qui s'emballe, plus de conversions, CPA en hausse, budget du mois, pages en erreur). Un email part seulement s'il y a quelque chose d'important.", href: "/alertes" },
+      { t: "Vérifier tout de suite", d: "Pilotage → Alertes du matin → « Vérifier maintenant ». Si une alerte se déclenche, l'email part aussi. La ligne « Dernier email » indique si l'envoi a marché.", href: "/alertes" },
+      { t: "Le témoin vert/rouge", d: "En bas du menu : vert = tout fonctionne. Rouge = clique dessus pour voir ce qui manque (clé, table, connexion)." },
+    ],
+  },
+  {
+    title: "Chaque semaine et chaque mois",
+    steps: [
+      { t: "Lundi matin", d: "Compte rendu de la semaine par email, tous comptes confondus." },
+      { t: "Rapport client", d: "Rapports → Rapports clients : un lien public à envoyer au client, sans connexion.", href: "/rapports" },
+      { t: "Diagnostic détaillé", d: "Pilotage → Diagnostic : dépenses inutiles, termes de recherche, corrections à appliquer.", href: "/waste" },
+    ],
+  },
+  {
+    title: "Quand quelque chose ne marche pas",
+    steps: [
+      { t: "Signale-le tout de suite", d: "Menu → « Signaler un bug » depuis la page concernée : une phrase suffit. C'est enregistré et envoyé sur contact@stratyxmedia.fr.", href: "/bug" },
+      { t: "Fais-le corriger", d: "Sur la page Signaler un bug, « Copier pour Claude » copie tous les bugs ouverts : colle-les dans une conversation avec Claude. Une fois corrigé, clique « Résolu »." },
+      { t: "Pas d'email reçu ?", d: "Regarde la ligne « Dernier email » sur Alertes du matin : elle donne l'erreur exacte. Pense aussi aux spams." },
+    ],
+  },
+];
+
 export default async function AidePage() {
   const ctx = await getDashboardContext();
 
@@ -172,6 +219,28 @@ export default async function AidePage() {
       <p className="page-lede">
         Tout ce qu'il faut savoir pour tirer le meilleur d'ads·stratyx.
       </p>
+
+      {ctx.isOwner && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <h2 style={{ margin: "0 0 4px", fontSize: 18 }}>Guide de l&apos;agence</h2>
+          <p className="subtitle" style={{ margin: "0 0 14px", fontSize: 13 }}>Les gestes du quotidien, dans l&apos;ordre. Visible seulement par toi.</p>
+          <div style={{ display: "grid", gap: 16 }}>
+            {GUIDE.map((g) => (
+              <div key={g.title}>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>{g.title}</div>
+                <ol style={{ margin: 0, paddingLeft: 20, display: "grid", gap: 8 }}>
+                  {g.steps.map((st) => (
+                    <li key={st.t} style={{ fontSize: 14, lineHeight: 1.5 }}>
+                      <strong>{st.href ? <a href={st.href}>{st.t}</a> : st.t}</strong>
+                      <div className="subtitle" style={{ margin: "2px 0 0", fontSize: 13 }}>{st.d}</div>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div style={{ display: "grid", gap: 20 }}>
         {SECTIONS.map((section) => (
@@ -224,13 +293,16 @@ export default async function AidePage() {
         <p style={{ margin: "0 0 10px", fontSize: 14 }}>
           Tu as une question qui n'est pas listée ici ?
         </p>
-        <a
-          href="mailto:levy.stephane.pro@gmail.com?subject=Question ads·stratyx"
-          className="btn"
-          style={{ fontSize: 13 }}
-        >
-          Contacter le support →
-        </a>
+        <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+          <a href="/bug?from=/aide" className="btn-ghost" style={{ fontSize: 13 }}>Signaler un bug</a>
+          <a
+            href="mailto:levy.stephane.pro@gmail.com?subject=Question ads·stratyx"
+            className="btn"
+            style={{ fontSize: 13 }}
+          >
+            Contacter le support →
+          </a>
+        </div>
       </div>
     </Shell>
   );

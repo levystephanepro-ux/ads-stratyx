@@ -5,7 +5,7 @@ import { publicKeys } from "@/lib/clients/questions";
 import { sendAgentEmail } from "@/lib/agent/email";
 
 const NOTIFY_EMAIL = "contact@stratyxmedia.fr";
-const SITE_URL = "https://stratyxmedia.fr";
+const SITE_URL = "https://app.stratyxmedia.fr";
 
 export async function submitDraftAction(form: FormData) { return submit(form, true); }
 export async function submitDoneAction(form: FormData) { return submit(form, false); }

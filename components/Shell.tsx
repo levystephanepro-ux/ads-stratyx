@@ -12,13 +12,13 @@ import Owl from "@/components/Owl";
 // Icônes : Lucide (components/Icons.tsx)
 const Ic = Icons;
 
-type PageKey = "home" | "copilote" | "agent" | "waste" | "scripts" | "rapports" | "comptes" | "clients" | "audit" | "alertes" | "previsions" | "templates" | "connexions" | "persona" | "search-console" | "aide" | "admin" | "sante";
+type PageKey = "home" | "copilote" | "agent" | "waste" | "scripts" | "rapports" | "comptes" | "clients" | "audit" | "alertes" | "previsions" | "templates" | "connexions" | "persona" | "search-console" | "aide" | "admin" | "sante" | "bug";
 
 // Correspondance ancienne clé de page -> adresse (repli si l'adresse courante ne suffit pas).
 const KEY_HREF: Partial<Record<PageKey, string>> = {
   home: "/dashboard", clients: "/clients", waste: "/waste", alertes: "/alertes", copilote: "/copilote",
   previsions: "/previsions", persona: "/persona", audit: "/audit/prospect", rapports: "/rapports",
-  comptes: "/comptes", scripts: "/scripts", connexions: "/connexions", aide: "/aide",
+  comptes: "/comptes", scripts: "/scripts", connexions: "/connexions", aide: "/aide", bug: "/bug",
   admin: "/admin", sante: "/admin/sante", "search-console": "/search-console",
 };
 
@@ -55,7 +55,7 @@ const SETTINGS: Item[] = [
   { label: "Aide", href: "/aide", ic: "aide" },
 ];
 
-const ALL_HREFS = [...TOP, ...SECTIONS.flatMap((x) => x.items), ...SETTINGS, { label: "Copilote", href: "/copilote" }].map((i) => i.href);
+const ALL_HREFS = [...TOP, ...SECTIONS.flatMap((x) => x.items), ...SETTINGS, { label: "Copilote", href: "/copilote" }, { label: "Bug", href: "/bug" }].map((i) => i.href);
 
 // Adresse du menu la plus précise qui contient la page courante.
 function activeHref(path: string, fallback?: string): string | null {
@@ -196,6 +196,10 @@ export default function Shell({
           <div className="side-settings">
             <div className="nav-group-label">Réglages</div>
             {SETTINGS.filter((i) => !i.hidden && (!i.ownerOnly || showAdmin)).map(link)}
+            <Link href={`/bug?from=${encodeURIComponent(path || "/")}`} className={`side-link${current === "/bug" ? " active" : ""}`} onClick={close}>
+              <span className="side-ic">{Ic.bug}</span>
+              <span className="side-label">Signaler un bug</span>
+            </Link>
           </div>
         </nav>
 
