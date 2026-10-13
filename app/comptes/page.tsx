@@ -16,6 +16,7 @@ import { searchRaw, listPendingInvites } from "@/lib/google-ads/client";
 import { ownerAccounts, isMonitored, latestAuditReports } from "@/lib/audit/run";
 import { periodRange, frDate } from "@/lib/reports/periods";
 import { toggleMonitoringAction, setDefaultAccountAction, syncAccountsAction, inviteAccountAction } from "./actions";
+import { WatchBanner } from "@/components/opt/OptPage";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -75,6 +76,7 @@ export default async function ComptesPage({ searchParams }: { searchParams: SP }
 
   return (
     <Shell active="comptes" token={ctx.mcpToken} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}>
+      {ctx.isOwner && <WatchBanner />}
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
         <div>
           <h1 style={{ margin: "0 0 4px" }}>Comptes et réglages</h1>

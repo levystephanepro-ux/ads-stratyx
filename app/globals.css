@@ -1222,3 +1222,8 @@ label.op-crit-row { cursor: pointer; }
   .op-table { font-size: 13.5px; }
   .op-histo { gap: 4px; }
 }
+
+/* Pages historiques : titres alignés sur le style des pages façon Ades */
+.main-inner > h1, .main-inner > div > div > h1:first-child, .main-inner > div > h1:first-child { font-size: 34px; line-height: 1.1; letter-spacing: -0.025em; margin-bottom: 8px !important; }
+.main-inner > h1 + .subtitle, .main-inner > h1 + p.subtitle { font-size: 15.5px; margin-bottom: 18px; }
+@media (max-width: 720px) { .main-inner > h1, .main-inner > div > div > h1:first-child, .main-inner > div > h1:first-child { font-size: 27px; } }

@@ -8,6 +8,7 @@ import { getAlertsConfig, templateOn, TEMPLATES, METRICS, type Metric } from "@/
 import { lastAlertsRun, lastEmailStatus } from "@/lib/alerts/run";
 import { ownerAccounts } from "@/lib/audit/run";
 import { saveTemplatesAction, addRuleAction, deleteRuleAction, runAlertsNowAction } from "./actions";
+import { WatchBanner } from "@/components/opt/OptPage";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -31,6 +32,7 @@ export default async function AlertesPage({ searchParams }: { searchParams: SP }
 
   return (
     <Shell active="alertes" token={ctx.mcpToken} headerRight={headerRight} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}>
+      {ctx.isOwner && <WatchBanner />}
       <h1 style={{ margin: "0 0 4px" }}>Alertes</h1>
       <p className="subtitle" style={{ marginTop: 0 }}>
         Vérifiées chaque matin sur les comptes surveillés, en même temps que le diagnostic. Si une alerte se déclenche, elle arrive en tête de l&apos;email (aussi lors d&apos;une vérification manuelle). Sans IA, aucun crédit.

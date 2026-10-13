@@ -13,6 +13,7 @@ import { suggestGeo, keywordIdeas, accountCvr, forecast, COUNTRIES, LANGUAGES, t
 import { createCampaignAction, proposeStructureAction, proposeLandingAction, saveSimulationAction, deleteSimulationAction } from "./actions";
 import { listSimulations, getSimulation } from "@/lib/planner/simulations";
 import { getActiveClient } from "@/lib/clients/active";
+import { WatchBanner } from "@/components/opt/OptPage";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 180; // structure IA (Opus) : jusqu'à ~90 s ; Fluid compute (Hobby : 300 s max)
@@ -119,6 +120,7 @@ export default async function PrevisionsPage({ searchParams }: { searchParams: S
 
   return (
     <Shell active="previsions" token={ctx.mcpToken} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}>
+      {ctx.isOwner && <WatchBanner />}
       <h1 style={{ margin: "0 0 4px" }}>Prévisions</h1>
       <p className="subtitle" style={{ marginTop: 0 }}>
         Simuler avant de dépenser : recherches, clics, coût et rentabilité de la campagne, puis structure proposée par l&apos;IA et création en pause.

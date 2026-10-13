@@ -11,6 +11,7 @@ import { isLive } from "@/lib/google-ads/config";
 import { searchRaw } from "@/lib/google-ads/client";
 import { readChanges, CHANGE_KINDS, type ChangeLine } from "@/lib/reports/changes";
 import { frDate } from "@/lib/reports/periods";
+import { WatchBanner } from "@/components/opt/OptPage";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -76,6 +77,7 @@ export default async function CompteRendu({ searchParams }: { searchParams: SP }
 
   return (
     <Shell active="rapports" token={ctx.mcpToken} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}>
+      {ctx.isOwner && <WatchBanner />}
       <div className="subtitle no-print" style={{ fontSize: 13 }}><Link href="/rapports">Rapports</Link> › Compte rendu</div>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center", margin: "6px 0" }}>
         <h1 style={{ margin: 0, textTransform: "capitalize" }}>Compte rendu · {monthLabel}</h1>

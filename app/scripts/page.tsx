@@ -5,6 +5,7 @@ import Shell from "@/components/Shell";
 import { getDashboardContext } from "@/lib/workspace";
 import { SCRIPTS } from "@/lib/scripts/registry";
 import { SCRIPT_CATEGORIES, type ScriptCategory } from "@/lib/scripts/types";
+import { WatchBanner } from "@/components/opt/OptPage";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,7 @@ export default async function ScriptsPage({ searchParams }: { searchParams: SP }
 
   return (
     <Shell active="scripts" token={ctx.mcpToken} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}>
+      {ctx.isOwner && <WatchBanner />}
       <h1 style={{ margin: "0 0 6px" }}>Scripts</h1>
       <p className="subtitle" style={{ marginTop: 0 }}>
         {SCRIPTS.length} rapports lus directement dans Google Ads. Sans IA, aucun crédit consommé, rien n&apos;est modifié.

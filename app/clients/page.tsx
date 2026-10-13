@@ -10,6 +10,7 @@ import { getActiveClient } from "@/lib/clients/active";
 import { getProposal } from "@/lib/clients/proposal";
 import { STAGES, stageOf, nextAction } from "@/lib/clients/stages";
 import { createClientAction, deleteClientAction, setActiveClientAction, importCalendlyAction } from "./actions";
+import { WatchBanner } from "@/components/opt/OptPage";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: SP }
           <Link className="btn-ghost" href="/audit/prospect">Audit prospect</Link>
         </div>
       }>
+      {ctx.isOwner && <WatchBanner />}
       <h1 style={{ margin: "0 0 6px" }}>Clients</h1>
       <p className="subtitle" style={{ marginTop: 0 }}>
         Ton pipeline, du prospect aux campagnes actives. « Activer » fait suivre ce client à toutes les pages (diagnostic, prévisions, copilote, persona).

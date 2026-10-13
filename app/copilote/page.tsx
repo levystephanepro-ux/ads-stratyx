@@ -4,6 +4,7 @@ import Shell from "@/components/Shell";
 import { getDefaultAccountInfo } from "@/lib/google-ads/default-account";
 import { getDashboardContext } from "@/lib/workspace";
 import { requireSub } from "@/lib/subscription";
+import { WatchBanner } from "@/components/opt/OptPage";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,7 @@ export default async function CopilotePage({
 
   return (
     <Shell active="copilote" token={tok} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}>
+      {ctx.isOwner && <WatchBanner />}
       <h1 className="page-title">Copilote</h1>
       <p className="page-lede">
         Une question en français : la réponse est lue dans ton compte Google Ads, en direct. Lecture seule.
