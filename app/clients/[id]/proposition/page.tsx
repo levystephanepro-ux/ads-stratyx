@@ -56,6 +56,21 @@ export default async function PropositionPage({ params, searchParams }: { params
           <div style={box}><div className="rv-kicker">Budget recommandé</div><div style={{ fontSize: 22, fontWeight: 700 }}>{eur(p.budget_mensuel)}</div><div style={{ fontSize: 12 }}>par mois, hors honoraires</div></div>
           {e.demandesBudget !== null && <div style={box}><div className="rv-kicker">Ordre de grandeur</div><div style={{ fontSize: 22, fontWeight: 700 }}>~{Math.round(e.demandesBudget)} demandes</div><div style={{ fontSize: 12 }}>par mois avec le budget envisagé, à confirmer en conditions réelles</div></div>}
         </div>
+        {e.objectifCA != null && e.demandesObjectif != null && (
+          <div style={{ ...box, marginTop: 10 }}>
+            <div className="rv-kicker">Pour atteindre votre objectif</div>
+            <p style={{ margin: "6px 0 0" }}>
+              {eur(e.objectifCA)} de chiffre d&apos;affaires en plus par mois, c&apos;est environ <strong>{e.clientsObjectif != null ? e.clientsObjectif.toFixed(1).replace(".", ",") : "?"} clients</strong>, donc <strong>{Math.ceil(e.demandesObjectif)} demandes</strong> par mois avec votre taux de signature
+              {e.capacite && e.demandesObjectif > e.capacite ? <> (au-delà de votre capacité actuelle de {e.capacite} demandes)</> : null}.
+            </p>
+            {e.budgetNecessaire != null && (
+              <p style={{ margin: "6px 0 0" }}>
+                Au coût constaté d&apos;environ {eur(e.cplMarche ?? null)} par demande, le budget nécessaire est d&apos;environ <strong>{eur(e.budgetNecessaire)} par mois</strong>
+                {e.budgetPlafond != null && <>, pour un plafond rentable de {eur(e.budgetPlafond)}</>}.
+              </p>
+            )}
+          </div>
+        )}
         {e.valeurDemande === null && <p style={{ fontSize: 13, color: "var(--rv-muted)" }}>À compléter ensemble pour fixer votre seuil de rentabilité : {[e.valeurClient === null && "valeur moyenne d'un client", e.margePct === null && "marge", e.closing === null && "part des demandes signées"].filter(Boolean).join(", ")}.</p>}
         {p.budget_justification && <p>{p.budget_justification}</p>}
       </section>

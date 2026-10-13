@@ -15,6 +15,14 @@ export interface Economics {
   cplCible: number | null; budget: number | null;
   demandesBudget: number | null;  // demandes/mois au CPL cible (ou à la moitié du seuil)
   clientsBudget: number | null; capacite: number | null;
+  // Calcul à l'envers : objectif de CA -> clients -> demandes -> budget.
+  // Absents des propositions générées avant cet ajout (d'où les "?").
+  objectifCA?: number | null;
+  clientsObjectif?: number | null;
+  demandesObjectif?: number | null;
+  cplMarche?: number | null;        // coût réel estimé d'une demande sur Google
+  budgetNecessaire?: number | null; // demandes nécessaires x coût réel : ce qu'il faut vraiment dépenser
+  budgetPlafond?: number | null;    // demandes nécessaires x coût max rentable : à ne pas dépasser
 }
 
 export interface Proposal {
@@ -40,12 +48,19 @@ export function economics(a: Record<string, string>): Economics {
   const valeurClient = n(a.valeur_lead), margePct = n(a.marge), closing10 = n(a.closing);
   const closing = closing10 !== null ? Math.min(closing10, 10) / 10 : null;
   const valeurDemande = valeurClient !== null && closing !== null ? valeurClient * (margePct !== null ? margePct / 100 : 1) * closing : null;
-  const cplCible = n(a.cpl_cible), budget = n(a.budget), capacite = n(a.capacite);
-  const cplRef = cplCible ?? (valeurDemande !== null ? valeurDemande / 2 : null);
+  const cplCible = n(a.cpl_cible), budget = n(a.budget), capacite = n(a.capacite), cplMarche = n(a.cpl_marche);
+  // Le coût réel du marché, s'il est connu, est plus juste que la cible ou la moitié du seuil.
+  const cplRef = cplMarche ?? cplCible ?? (valeurDemande !== null ? valeurDemande / 2 : null);
   const demandesBudget = budget !== null && cplRef ? budget / cplRef : null;
+  const objectifCA = n(a.objectif_ca);
+  const clientsObjectif = objectifCA !== null && valeurClient !== null ? objectifCA / valeurClient : null;
+  const demandesObjectif = clientsObjectif !== null && closing ? clientsObjectif / closing : null;
   return {
     valeurClient, margePct, closing, valeurDemande, cplMaxRentable: valeurDemande, cplCible, budget,
     demandesBudget, clientsBudget: demandesBudget !== null && closing !== null ? demandesBudget * closing : null, capacite,
+    objectifCA, clientsObjectif, demandesObjectif, cplMarche,
+    budgetNecessaire: demandesObjectif !== null && cplMarche !== null ? demandesObjectif * cplMarche : null,
+    budgetPlafond: demandesObjectif !== null && valeurDemande !== null ? demandesObjectif * valeurDemande : null,
   };
 }
 
@@ -65,6 +80,9 @@ function prompt(c: Client, e: Economics, site: StoredProposal["site"]): string {
     `- Coût par demande au-delà duquel la publicité perd de l'argent : ${eur(e.cplMaxRentable)}`,
     `- Coût par demande visé par le client : ${eur(e.cplCible)}`,
     `- Budget envisagé : ${eur(e.budget)} par mois, soit environ ${e.demandesBudget !== null ? Math.round(e.demandesBudget) : "?"} demandes et ${e.clientsBudget !== null ? e.clientsBudget.toFixed(1).replace(".", ",") : "?"} clients par mois${e.capacite ? `, capacité de traitement ${e.capacite} demandes par mois` : ""}`,
+    e.objectifCA ? `- Objectif : ${eur(e.objectifCA)} de chiffre d'affaires en plus par mois, soit ${e.clientsObjectif != null ? e.clientsObjectif.toFixed(1).replace(".", ",") : "?"} clients et ${e.demandesObjectif != null ? Math.ceil(e.demandesObjectif) : "?"} demandes par mois${e.capacite && e.demandesObjectif && e.demandesObjectif > e.capacite ? ` (ATTENTION : plus que sa capacité de ${e.capacite} demandes par mois)` : ""}` : "",
+    e.cplMarche ? `- Coût réel estimé d'une demande sur Google pour ce métier : ${eur(e.cplMarche)}${e.cplMaxRentable ? (e.cplMarche > e.cplMaxRentable ? " (AU-DESSUS du seuil de rentabilité : la publicité ne sera pas rentable sans meilleur taux de signature, meilleure marge ou meilleure page)" : " (sous le seuil de rentabilité)") : ""}` : "",
+    e.budgetNecessaire != null ? `- Budget nécessaire pour atteindre l'objectif : ${eur(e.budgetNecessaire)} par mois (demandes nécessaires x coût réel). Plafond rentable pour ce volume : ${eur(e.budgetPlafond ?? null)}. Base ta recommandation de budget sur le budget nécessaire, pas sur le plafond.` : "",
     site ? (site.error ? `- Audit de la page : ${site.error}` : `- Audit de la page : score ${site.score}/100, points à corriger : ${site.fails.join(" ; ") || "aucun"}`) : "",
     ``,
     `Règles :`,

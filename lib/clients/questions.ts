@@ -27,6 +27,7 @@ export const QUESTIONNAIRE: QSection[] = [
   { title: "Vos chiffres et vos objectifs", intro: "Ces chiffres permettent de calculer ce qu'une demande vaut pour vous, donc combien on peut investir pour l'obtenir.", questions: [
     { key: "objectif", core: true, label: "Objectif principal de la publicité", type: "choice", choices: ["Recevoir des demandes de devis ou des appels", "Vendre en ligne", "Remplir un agenda de rendez-vous", "Faire connaître la marque", "Autre"] },
     { key: "objectif90", label: "Quel résultat vous ferait dire dans 90 jours que ça marche ?", help: "Un chiffre : nombre de demandes, de ventes, de rendez-vous.", type: "text" },
+    { key: "objectif_ca", label: "Chiffre d'affaires supplémentaire visé par mois grâce à la publicité (€)", help: "Un ordre de grandeur suffit. Sert à calculer combien de demandes il faut, et donc le budget.", type: "number" },
     { key: "valeur_lead", core: true, label: "Valeur moyenne d'un client signé (€)", help: "Panier moyen ou chiffre d'affaires moyen par chantier ou vente.", type: "number" },
     { key: "marge", label: "Marge moyenne sur cette vente (%)", help: "Une estimation suffit.", type: "number" },
     { key: "recurrence", label: "Un client achète-t-il une seule fois ou revient-il ?", type: "choice", choices: ["Achat unique", "Revient de temps en temps", "Contrat ou abonnement récurrent", "Il recommande beaucoup"] },
@@ -57,6 +58,7 @@ export const QUESTIONNAIRE: QSection[] = [
   ] },
   { title: "Notes internes (jamais visibles du client)", internal: true, questions: [
     { key: "fit", label: "Compatibilité avec ton offre", type: "choice", choices: ["Très bonne", "Correcte", "À risque", "À refuser"] },
+    { key: "cpl_marche", label: "Coût réel estimé d'une demande sur Google pour ce métier et cette zone (€)", help: "D'après Prévisions, un compte similaire ou ton expérience. Sert à calculer le budget nécessaire (différent du plafond rentable).", type: "number" },
     { key: "budget_realiste", label: "Budget réaliste par rapport à l'objectif", type: "choice", choices: ["Cohérent", "Un peu juste", "Trop faible", "Pas encore clair"] },
     { key: "decideur", label: "Qui décide et qui paie", type: "text" },
     { key: "risques", label: "Points de vigilance", help: "Attentes irréalistes, suivi des demandes faible, site faible, délais.", type: "long" },
