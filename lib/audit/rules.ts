@@ -79,13 +79,14 @@ function keywordRules(data: AuditData, cvr: number, cpaRef: number, alpha: numbe
             ? { type: "pause_keyword", adGroupId: k.adGroupId, criterionId: k.criterionId, label, campaign: k.campaign, adGroup: k.adGroup }
             : undefined,
         });
-      } else if (k.cost >= cpaRef * 0.5) {
+      } else if (k.cost >= Math.max(5, cpaRef * 0.02)) {
+        // Comme Ades : toute dépense sans conversion est « à confirmer » tant que le volume ne permet pas de conclure.
         out.push({
           id: `kw:watch:${k.adGroupId}:${k.text}`,
           category: "mots_cles",
           severity: "mineur",
-          title: `${label} : dépense sans convertir`,
-          detail: `${eur(k.cost)}, ${k.clicks} clics, 0 conversion. Trop tôt pour conclure. ${k.campaign} › ${k.adGroup}.`,
+          title: `« ${k.text} » (${k.matchType === "EXACT" ? "exact" : k.matchType === "PHRASE" ? "expression" : "large"}) : dépense sans convertir`,
+          detail: `${k.campaign} · ${k.clicks} clics, 0 conversion · trop tôt pour conclure.`,
           campaign: k.campaign,
           amount: k.cost,
           action: "Surveille : si rien ne convertit d'ici 2 semaines, baisse l'enchère ou mets en pause.",
@@ -258,20 +259,28 @@ export function runAudit(data: AuditData, opts: AuditOptions = {}): AuditResult 
   const skipped: AuditResult["skipped"] = [];
 
   const st = searchTermRules(data, cpaRef, alpha);
+  const kw = keywordRules(data, acct.cvr, cpaRef, alpha);
+  const kwSum = (prefix: string) => kw.filter((c) => c.id.startsWith(prefix)).reduce((s, c) => s + (c.amount ?? 0), 0);
+  // Mots-clés et recherches couvrent la même dépense : on garde le plus grand des deux (pas de double compte).
+  const proven = Math.max(st.proven, kwSum("kw:nonconv:"));
+  const watch = Math.max(st.watch, kwSum("kw:watch:"));
+  // Liste lisible : les 12 mots-clés « à confirmer » qui coûtent le plus (le total, lui, compte tout).
+  const watchKeep = new Set(kw.filter((c) => c.id.startsWith("kw:watch:")).sort((a, b) => (b.amount ?? 0) - (a.amount ?? 0)).slice(0, 12).map((c) => c.id));
+  const kwShown = kw.filter((c) => !c.id.startsWith("kw:watch:") || watchKeep.has(c.id));
   const constats = [
     ...negativeConflicts(data),
     ...policyRules(data),
     ...trackingRules(data, acct),
     ...budgetRules(data, acct.cpa, acct.cvr, alpha),
-    ...keywordRules(data, acct.cvr, cpaRef, alpha),
+    ...kwShown,
     ...st.constats,
   ].sort((a, b) => SEV_ORDER[a.severity] - SEV_ORDER[b.severity] || (b.amount ?? 0) - (a.amount ?? 0));
 
   return {
     healthScore: healthScore(constats),
     constats,
-    wasteProven: st.proven,
-    wasteWatch: st.watch,
+    wasteProven: Math.round(proven * 100) / 100,
+    wasteWatch: Math.round(watch * 100) / 100,
     totalCost: Math.round(acct.cost * 100) / 100,
     conversions: acct.conv,
     skipped,
