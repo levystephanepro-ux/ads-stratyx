@@ -116,4 +116,6 @@ export interface AuditData {
   daily: { date: string; clicks: number; conversions: number; cost: number }[];
   /** Nombre d'actions de conversion actives, null si inconnu. */
   conversionActions: number | null;
+  /** Nom d'entreprise et logo (composants) : au niveau du compte, et campagnes qui en ont. null si illisible. */
+  brand?: { accountName: boolean; accountLogo: boolean; campaignsWithName: string[]; campaignsWithLogo: string[] } | null;
 }
