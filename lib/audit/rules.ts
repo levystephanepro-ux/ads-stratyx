@@ -86,7 +86,7 @@ function keywordRules(data: AuditData, cvr: number, cpaRef: number, alpha: numbe
           category: "mots_cles",
           severity: "mineur",
           title: `« ${k.text} » (${k.matchType === "EXACT" ? "exact" : k.matchType === "PHRASE" ? "expression" : "large"}) : dépense sans convertir`,
-          detail: `${k.campaign} · ${k.clicks} clics, 0 conversion · trop tôt pour conclure.`,
+          detail: `${k.clicks} clics, 0 conversion · trop tôt pour conclure.`,
           campaign: k.campaign,
           amount: k.cost,
           action: "Surveille : si rien ne convertit d'ici 2 semaines, baisse l'enchère ou mets en pause.",
@@ -246,7 +246,11 @@ const SEV_ORDER: Record<Severity, number> = { critique: 0, important: 1, mineur:
 
 export function healthScore(constats: Constat[]): number {
   const byCat = new Map<AuditCategory, number>();
-  for (const c of constats) byCat.set(c.category, (byCat.get(c.category) ?? 0) + WEIGHT[c.severity]);
+  for (const c of constats) {
+    // « À confirmer » (trop tôt pour conclure) : affiché et chiffré, mais ne pèse pas sur la note.
+    if (c.id.startsWith("kw:watch:")) continue;
+    byCat.set(c.category, (byCat.get(c.category) ?? 0) + WEIGHT[c.severity]);
+  }
   let penalty = 0;
   byCat.forEach((v) => (penalty += Math.min(v, CATEGORY_CAP)));
   return Math.max(0, Math.min(100, 100 - penalty));
