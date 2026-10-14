@@ -46,6 +46,15 @@ export default async function DiagnosticPage({ searchParams }: { searchParams: S
         ? new Date(report.created_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Paris" })
         : new Date(report.run_date).toLocaleDateString("fr-FR"))
     : null;
+  // Fenêtre lue (mêmes règles que lib/audit/fetch.ts last30Days) : 30 jours jusqu'à la veille du diagnostic.
+  const win = (() => {
+    if (!report) return null;
+    const base = new Date((report.created_at ?? `${report.run_date}T12:00:00Z`));
+    const until = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate() - 1));
+    const since = new Date(until); since.setUTCDate(since.getUTCDate() - 29);
+    const f = (d: Date) => d.toLocaleDateString("fr-FR", { day: "numeric", month: "short", timeZone: "UTC" });
+    return `${f(since)} → ${f(until)}`;
+  })();
   const iaQuestion = report
     ? `Analyse le diagnostic du compte ${report.account_name ?? ""} (${report.customer_id}) : priorise les constats, dis lesquels traiter cette semaine et propose un plan d'action à budget constant.`
     : "";
@@ -73,7 +82,7 @@ export default async function DiagnosticPage({ searchParams }: { searchParams: S
   return (
     <Shell active="waste" token={ctx.mcpToken} trialDaysLeft={ctx.trialDaysLeft} showAdmin={ctx.isOwner} accountName={ctx.defaultAccountName}>
       <div className="dg-watch">
-        <span>Stratyx relit tes comptes chaque matin{readAt ? <>, dernière lecture le {readAt}</> : null}</span>
+        <span>Stratyx relit tes comptes chaque matin{readAt ? <>, dernière lecture le {readAt}</> : null}{win ? <> · données du {win}</> : null}</span>
         {report && (
           <span className="dg-watch-figures">
             <span><strong>{done}</strong> correction{done > 1 ? "s" : ""} faite{done > 1 ? "s" : ""}</span>
