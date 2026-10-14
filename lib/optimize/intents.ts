@@ -26,7 +26,7 @@ const BRANDS = [
 ].map((b) => fold(b));
 const AIDES = ["prime", "primes", "maprimerenov", "ma prime renov", "aide", "aides", "subvention", "credit d impot", "cee", "anah", "eco ptz", "financement", "tva 5 5", "renov"];
 const EMPLOI = ["emploi", "emplois", "recrutement", "recrute", "job", "jobs", "salaire", "formation", "stage", "alternance", "apprenti", "offre d emploi", "interim", "indeed"];
-const GRATUIT = ["gratuit", "gratuite", "gratuits", "occasion", "occas", "tuto", "tutoriel", "soi meme", "diy", "le bon coin", "leboncoin", "pdf", "plan", "dessin", "modele", "youtube", "fabriquer"];
+const GRATUIT = ["gratuit", "gratuite", "gratuits", "occasion", "occas", "tuto", "tutoriel", "soi meme", "diy", "le bon coin", "leboncoin", "pdf", "youtube", "fabriquer soi meme"];
 const INFO = ["definition", "c est quoi", "qu est ce", "norme", "normes", "difference", "comment", "pourquoi", "dimension", "dimensions", "taille", "wikipedia", "avis"];
 
 export function classify(term: string): Intent {

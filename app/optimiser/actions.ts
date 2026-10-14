@@ -8,29 +8,40 @@ import { applyFix, describeFix } from "@/lib/fixes/apply";
 import { logAction } from "@/lib/fixes/store";
 import type { Fix, MatchType } from "@/lib/audit/types";
 
+/** Retour sur une page de l'app uniquement (jamais « //autre-site »), message ajouté. */
+function backTo(raw: FormDataEntryValue | null, fallback: string, msg: string): string {
+  const b = String(raw ?? "");
+  const base = b.startsWith("/") && !b.startsWith("//") && !b.includes("\\") ? b : fallback;
+  return `${base}${base.includes("?") ? "&" : "?"}msg=${encodeURIComponent(msg.slice(0, 400))}`;
+}
+
 /** Coche des recherches → négatifs exacts (ou expression) dans leur campagne. */
 export async function addNegativesAction(form: FormData): Promise<void> {
   const ctx = await getDashboardContext();
   if (!ctx.isOwner) throw new Error("Accès réservé.");
   const customerId = String(form.get("customer_id") ?? "");
-  const back = String(form.get("back") ?? "/optimiser/termes");
   const match = (String(form.get("match") ?? "EXACT") === "PHRASE" ? "PHRASE" : "EXACT") as MatchType;
   const picked = form.getAll("t").map(String).filter(Boolean);
   let msg: string;
   try {
     if (!/^\d+$/.test(customerId)) throw new Error("Compte manquant.");
     if (!picked.length) throw new Error("Coche au moins une recherche.");
-    // valeur : campaignId|nom de campagne|recherche
+    // valeur : campaignId|nom de campagne (encodé)|recherche (encodée)
     const byCamp = new Map<string, { name: string; terms: Set<string> }>();
+    const skipped: string[] = [];
     for (const v of picked.slice(0, 300)) {
-      const [id, name, ...rest] = v.split("|");
-      const term = rest.join("|").trim().toLowerCase();
+      const [id, n, t] = v.split("|");
+      let name = "", term = "";
+      try { name = decodeURIComponent(n ?? ""); term = decodeURIComponent(t ?? "").trim().toLowerCase().replace(/\s+/g, " "); } catch { continue; }
       if (!/^\d+$/.test(id) || !term) continue;
+      // Limites Google Ads d'un mot-clé : 80 caractères, 10 mots.
+      if (term.length > 80 || term.split(" ").length > 10) { skipped.push(term); continue; }
       const e = byCamp.get(id) ?? { name, terms: new Set<string>() };
       e.terms.add(term);
       byCamp.set(id, e);
     }
     const done: string[] = [];
+    const failed: string[] = [];
     for (const [id, { name, terms }] of byCamp) {
       const fix: Fix = { type: "add_negatives", campaigns: [{ id, name }], negatives: [...terms].map((text) => ({ text, matchType: match })) };
       const summary = describeFix(fix);
@@ -44,16 +55,19 @@ export async function addNegativesAction(form: FormData): Promise<void> {
         }).catch(() => undefined);
         done.push(`${terms.size} dans « ${name} »`);
       } catch (e) {
-        throw new Error(`Google Ads a refusé (${name}) : ${e instanceof Error ? e.message : String(e)}`);
+        failed.push(`« ${name} » : ${e instanceof Error ? e.message : String(e)}`);
       }
     }
-    msg = `ok:Négatifs ajoutés : ${done.join(", ")}. Annulable 30 jours depuis le journal.`;
+    if (!done.length && !failed.length) throw new Error("Aucune recherche valide cochée.");
+    const extra = skipped.length ? ` ${skipped.length} recherche(s) trop longue(s) ignorée(s).` : "";
+    msg = failed.length
+      ? `err:${done.length ? `Ajoutés : ${done.join(", ")}. ` : ""}Refusé par Google Ads : ${failed.join(" · ")}.${extra}`
+      : `ok:Négatifs ajoutés : ${done.join(", ")}. Annulable 30 jours depuis le journal.${extra}`;
   } catch (e) {
     msg = `err:${e instanceof Error ? e.message : String(e)}`;
   }
   revalidatePath("/optimiser/termes");
-  const sep = back.includes("?") ? "&" : "?";
-  redirect(`${back.startsWith("/") ? back : "/optimiser/termes"}${sep}msg=${encodeURIComponent(msg.slice(0, 400))}`);
+  redirect(backTo(form.get("back"), "/optimiser/termes", msg));
 }
 
 /** Budget Optimizer : cible du mois (compte) et budgets du mois par campagne. */
@@ -64,7 +78,7 @@ export async function saveBudgetTargetsAction(form: FormData): Promise<void> {
   const { budgetKey } = await import("@/lib/optimize/budget");
   const customerId = String(form.get("customer_id") ?? "");
   const month = String(form.get("month") ?? "");
-  const back = String(form.get("back") ?? "/optimiser/budget");
+  const part = String(form.get("part") ?? "");
   const parse = (v: FormDataEntryValue | null) => {
     const n = Number(String(v ?? "").replace(/\s/g, "").replace(",", "."));
     return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : null;
@@ -72,13 +86,23 @@ export async function saveBudgetTargetsAction(form: FormData): Promise<void> {
   let msg: string;
   try {
     if (!/^\d+$/.test(customerId) || !/^\d{4}-\d{2}$/.test(month)) throw new Error("Compte ou mois manquant.");
-    const targets: Record<string, number> = {};
-    const total = parse(form.get("total"));
-    if (total !== null && String(form.get("total") ?? "").trim() !== "") targets.total = total;
-    for (const [k, v] of form.entries()) {
-      if (!k.startsWith("c_") || String(v).trim() === "") continue;
-      const n = parse(v);
-      if (n !== null && /^\d+$/.test(k.slice(2))) targets[k.slice(2)] = n;
+    // On ne remplace que la partie envoyée (cible du compte OU budgets par campagne).
+    const { readTargets } = await import("@/lib/optimize/budget");
+    const targets: Record<string, number> = await readTargets(customerId, month);
+    if (part === "total") {
+      const raw = String(form.get("total") ?? "").trim();
+      const total = parse(raw);
+      if (raw === "") delete targets.total;
+      else if (total === null) throw new Error("Cible illisible : tape un montant, par exemple 930.");
+      else targets.total = total;
+    } else {
+      for (const [k, v] of form.entries()) {
+        if (!k.startsWith("c_") || !/^\d+$/.test(k.slice(2))) continue;
+        const raw = String(v).trim();
+        if (raw === "") { delete targets[k.slice(2)]; continue; }
+        const n = parse(raw);
+        if (n !== null) targets[k.slice(2)] = n;
+      }
     }
     await setSetting(budgetKey(customerId, month), JSON.stringify(targets));
     msg = "ok:Budgets du mois enregistrés : la prévision est recalculée.";
@@ -86,8 +110,7 @@ export async function saveBudgetTargetsAction(form: FormData): Promise<void> {
     msg = `err:${e instanceof Error ? e.message : String(e)}`;
   }
   revalidatePath("/optimiser/budget");
-  const sep = back.includes("?") ? "&" : "?";
-  redirect(`${back.startsWith("/") ? back : "/optimiser/budget"}${sep}msg=${encodeURIComponent(msg)}`);
+  redirect(backTo(form.get("back"), "/optimiser/budget", msg));
 }
 
 /** Audit noté sur 100 : lance le scan et l'enregistre dans l'historique. */
@@ -97,7 +120,6 @@ export async function scanAuditAction(form: FormData): Promise<void> {
   const { fetchScanData, evaluate, readOff, saveScan, MODELS } = await import("@/lib/audit/scan");
   const customerId = String(form.get("customer_id") ?? "");
   const model = String(form.get("modele") ?? "complet") as keyof typeof MODELS;
-  const back = String(form.get("back") ?? "/analyser/audit");
   let to: string;
   try {
     if (!/^\d+$/.test(customerId)) throw new Error("Compte manquant.");
@@ -106,7 +128,7 @@ export async function scanAuditAction(form: FormData): Promise<void> {
     await saveScan(customerId, r);
     to = `/analyser/audit?account=${customerId}&scan=0`;
   } catch (e) {
-    to = `${back}${back.includes("?") ? "&" : "?"}msg=${encodeURIComponent(`err:${e instanceof Error ? e.message : String(e)}`.slice(0, 300))}`;
+    to = backTo(form.get("back"), "/analyser/audit", `err:${e instanceof Error ? e.message : String(e)}`);
   }
   revalidatePath("/analyser/audit");
   redirect(to);
@@ -120,7 +142,6 @@ export async function saveCriteriaAction(form: FormData): Promise<void> {
   const { AUDIT_GRID } = await import("@/lib/audit/criteria");
   const on = new Set(form.getAll("on").map(String));
   const all = AUDIT_GRID.flatMap((c) => c.items.map((_, i) => `${c.key}.${i}`));
-  const back = String(form.get("back") ?? "/analyser/audit?onglet=criteres");
   let msg: string;
   try {
     await saveOff(all.filter((id) => !on.has(id)));
@@ -129,5 +150,5 @@ export async function saveCriteriaAction(form: FormData): Promise<void> {
     msg = `err:${e instanceof Error ? e.message : String(e)}`;
   }
   revalidatePath("/analyser/audit");
-  redirect(`${back}${back.includes("?") ? "&" : "?"}msg=${encodeURIComponent(msg)}`);
+  redirect(backTo(form.get("back"), "/analyser/audit?onglet=criteres", msg));
 }

@@ -82,7 +82,7 @@ function keywordRules(data: AuditData, cvr: number, cpaRef: number, alpha: numbe
       } else if (k.cost >= Math.max(5, cpaRef * 0.02)) {
         // Comme Ades : toute dépense sans conversion est « à confirmer » tant que le volume ne permet pas de conclure.
         out.push({
-          id: `kw:watch:${k.adGroupId}:${k.text}`,
+          id: `kw:watch:${k.adGroupId}:${k.matchType}:${k.text}`,
           category: "mots_cles",
           severity: "mineur",
           title: `« ${k.text} » (${k.matchType === "EXACT" ? "exact" : k.matchType === "PHRASE" ? "expression" : "large"}) : dépense sans convertir`,

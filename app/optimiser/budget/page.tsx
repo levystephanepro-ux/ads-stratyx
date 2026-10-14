@@ -54,6 +54,7 @@ export default async function BudgetPage({ searchParams }: { searchParams: Promi
       <form action={saveBudgetTargetsAction} className="ui-panel op-target">
         <input type="hidden" name="customer_id" value={scope.account?.customerId ?? ""} />
         <input type="hidden" name="month" value={f.month} />
+        <input type="hidden" name="part" value="total" />
         <input type="hidden" name="back" value={scope.href({ msg: null })} />
         <div className="ui-stat-label">Cible du mois (EUR)</div>
         <div className="op-target-row">
@@ -98,7 +99,7 @@ export default async function BudgetPage({ searchParams }: { searchParams: Promi
         <input type="hidden" name="customer_id" value={scope.account?.customerId ?? ""} />
         <input type="hidden" name="month" value={f.month} />
         <input type="hidden" name="back" value={scope.href({ msg: null })} />
-        {!P.targetIsDerived && <input type="hidden" name="total" value={String(P.target)} />}
+        <input type="hidden" name="part" value="campagnes" />
         <div className="ui-panel-head">
           <div>
             <div className="ui-panel-title">Budget du mois par campagne</div>

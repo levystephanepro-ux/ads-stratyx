@@ -120,7 +120,7 @@ function ExcludeTab({ terms, negatives, scope }: { terms: TermRow[]; negatives: 
               <tr><td colSpan={8} className="op-empty">Rien à exclure sur la période.</td></tr>
             ) : cands.map(({ t, reason, offTopic }) => (
               <tr key={`${t.adGroupId}~${t.term}`}>
-                <td><input className="op-check" type="checkbox" name="t" value={`${t.campaignId}|${t.campaign}|${t.term}`} defaultChecked={offTopic} /></td>
+                <td><input className="op-check" type="checkbox" name="t" value={`${t.campaignId}|${encodeURIComponent(t.campaign)}|${encodeURIComponent(t.term)}`} defaultChecked={offTopic} /></td>
                 <td><div className="op-kw-text">{t.term}</div></td>
                 <td><div className="op-kw-sub" style={{ marginTop: 0 }}>{t.campaign}</div></td>
                 <td><span className={`op-tag ${offTopic ? "red" : ""}`}>{reason}</span></td>
