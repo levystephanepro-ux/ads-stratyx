@@ -4,7 +4,8 @@
 import { redirect } from "next/navigation";
 import { getDashboardContext, type DashboardContext } from "@/lib/workspace";
 import { getActiveClient } from "@/lib/clients/active";
-import { ownerAccounts } from "@/lib/audit/run";
+import { ownerAccounts, latestAuditReports } from "@/lib/audit/run";
+import { getDefaultAccountInfo } from "@/lib/google-ads/default-account";
 import type { AdsContext } from "@/lib/google-ads/client";
 import { listCampaignsLite, period, PERIODS, type CampaignLite, type Days, type Period } from "./data";
 
@@ -34,8 +35,17 @@ export async function getScope(path: string, sp: ScopeParams): Promise<Scope> {
   let error: string | null = null;
   let accounts: { customerId: string; name: string }[] = [];
   try { accounts = await ownerAccounts(); } catch (e) { error = e instanceof Error ? e.message : String(e); }
-  const active = sp.account ? null : await getActiveClient();
-  const want = sp.account ?? active?.customer_id?.replace(/-/g, "") ?? undefined;
+  // Compte : adresse > client actif > compte par défaut (Comptes et réglages) > compte suivi qui dépense le plus.
+  const clean = (v?: string | null) => v?.replace(/-/g, "") || undefined;
+  let want = clean(sp.account);
+  if (!want) want = clean((await getActiveClient())?.customer_id);
+  if (!want) { try { want = clean((await getDefaultAccountInfo({ workspaceId: dash.workspaceId, isOwner: true }))?.customerId); } catch { /* réglage absent */ } }
+  if (!want || !accounts.some((a) => a.customerId === want)) {
+    try {
+      const top = (await latestAuditReports()).sort((a, b) => Number(b.total_cost) - Number(a.total_cost))[0];
+      if (top && accounts.some((a) => a.customerId === top.customer_id)) want = top.customer_id;
+    } catch { /* pas de diagnostic */ }
+  }
   const account = accounts.find((a) => a.customerId === want) ?? accounts[0] ?? null;
   const ads = account ? { customerId: account.customerId } : null;
   let campaigns: CampaignLite[] = [];

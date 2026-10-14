@@ -13,6 +13,7 @@ export default function FilterBar({
   allLabel = "Toutes les campagnes",
   hideCampaign,
   hideCompare,
+  hidePeriod,
 }: {
   campaigns: { id: string; name: string; status: string }[];
   campaignId: string | null;
@@ -23,6 +24,7 @@ export default function FilterBar({
   allLabel?: string;
   hideCampaign?: boolean;
   hideCompare?: boolean;
+  hidePeriod?: boolean;
 }) {
   const router = useRouter();
   const path = usePathname();
@@ -58,7 +60,7 @@ export default function FilterBar({
           </select>
         </label>
       )}
-      <label className="op-select">
+      {!hidePeriod && <label className="op-select">
         <span className="op-ic" aria-hidden>
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
         </span>
@@ -68,8 +70,8 @@ export default function FilterBar({
           <option value="30">30 derniers jours</option>
           <option value="90">90 derniers jours</option>
         </select>
-      </label>
-      {!hideCompare && (
+      </label>}
+      {!hideCompare && !hidePeriod && (
         <>
           <span className="op-vs">vs</span>
           <label className="op-select">

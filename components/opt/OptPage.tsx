@@ -89,6 +89,9 @@ export default async function OptPage({
           <Link className="ui-btn ui-btn-ghost" href={scope.href()} prefetch={false}>Tout actualiser</Link>
         </div>
       </header>
+      {filters === "none" && scope.accounts.length > 1 && (
+        <FilterBar campaigns={[]} campaignId={null} days={scope.p.days} compare={false} accounts={scope.accounts} accountId={scope.account?.customerId} hideCampaign hidePeriod />
+      )}
       {filters !== "none" && (
         <FilterBar
           campaigns={scope.campaigns.map((c) => ({ id: c.id, name: c.name, status: c.status }))}
