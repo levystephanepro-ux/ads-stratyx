@@ -12,27 +12,45 @@ const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 // ── Période ───────────────────────────────────────────────────────────────
 
-export const PERIODS = [7, 14, 30, 90] as const;
-export type Days = (typeof PERIODS)[number];
+export const PERIODS = ["7", "14", "30", "90", "mois"] as const;
+export type PeriodKey = (typeof PERIODS)[number];
+/** @deprecated garder pour compatibilité */
+export type Days = number;
 
 export interface Period {
-  days: Days;
+  key: PeriodKey;
+  /** Nombre de jours de la période. */
+  days: number;
   since: string;
   until: string;
   prevSince: string;
   prevUntil: string;
+  /** Libellé lisible, ex. « 7 derniers jours » ou « ce mois-ci ». */
+  label: string;
 }
 
-export function period(days: Days): Period {
+const frShort = (isoDate: string) => new Date(isoDate + "T00:00:00Z").toLocaleDateString("fr-FR", { day: "numeric", month: "short", timeZone: "UTC" });
+
+/** Période jusqu'à hier (la journée en cours est incomplète), comme « N derniers jours » dans Google Ads. */
+export function period(key: PeriodKey | number = "7"): Period {
+  const k = String(key) as PeriodKey;
   const until = new Date();
-  until.setUTCDate(until.getUTCDate() - 1); // la journée en cours est incomplète
-  const since = new Date(until);
-  since.setUTCDate(since.getUTCDate() - (days - 1));
+  until.setUTCDate(until.getUTCDate() - 1);
+  let since: Date;
+  if (k === "mois") {
+    // du 1er du mois à hier (le 1er : tout le mois précédent)
+    since = new Date(Date.UTC(until.getUTCFullYear(), until.getUTCMonth(), 1));
+  } else {
+    since = new Date(until);
+    since.setUTCDate(since.getUTCDate() - (Number(k) - 1));
+  }
+  const days = Math.round((until.getTime() - since.getTime()) / 864e5) + 1;
   const prevUntil = new Date(since);
   prevUntil.setUTCDate(prevUntil.getUTCDate() - 1);
   const prevSince = new Date(prevUntil);
   prevSince.setUTCDate(prevSince.getUTCDate() - (days - 1));
-  return { days, since: iso(since), until: iso(until), prevSince: iso(prevSince), prevUntil: iso(prevUntil) };
+  const label = k === "mois" ? `ce mois-ci (${frShort(iso(since))} → ${frShort(iso(until))})` : `${days} derniers jours`;
+  return { key: k, days, since: iso(since), until: iso(until), prevSince: iso(prevSince), prevUntil: iso(prevUntil), label };
 }
 
 const between = (a: string, b: string) => `segments.date BETWEEN '${a}' AND '${b}'`;

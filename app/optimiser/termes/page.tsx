@@ -57,7 +57,7 @@ export default async function TermsPage({ searchParams }: { searchParams: Promis
       scope={scope}
       title="Termes de recherche"
       tour={[{ title: "Termes de recherche · Découvrir ce que vos clients tapent vraiment", text: "Les recherches exactes qui ont déclenché vos annonces. « À exclure » propose les négatifs : coche, puis exclus en un clic (annulable 30 jours)." }, { title: "Termes de recherche · Intentions et n-grammes", text: "Intentions regroupe les recherches par ce que cherche l'internaute (achat, concurrents, emploi…). N-grammes montre le coût par mot, pour trouver les négatifs qui couvrent beaucoup de recherches." }]}
-      sub={<>{terms.length} recherches · {scope.p.days} derniers jours</>}
+      sub={<>{terms.length} recherches · {scope.p.label}</>}
       ia="Analyse mes termes de recherche : ce qu'il faut exclure, les intentions qui coûtent sans convertir, et les recherches à ajouter en mots-clés"
       help={<>
         <p>Les recherches exactes qui ont déclenché tes annonces. <strong>À exclure</strong> : ce qui dépense sans convertir ou ne correspond pas à l&apos;offre (concurrents, emploi, gratuit), à cocher puis exclure en un clic.</p>
@@ -99,7 +99,7 @@ function ExcludeTab({ terms, negatives, scope }: { terms: TermRow[]; negatives: 
     <>
       <section className="ui-panel op-stats3">
         <Stat label="Recherches à exclure" value={cands.length} sub="hors sujet ou sans conversion" />
-        <Stat label="Coût sur la période" value={eur(cost)} tone={cost > 0 ? "bad" : undefined} sub={`${scope.p.days} derniers jours`} />
+        <Stat label="Coût sur la période" value={eur(cost)} tone={cost > 0 ? "bad" : undefined} sub={`${scope.p.label}`} />
         <Stat label="Négatifs déjà en place" value={negatives.length} sub="campagnes, groupes et listes" />
       </section>
       <form action={addNegativesAction} className="op-table-wrap">

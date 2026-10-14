@@ -17,7 +17,7 @@ export default function FilterBar({
 }: {
   campaigns: { id: string; name: string; status: string }[];
   campaignId: string | null;
-  days: number;
+  days: string;
   compare: boolean;
   accounts?: { customerId: string; name: string }[];
   accountId?: string | null;
@@ -64,11 +64,12 @@ export default function FilterBar({
         <span className="op-ic" aria-hidden>
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
         </span>
-        <select value={String(days)} onChange={(e) => set("periode", e.target.value)} aria-label="Période">
+        <select value={days} onChange={(e) => set("periode", e.target.value)} aria-label="Période">
           <option value="7">7 derniers jours</option>
           <option value="14">14 derniers jours</option>
           <option value="30">30 derniers jours</option>
           <option value="90">90 derniers jours</option>
+          <option value="mois">Ce mois-ci</option>
         </select>
       </label>}
       {!hideCompare && !hidePeriod && (

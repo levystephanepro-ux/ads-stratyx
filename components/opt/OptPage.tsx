@@ -65,7 +65,7 @@ export default async function OptPage({
   children: ReactNode;
 }) {
   const { dash } = scope;
-  const iaQ = ia && scope.account ? `${ia} (compte ${scope.account.name}, ${scope.account.customerId}${scope.campaign ? `, campagne « ${scope.campaign.name} »` : ""}, ${scope.p.days} derniers jours)` : null;
+  const iaQ = ia && scope.account ? `${ia} (compte ${scope.account.name}, ${scope.account.customerId}${scope.campaign ? `, campagne « ${scope.campaign.name} »` : ""}, ${scope.p.label})` : null;
   return (
     <Shell active="waste" token={dash.mcpToken} trialDaysLeft={dash.trialDaysLeft} showAdmin={dash.isOwner} accountName={dash.defaultAccountName}>
       <WatchBanner customerId={scope.account?.customerId} />
@@ -90,13 +90,13 @@ export default async function OptPage({
         </div>
       </header>
       {filters === "none" && scope.accounts.length > 1 && (
-        <FilterBar campaigns={[]} campaignId={null} days={scope.p.days} compare={false} accounts={scope.accounts} accountId={scope.account?.customerId} hideCampaign hidePeriod />
+        <FilterBar campaigns={[]} campaignId={null} days={scope.p.key} compare={false} accounts={scope.accounts} accountId={scope.account?.customerId} hideCampaign hidePeriod />
       )}
       {filters !== "none" && (
         <FilterBar
           campaigns={scope.campaigns.map((c) => ({ id: c.id, name: c.name, status: c.status }))}
           campaignId={scope.campaignId}
-          days={scope.p.days}
+          days={scope.p.key}
           compare={scope.compare}
           accounts={scope.accounts}
           accountId={scope.account?.customerId}

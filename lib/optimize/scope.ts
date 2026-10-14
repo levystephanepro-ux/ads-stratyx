@@ -7,7 +7,7 @@ import { getActiveClient } from "@/lib/clients/active";
 import { ownerAccounts, latestAuditReports } from "@/lib/audit/run";
 import { getDefaultAccountInfo } from "@/lib/google-ads/default-account";
 import type { AdsContext } from "@/lib/google-ads/client";
-import { listCampaignsLite, period, PERIODS, type CampaignLite, type Days, type Period } from "./data";
+import { listCampaignsLite, period, PERIODS, type CampaignLite, type PeriodKey, type Period } from "./data";
 
 export type ScopeParams = { account?: string; campagne?: string; periode?: string; cmp?: string; [k: string]: string | undefined };
 
@@ -53,7 +53,7 @@ export async function getScope(path: string, sp: ScopeParams): Promise<Scope> {
     try { campaigns = await listCampaignsLite(ads); } catch (e) { error = e instanceof Error ? e.message : String(e); }
   }
   const campaign = campaigns.find((c) => c.id === sp.campagne) ?? null;
-  const days = (PERIODS as readonly number[]).includes(Number(sp.periode)) ? (Number(sp.periode) as Days) : 7;
+  const key: PeriodKey = (PERIODS as readonly string[]).includes(sp.periode ?? "") ? (sp.periode as PeriodKey) : "7";
   const compare = sp.cmp !== "0";
   const params: ScopeParams = { ...sp };
   const href = (patch: Record<string, string | null | undefined> = {}, to: string = path) => {
@@ -63,5 +63,5 @@ export async function getScope(path: string, sp: ScopeParams): Promise<Scope> {
     const s = q.toString();
     return s ? `${to}?${s}` : to;
   };
-  return { dash, accounts, account, ads, campaigns, campaignId: campaign?.id ?? null, campaign, p: period(days), compare, error, path, href, params };
+  return { dash, accounts, account, ads, campaigns, campaignId: campaign?.id ?? null, campaign, p: period(key), compare, error, path, href, params };
 }
