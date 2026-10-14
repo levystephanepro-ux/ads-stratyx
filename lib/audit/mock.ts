@@ -36,4 +36,5 @@ export const MOCK_AUDIT_DATA: AuditData = {
     cost: 59,
   })),
   conversionActions: 2,
+  brand: { accountName: false, accountLogo: true, campaignsWithName: [], campaignsWithLogo: [] },
 };

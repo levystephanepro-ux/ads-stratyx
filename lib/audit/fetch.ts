@@ -37,6 +37,16 @@ export async function fetchAuditData(
     }
   }
 
+  const [brandCamp, brandCust] = await Promise.all([
+    q("Nom et logo (campagnes)", () => searchRaw(ctx, `
+      SELECT campaign.id, campaign_asset.field_type FROM campaign_asset
+      WHERE campaign_asset.status = 'ENABLED' AND campaign.status = 'ENABLED'
+        AND campaign_asset.field_type IN ('BUSINESS_NAME', 'BUSINESS_LOGO')`), null as RawRow[] | null),
+    q("Nom et logo (compte)", () => searchRaw(ctx, `
+      SELECT customer_asset.field_type FROM customer_asset
+      WHERE customer_asset.status = 'ENABLED' AND customer_asset.field_type IN ('BUSINESS_NAME', 'BUSINESS_LOGO')`), null as RawRow[] | null),
+  ]);
+
   const [searchTerms, kwDef, kwPerf, campNeg, adGroupNeg, sharedLinks, sharedCrit, camps, ads, assets, daily, convActions] =
     await Promise.all([
       q("Termes de recherche", () => getAllSearchTerms(ctx, { since, until }), []),
@@ -229,6 +239,12 @@ export async function fetchAuditData(
       cost: micros(r.metrics?.costMicros),
     })),
     conversionActions: convActions ? convActions.length : null,
+    brand: brandCamp === null || brandCust === null ? null : {
+      accountName: brandCust.some((r) => r.customerAsset?.fieldType === "BUSINESS_NAME"),
+      accountLogo: brandCust.some((r) => r.customerAsset?.fieldType === "BUSINESS_LOGO"),
+      campaignsWithName: brandCamp.filter((r) => r.campaignAsset?.fieldType === "BUSINESS_NAME").map((r) => String(r.campaign?.id ?? "")),
+      campaignsWithLogo: brandCamp.filter((r) => r.campaignAsset?.fieldType === "BUSINESS_LOGO").map((r) => String(r.campaign?.id ?? "")),
+    },
   };
   return { data, skipped };
 }

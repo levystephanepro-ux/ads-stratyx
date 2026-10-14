@@ -193,6 +193,33 @@ function policyRules(data: AuditData): Constat[] {
   });
 }
 
+// ---------------------------------------------------------------- Nom d'entreprise et logo
+function brandRules(data: AuditData): Constat[] {
+  const b = data.brand;
+  if (!b) return [];
+  const out: Constat[] = [];
+  for (const c of data.campaigns) {
+    if (c.channel !== "SEARCH" || c.cost <= 0) continue;
+    const hasName = b.accountName || b.campaignsWithName.includes(c.id);
+    const hasLogo = b.accountLogo || b.campaignsWithLogo.includes(c.id);
+    if (!hasName) out.push({
+      id: `marque:nom:${c.id}`, category: "annonces", severity: "mineur",
+      title: `« ${c.name} » : il manque un nom d'entreprise`,
+      detail: "Google l'affiche en haut de l'annonce, à côté du logo, quand il est renseigné.",
+      campaign: c.name, amount: null,
+      action: "Composants → + → Nom de l'entreprise, au niveau du compte (identique au nom de la vérification annonceur).",
+    });
+    if (!hasLogo) out.push({
+      id: `marque:logo:${c.id}`, category: "annonces", severity: "mineur",
+      title: `« ${c.name} » : il manque un logo`,
+      detail: "Le logo s'affiche avec le nom d'entreprise et rend l'annonce plus reconnaissable.",
+      campaign: c.name, amount: null,
+      action: "Composants → + → Logo, au niveau du compte (carré, 1200 × 1200 conseillé).",
+    });
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------- Réglages et suivi
 function trackingRules(data: AuditData, acct: ReturnType<typeof accountStats>): Constat[] {
   const out: Constat[] = [];
@@ -274,6 +301,7 @@ export function runAudit(data: AuditData, opts: AuditOptions = {}): AuditResult 
   const constats = [
     ...negativeConflicts(data),
     ...policyRules(data),
+    ...brandRules(data),
     ...trackingRules(data, acct),
     ...budgetRules(data, acct.cpa, acct.cvr, alpha),
     ...kwShown,
