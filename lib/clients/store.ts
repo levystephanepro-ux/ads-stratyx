@@ -49,6 +49,21 @@ export async function createClientRow(name: string, customerId: string | null): 
   if (error) throw new Error(error.message);
   return data.id as string;
 }
+/** Prospect arrivé par un lien partenaire (ex. Club ARIA) : toujours une nouvelle fiche, jamais d'anti-doublon par nom
+ *  (le lien public du questionnaire ne doit jamais ouvrir la fiche d'un autre). Renvoie le lien privé du client. */
+export async function createPartnerLead(input: { name: string; activite: string; zone: string; source: string }): Promise<string> {
+  const since = new Date(Date.now() - 3600_000).toISOString();
+  const { count } = await db().from("clients").select("id", { count: "exact", head: true }).gte("created_at", since).not("answers->>source", "is", null);
+  if ((count ?? 0) >= 30) throw new Error("trop_de_demandes");
+  const share_token = randomBytes(18).toString("base64url");
+  const answers: Record<string, string> = { source: input.source, partage_partenaire: "oui", activite: input.activite, zone: input.zone };
+  const { error } = await db().from("clients").insert({
+    name: input.name, customer_id: null, share_token, status: "envoye", answers,
+    notes: `Source : ${input.source} (lien partenaire). Accord de partage des réponses avec le partenaire donné à l'ouverture.`,
+  });
+  if (error) throw new Error(error.message);
+  return share_token;
+}
 export async function updateClient(id: string, patch: Partial<Pick<Client, "name" | "customer_id" | "website" | "contact_email" | "notes" | "answers" | "status" | "submitted_at" | "stage" | "contact_name" | "contact_phone">>) {
   const { error } = await db().from("clients").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id);
   if (error) throw new Error(error.message);
