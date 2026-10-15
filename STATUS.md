@@ -215,6 +215,7 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 
 ## Journal : Pages façon Ades (branche `ades`, 2026-10-14)
 - [2026-10-14] Chiffres Stratyx vérifiés contre Google Ads sur D2B : coût 30 j (« porte fenetre » 179,42 €), mots-clés du 1er au 13 octobre (402,47 €, au centime), parts d'impressions de la page CPC vs marché.
+- [2026-10-15] Compte rendu mensuel façon Ades (/rapports/compte-rendu) : onglets mois, résultats vs mois précédent (même nb de jours), journal jour par jour avec auteur (Manuel / Stratyx / API / Auto Google), filtres type et auteur, texte client rédigé par l'IA (≈ 1 crédit, enregistré par compte et mois), copier / PDF.
 - Branche `ades` = `copilote-ameliorations` + `design-diagnostic` + les pages ci-dessous (une seule fusion à faire).
 - Menu : Optimiser (Diagnostic, Mots-clés, Termes de recherche, Budget Optimizer), Analyser (Carte des causes, CPC vs marché, Audit, Alertes), Créer, Rapports.
 - Gabarit commun `components/opt/OptPage.tsx` : bandeau de veille, titre + sous-titre chiffré, Comment ça marche, Analyser avec l'IA, Tout actualiser, filtres campagne / période / vs période précédente, visite guidée à la 1re ouverture.
