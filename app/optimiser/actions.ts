@@ -152,3 +152,23 @@ export async function saveCriteriaAction(form: FormData): Promise<void> {
   revalidatePath("/analyser/audit");
   redirect(backTo(form.get("back"), "/analyser/audit?onglet=criteres", msg));
 }
+
+/** Compte rendu mensuel : l'IA rédige le texte client (≈ 1 crédit). */
+export async function draftMonthlyReportAction(form: FormData): Promise<void> {
+  const ctx = await getDashboardContext();
+  if (!ctx.isOwner) throw new Error("Accès réservé.");
+  const { writeDraft } = await import("@/lib/reports/monthly");
+  const customerId = String(form.get("customer_id") ?? "");
+  const month = String(form.get("month") ?? "");
+  const name = String(form.get("account_name") ?? customerId);
+  let msg: string;
+  try {
+    if (!/^\d+$/.test(customerId) || !/^\d{4}-\d{2}$/.test(month)) throw new Error("Compte ou mois manquant.");
+    await writeDraft(customerId, name, month);
+    msg = "ok:Compte rendu rédigé : relis-le, puis copie-le ou télécharge le PDF.";
+  } catch (e) {
+    msg = `err:${e instanceof Error ? e.message : String(e)}`;
+  }
+  revalidatePath("/rapports/compte-rendu");
+  redirect(backTo(form.get("back"), "/rapports/compte-rendu", msg));
+}

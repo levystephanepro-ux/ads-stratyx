@@ -1242,3 +1242,17 @@ label.op-crit-row { cursor: pointer; }
 .tour-dots { display: flex; gap: 5px; }
 .tour-dots span { width: 8px; height: 6px; border-radius: 999px; background: var(--border); }
 .tour-dots span.on { width: 22px; background: var(--accent-2); }
+
+/* Compte rendu mensuel */
+.cr-draft { white-space: pre-wrap; line-height: 1.65; font-size: 15px; padding: 16px 18px; border-radius: 12px; background: color-mix(in srgb, var(--surface-2) 45%, var(--surface)); border: 1px solid var(--border); }
+.cr-filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 4px 0 6px; }
+.cr-filters .op-subtabs { margin: 0; flex-wrap: wrap; }
+.cr-day { margin-bottom: 10px; }
+.cr-day-head { display: flex; justify-content: space-between; gap: 10px; padding: 12px 18px; border-bottom: 1px solid var(--border); }
+.cr-day-head span { color: var(--muted); font-size: 13px; }
+.cr-line { display: grid; grid-template-columns: 46px 1fr auto; gap: 14px; align-items: start; padding: 11px 18px; border-top: 1px solid var(--border); font-size: 14.5px; }
+.cr-line:first-of-type { border-top: none; }
+.cr-time { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.cr-main { min-width: 0; }
+@media print { .cr-filters { display: none !important; } .cr-day { break-inside: avoid; } }
+@media (max-width: 720px) { .cr-line { grid-template-columns: 40px 1fr; } .cr-line > .op-tag { grid-column: 2; justify-self: start; } }
