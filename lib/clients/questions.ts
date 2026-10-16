@@ -7,6 +7,8 @@ export interface Question {
   core?: boolean;
   /** obligatoire dans la version courte (le client peut toujours enregistrer un brouillon) */
   required?: boolean;
+  /** valeur minimale d'un champ numérique dans la version courte */
+  min?: number;
   /** parcours concernés (absent = tous) */
   parcours?: Parcours[];
 }
@@ -55,7 +57,7 @@ export const QUESTIONNAIRE: QSection[] = [
     { key: "closing", parcours: LEADS, core: true, label: "Quand quelqu'un vous contacte pour un devis ou un rendez-vous, combien signent sur 10 ?", help: "Même sans publicité : pensez à vos demandes par téléphone, bouche à oreille ou site. Si vous ne savez pas, laissez vide : j'estimerai selon votre secteur.", type: "number" },
     { key: "delai_vente", label: "Délai moyen entre la première demande et la signature", type: "choice", choices: ["Le jour même", "Moins d'une semaine", "1 à 4 semaines", "Plus d'un mois"] },
     { key: "cpl_cible", parcours: LEADS, label: "Coût maximum acceptable par demande (€)", type: "number" },
-    { key: "budget", core: true, required: true, label: "Budget publicitaire mensuel envisagé (€)", type: "number" },
+    { key: "budget", core: true, required: true, min: 500, label: "Budget publicitaire mensuel envisagé (€)", help: "Minimum 500 € par mois : en dessous, les plateformes reçoivent trop peu de clics pour apprendre.", type: "number" },
     { key: "capacite", parcours: LEADS, core: true, label: "Combien de demandes pouvez-vous traiter par mois ?", type: "number" },
     { key: "demandes_actuelles", parcours: LEADS, core: true, label: "Combien de demandes recevez-vous par mois aujourd'hui ?", help: "Appels et formulaires, tous canaux confondus. Un ordre de grandeur suffit.", type: "number" },
     { key: "saison", label: "Périodes fortes et périodes creuses", type: "text" },

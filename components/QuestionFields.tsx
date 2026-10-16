@@ -22,7 +22,7 @@ export default function QuestionFields({ answers, mode = "fiche" }: { answers: R
                 {q.help && <span className="subtitle" style={{ margin: 0, fontSize: 12 }}>{q.help}</span>}
                 {q.type === "long" && <textarea id={`q_${q.key}`} name={q.key} rows={3} defaultValue={val} style={field} required={req} />}
                 {q.type === "text" && <input id={`q_${q.key}`} name={q.key} defaultValue={val} style={field} required={req} />}
-                {q.type === "number" && <input id={`q_${q.key}`} name={q.key} type="number" min={0} step="any" inputMode="decimal" defaultValue={val} style={field} required={req} />}
+                {q.type === "number" && <input id={`q_${q.key}`} name={q.key} type="number" min={mode === "court" && q.min ? q.min : 0} step="any" inputMode="decimal" defaultValue={val} style={field} required={req} />}
                 {q.type === "choice" && (
                   <select id={`q_${q.key}`} name={q.key} defaultValue={val} style={field} required={req}>
                     <option value="">Choisir</option>
