@@ -14,16 +14,17 @@ export default function QuestionFields({ answers, mode = "fiche" }: { answers: R
           {s.intro && <p className="subtitle" style={{ margin: 0, fontSize: 13 }}>{s.intro}</p>}
           {s.questions.map((q) => {
             const val = answers[q.key] ?? "";
+            const req = mode === "court" && !!q.required;
             const picked = val.split(",").map((x) => x.trim());
             return (
               <div key={q.key} style={{ display: "grid", gap: 5 }}>
-                <label htmlFor={`q_${q.key}`} style={{ fontWeight: 600 }}>{q.label}</label>
+                <label htmlFor={`q_${q.key}`} style={{ fontWeight: 600 }}>{q.label}{req ? " *" : ""}</label>
                 {q.help && <span className="subtitle" style={{ margin: 0, fontSize: 12 }}>{q.help}</span>}
-                {q.type === "long" && <textarea id={`q_${q.key}`} name={q.key} rows={3} defaultValue={val} style={field} />}
-                {q.type === "text" && <input id={`q_${q.key}`} name={q.key} defaultValue={val} style={field} />}
-                {q.type === "number" && <input id={`q_${q.key}`} name={q.key} type="number" min={0} step="any" inputMode="decimal" defaultValue={val} style={field} />}
+                {q.type === "long" && <textarea id={`q_${q.key}`} name={q.key} rows={3} defaultValue={val} style={field} required={req} />}
+                {q.type === "text" && <input id={`q_${q.key}`} name={q.key} defaultValue={val} style={field} required={req} />}
+                {q.type === "number" && <input id={`q_${q.key}`} name={q.key} type="number" min={0} step="any" inputMode="decimal" defaultValue={val} style={field} required={req} />}
                 {q.type === "choice" && (
-                  <select id={`q_${q.key}`} name={q.key} defaultValue={val} style={field}>
+                  <select id={`q_${q.key}`} name={q.key} defaultValue={val} style={field} required={req}>
                     <option value="">Choisir</option>
                     {q.choices!.map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>

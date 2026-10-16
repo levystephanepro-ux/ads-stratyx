@@ -34,16 +34,21 @@ export default async function PublicQuestionnaire({ params, searchParams }: { pa
   const c = await getClientByToken(token);
   if (!c) notFound();
   const short = sp.v === "court";
+  // Prospect arrivé par le lien d'un partenaire : le questionnaire sert à savoir si la publicité a du sens pour lui.
+  const partner = short && c.answers?.partage_partenaire === "oui";
 
   return (
     <main style={{ maxWidth: 760, margin: "0 auto", padding: "28px 16px 60px" }}>
       <h1 style={{ margin: "0 0 6px" }}>Faisons connaissance{c.name ? `, ${c.name}` : ""}</h1>
       <p className="subtitle" style={{ marginTop: 0 }}>
-        Ces questions nous permettent de construire vos campagnes Google Ads sur mesure. Comptez {short ? "5" : "10 à 15"} minutes. Répondez simplement, vous pourrez modifier vos réponses en rouvrant ce lien.
+        {partner
+          ? "Ces questions me permettent de vous dire franchement si la publicité a du sens pour votre activité, et quel budget prévoir."
+          : "Ces questions nous permettent de construire vos campagnes Google Ads sur mesure."}{" "}
+        Comptez {short ? "7" : "10 à 15"} minutes. Répondez simplement, vous pourrez modifier vos réponses en rouvrant ce lien.
       </p>
       <p className="subtitle" style={{ fontSize: 12, margin: "0 0 12px" }}>
         Vos réponses servent uniquement à STRATYXMEDIA pour préparer notre échange et vous faire une proposition. Elles ne sont
-        ni vendues ni partagées, et toutes les questions sont facultatives.{" "}
+        ni vendues ni partagées. {short ? "Les questions marquées d'une étoile sont nécessaires pour calculer un avis, les autres sont facultatives." : "Toutes les questions sont facultatives."}{" "}
         <a href="/confidentialite" target="_blank">Politique de confidentialité</a>
       </p>
       {/^https:\/\//i.test(c.answers?.data_room ?? "") && (

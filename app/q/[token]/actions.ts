@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getClientByToken, updateClient, formAnswers, syncContext, getClient } from "@/lib/clients/store";
 import { publicKeys, parcoursOf } from "@/lib/clients/questions";
 import { sendAgentEmail } from "@/lib/agent/email";
+import { verdictOf } from "@/lib/clients/verdict";
 
 const NOTIFY_EMAIL = "contact@stratyxmedia.fr";
 const SITE_URL = "https://app.stratyxmedia.fr";
@@ -34,6 +35,7 @@ async function submit(form: FormData, draft: boolean) {
   // (pas à chaque réouverture/modification ultérieure du lien par le client).
   if (!draft && !wasRempli && fresh) {
     try {
+      const v = verdictOf(fresh.answers);
       await sendAgentEmail(
         `📋 Questionnaire rempli · ${fresh.name || "Nouveau prospect"}`,
         [
@@ -41,6 +43,8 @@ async function submit(form: FormData, draft: boolean) {
           fresh.contact_email ? `- Email : ${fresh.contact_email}` : "",
           fresh.contact_phone ? `- Téléphone : ${fresh.contact_phone}` : "",
           fresh.website ? `- Site : ${fresh.website}` : "",
+          `\n**Avis : ${v.titre}**`,
+          ...v.lignes.map((l) => `- ${l}`),
           `- [Voir la fiche client](${SITE_URL}/clients/${fresh.id})`,
         ].filter(Boolean).join("\n"),
         NOTIFY_EMAIL,

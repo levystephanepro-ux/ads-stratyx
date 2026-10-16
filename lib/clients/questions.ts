@@ -5,6 +5,8 @@ export interface Question {
   key: string; label: string; help?: string; type: "text" | "long" | "number" | "choice" | "multi"; choices?: string[];
   /** fait partie de la version courte */
   core?: boolean;
+  /** obligatoire dans la version courte (le client peut toujours enregistrer un brouillon) */
+  required?: boolean;
   /** parcours concernés (absent = tous) */
   parcours?: Parcours[];
 }
@@ -28,6 +30,7 @@ export const QUESTIONNAIRE: QSection[] = [
     { key: "acces_obtenus", label: "Accès obtenus", help: "Coche au fur et à mesure. Les accès manquants retardent le lancement.", type: "multi", choices: ["Google Ads", "Google Analytics", "Google Tag Manager", "Search Console", "Fiche Google Business", "Meta Business", "Site (administration)"] },
   ] },
   { title: "Votre entreprise", questions: [
+    { key: "categorie", core: true, required: true, label: "Votre activité se rapproche de…", help: "Pour estimer ce que coûte une demande dans votre secteur.", type: "choice", choices: ["Artisan, bâtiment", "Santé, bien-être", "Commerce, restauration", "Tourisme, nautisme", "Services aux entreprises", "Autre"] },
     { key: "activite", core: true, label: "Que faites-vous exactement ?", help: "En 2 ou 3 phrases, comme si vous parliez à un nouveau client.", type: "long" },
     { key: "services", core: true, label: "Vos produits ou services, du plus rentable au moins rentable", type: "long" },
     { key: "zone", core: true, label: "Zone géographique desservie", help: "Villes, départements, rayon autour de l'entreprise, zones à exclure.", type: "text" },
@@ -46,21 +49,22 @@ export const QUESTIONNAIRE: QSection[] = [
     { key: "objectif", core: true, label: "Objectif principal de la publicité", type: "choice", choices: ["Recevoir des demandes de devis ou des appels", "Vendre en ligne", "Remplir un agenda de rendez-vous", "Faire connaître la marque", "Autre"] },
     { key: "objectif90", label: "Quel résultat vous ferait dire dans 90 jours que ça marche ?", help: "Un chiffre : nombre de demandes, de ventes, de rendez-vous.", type: "text" },
     { key: "objectif_ca", label: "Chiffre d'affaires supplémentaire visé par mois grâce à la publicité (€)", help: "Un ordre de grandeur suffit. Sert à calculer combien de demandes il faut, et donc le budget.", type: "number" },
-    { key: "valeur_lead", core: true, label: "Valeur moyenne d'un client signé (€)", help: "Panier moyen ou chiffre d'affaires moyen par chantier ou vente.", type: "number" },
-    { key: "marge", label: "Marge moyenne sur cette vente (%)", help: "Une estimation suffit.", type: "number" },
+    { key: "valeur_lead", core: true, required: true, label: "Valeur moyenne d'un client signé (€)", help: "Panier moyen ou chiffre d'affaires moyen par chantier ou vente.", type: "number" },
+    { key: "marge", core: true, label: "Marge moyenne sur cette vente (%)", help: "Une estimation suffit.", type: "number" },
     { key: "recurrence", label: "Un client achète-t-il une seule fois ou revient-il ?", type: "choice", choices: ["Achat unique", "Revient de temps en temps", "Contrat ou abonnement récurrent", "Il recommande beaucoup"] },
-    { key: "closing", parcours: LEADS, core: true, label: "Sur 10 demandes reçues, combien deviennent clientes ?", type: "number" },
+    { key: "closing", parcours: LEADS, core: true, label: "Quand quelqu'un vous contacte pour un devis ou un rendez-vous, combien signent sur 10 ?", help: "Même sans publicité : pensez à vos demandes par téléphone, bouche à oreille ou site. Si vous ne savez pas, laissez vide : j'estimerai selon votre secteur.", type: "number" },
     { key: "delai_vente", label: "Délai moyen entre la première demande et la signature", type: "choice", choices: ["Le jour même", "Moins d'une semaine", "1 à 4 semaines", "Plus d'un mois"] },
     { key: "cpl_cible", parcours: LEADS, label: "Coût maximum acceptable par demande (€)", type: "number" },
-    { key: "budget", core: true, label: "Budget publicitaire mensuel envisagé (€)", type: "number" },
-    { key: "capacite", parcours: LEADS, label: "Combien de demandes pouvez-vous traiter par mois ?", type: "number" },
+    { key: "budget", core: true, required: true, label: "Budget publicitaire mensuel envisagé (€)", type: "number" },
+    { key: "capacite", parcours: LEADS, core: true, label: "Combien de demandes pouvez-vous traiter par mois ?", type: "number" },
+    { key: "demandes_actuelles", parcours: LEADS, core: true, label: "Combien de demandes recevez-vous par mois aujourd'hui ?", help: "Appels et formulaires, tous canaux confondus. Un ordre de grandeur suffit.", type: "number" },
     { key: "saison", label: "Périodes fortes et périodes creuses", type: "text" },
   ] },
   { title: "Le traitement des demandes", parcours: LEADS, intro: "Une publicité efficace perd son intérêt si la demande n'est pas rappelée vite.", questions: [
-    { key: "delai_rappel", label: "Sous quel délai rappelez-vous une demande ?", type: "choice", choices: ["Moins de 15 minutes", "Dans l'heure", "Dans la journée", "Plus d'un jour"] },
+    { key: "delai_rappel", core: true, label: "Sous quel délai rappelez-vous une demande ?", type: "choice", choices: ["Moins de 15 minutes", "Dans l'heure", "Dans la journée", "Plus d'un jour"] },
     { key: "qui_repond", label: "Qui répond au téléphone et aux formulaires ?", help: "Vous, un commercial, une assistante, un répondeur. Horaires d'ouverture.", type: "text" },
     { key: "bonne_demande", label: "Qu'est-ce qu'une bonne demande ? Et une mauvaise ?", type: "long" },
-    { key: "suivi", label: "Comment suivez-vous vos demandes et vos ventes ?", help: "CRM, tableur, papier, rien. Savez-vous d'où vient chaque client ?", type: "long" },
+    { key: "suivi", core: true, label: "Comment suivez-vous vos demandes et vos ventes ?", help: "CRM, tableur, papier, rien. Savez-vous d'où vient chaque client ?", type: "long" },
   ] },
   { title: "Votre boutique en ligne", parcours: [P_ECOM], intro: "Pour investir d'abord sur ce qui se vend déjà.", questions: [
     { key: "best_sellers", label: "Vos produits phares, et pour qui", help: "Les 1 à 3 produits qui se vendent le mieux, leur prix et le type de client qui les achète.", type: "long" },
