@@ -49,7 +49,6 @@ export default async function DevisReglages({ searchParams }: { searchParams: SP
             <div><span style={lab}>Mention TVA</span><input name="mentionTva" defaultValue={s.mentionTva} style={input} /></div>
             <div><span style={lab}>Validité du devis (jours)</span><input name="validiteJours" type="number" min={1} defaultValue={s.validiteJours} style={input} /></div>
             <div style={{ gridColumn: "1 / -1" }}><span style={lab}>Conditions de paiement</span><textarea name="conditionsPaiement" rows={2} defaultValue={s.conditionsPaiement} style={input} /></div>
-            <div style={{ gridColumn: "1 / -1" }}><span style={lab}>Garantie (clause de vérité)</span><textarea name="garantie" rows={2} defaultValue={s.garantie} style={input} /></div>
           </div>
         </details>
 

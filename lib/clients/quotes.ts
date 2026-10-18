@@ -26,12 +26,16 @@ export interface CatalogItem {
 export interface Offer { nom: string; lignes: QuoteLine[]; engagementMois: number; notes: string; items?: string[] }
 export interface QuoteSettings {
   raisonSociale: string; adresse: string; email: string; telephone: string; siret: string;
-  mentionTva: string; validiteJours: number; conditionsPaiement: string; garantie: string;
+  mentionTva: string; validiteJours: number; conditionsPaiement: string;
+  /** Ancienne clause de vérité, retirée : conservée pour lire les réglages déjà enregistrés, jamais affichée. */
+  garantie?: string;
   offres: Offer[]; catalogue: CatalogItem[]; catalogueVersion?: number;
 }
 export interface Quote {
   numero: string; date: string; offreNom: string; lignes: QuoteLine[]; engagementMois: number;
-  budgetPub: number | null; notes: string; garantie: boolean; statut: "brouillon" | "envoye" | "accepte" | "refuse";
+  budgetPub: number | null; notes: string;
+  /** Ancienne case « clause de vérité », retirée : ignorée. */
+  garantie?: boolean; statut: "brouillon" | "envoye" | "accepte" | "refuse";
   remiseGlobale?: number; ia?: { raisons: string[]; model: string; at: string };
 }
 
@@ -185,7 +189,7 @@ export const DEFAULT_SETTINGS: QuoteSettings = {
   raisonSociale: "STRATYXMEDIA", adresse: "1, avenue des Anglais, 06400 Cannes", email: "contact@stratyxmedia.fr", telephone: "", siret: "",
   mentionTva: "TVA non applicable, art. 293 B du CGI", validiteJours: 30,
   conditionsPaiement: "Frais de mise en place payables à la signature. Honoraires mensuels payables d'avance, le 1er de chaque mois, par virement.",
-  garantie: "Clause de vérité : si l'objectif de coût par demande fixé ensemble n'est pas atteint à 90 jours, le mois suivant est offert ou vous pouvez arrêter sans pénalité.",
+  garantie: "",
   offres: DEFAULT_PACKS, catalogue: DEFAULT_CATALOGUE, catalogueVersion: 2,
 };
 export const CATALOGUE_VERSION = 2;

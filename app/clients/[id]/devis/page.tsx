@@ -191,7 +191,6 @@ export default async function DevisPage({ params, searchParams }: { params: P; s
               <label><span style={small}>Statut</span><select name="statut" defaultValue={q.statut} style={input}>{Object.entries(STATUT).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
             </div>
             <label><span style={small}>Note en bas du devis</span><textarea name="notes" rows={3} defaultValue={q.notes} style={input} /></label>
-            <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" name="garantie" defaultChecked={q.garantie} /> Inclure la garantie (clause de vérité)</label>
             <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" name="redate" /> Mettre la date du jour</label>
             <p className="subtitle" style={{ margin: 0, fontSize: 12 }}>Statut « Envoyé » : fiche en « Proposition envoyée ». « Accepté » : fiche en « Signé ». « Refusé » : fiche en « Perdu ».</p>
             <div className="sticky-actions" style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -224,7 +223,6 @@ export default async function DevisPage({ params, searchParams }: { params: P; s
           )}
           {q.budgetPub ? <p style={{ marginTop: 18 }}>Budget publicitaire conseillé : <strong>{eur(q.budgetPub)} par mois</strong>, payé directement aux régies (Google, Meta), non inclus dans ce devis.</p> : null}
           {q.notes && <p style={{ whiteSpace: "pre-wrap" }}>{q.notes}</p>}
-          {q.garantie && s.garantie && <section style={{ breakInside: "avoid" }}><h2 className="rv-h2">Notre engagement</h2><p>{s.garantie}</p></section>}
           <section style={{ breakInside: "avoid" }}><h2 className="rv-h2">Conditions</h2>
             <p style={{ fontSize: 13 }}>{q.engagementMois > 0 ? `Engagement de ${q.engagementMois} mois, puis sans engagement, résiliable chaque mois. ` : ""}{s.conditionsPaiement} Devis valable {s.validiteJours} jours.</p>
           </section>

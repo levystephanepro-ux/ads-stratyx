@@ -270,7 +270,7 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 
 ## Journal : Devis
 - lib/clients/quotes.ts (réglages + offres types + devis par client + numérotation DEV-AAAA-NNN), stockés dans app_settings (pas de migration).
-- /clients/devis-reglages (coordonnées, mention TVA 293 B, conditions, clause de vérité, 3 offres types), /clients/[id]/devis (création depuis une offre, édition, PDF avec bon pour accord). Statut du devis -> étape de la fiche (envoyé, accepté = signé, refusé = perdu).
+- /clients/devis-reglages (coordonnées, mention TVA 293 B, conditions, 3 offres types), /clients/[id]/devis (création depuis une offre, édition, PDF avec bon pour accord). Statut du devis -> étape de la fiche (envoyé, accepté = signé, refusé = perdu).
 - Calendly : webhooks réservés aux offres payantes ; l'API en lecture (GET) est annoncée sur toutes les offres. Piste gratuite : import des rendez-vous à la demande avec un jeton personnel.
 - Import Calendly : lib/clients/calendly.ts + bouton « Importer mes RDV Calendly » sur /clients (si CALENDLY_TOKEN présent). Lit les RDV de -30 à +60 jours, crée les fiches manquantes (nom, email, site trouvé dans les réponses, notes avec les réponses du formulaire). Doublons évités par email et par nom.
 - Logo STRATYXMEDIA (components/BrandLogo.tsx, wordmark Syne avec « YX » orange + baseline) en tête des rapports clients, audits, proposition et devis.
@@ -325,3 +325,8 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 - Case « Prévoir une landing page dédiée » dans Construire la campagne : l'IA (outil à format imposé, lib/planner/landing.ts) rédige le contenu à partir des groupes et annonces actuels : H1 et haut de page, une section par groupe (ancre, titres d'annonce repris), formulaire, bénéfices, étapes, FAQ, SEO, éléments à demander au client. Contrôle de cohérence annonce / page (lib/planner/landing-text.ts), alerte si les annonces ont changé, URL finale conseillée par groupe (page#ancre), export du brief en Markdown.
 - Historique des simulations (lib/planner/simulations.ts, app_settings « simulations », 40 max) : paramètres, résumé chiffré, client actif, brouillon complet de campagne et landing. Enregistrer / Mettre à jour depuis le builder ; liste sur /previsions (Ouvrir, Supprimer) ; /previsions?sim=id restaure tout.
 - Boutons « ← Nouvelle simulation » et « Historique des simulations » en haut de Prévisions.
+
+## Journal : Zones par rayon
+### 2026-10-18 · Étape 0 : clause de vérité retirée
+- Plus de clause de vérité ni de mois offert : champ retiré des réglages de devis, case retirée de la page de devis, section « Notre engagement » retirée du PDF (remplacée plus tard par « Exclusivité »).
+- `garantie` reste optionnel dans `QuoteSettings` et `Quote` pour lire les devis déjà enregistrés ; il est ignoré et vidé au prochain enregistrement.

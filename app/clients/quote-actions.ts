@@ -53,7 +53,7 @@ export async function saveQuoteSettingsAction(form: FormData) {
   await saveQuoteSettings({
     raisonSociale: str(form, "raisonSociale"), adresse: str(form, "adresse"), email: str(form, "email"), telephone: str(form, "telephone"),
     siret: str(form, "siret"), mentionTva: str(form, "mentionTva"), validiteJours: Math.round(num(form, "validiteJours", 30)),
-    conditionsPaiement: str(form, "conditionsPaiement"), garantie: str(form, "garantie"),
+    conditionsPaiement: str(form, "conditionsPaiement"), garantie: "",
     catalogue: catalogue.length ? catalogue : prev.catalogue, offres: offres.length ? offres : prev.offres, catalogueVersion: CATALOGUE_VERSION,
   });
   const back = str(form, "back");
@@ -61,9 +61,9 @@ export async function saveQuoteSettingsAction(form: FormData) {
 }
 
 // ---------------- Création d'un devis ----------------
-async function baseQuote(id: string): Promise<Pick<Quote, "numero" | "date" | "statut" | "garantie">> {
-  const [existing, s] = await Promise.all([getQuote(id), getQuoteSettings()]);
-  return { numero: existing?.numero ?? await nextQuoteNumber(), date: new Date().toISOString(), statut: "brouillon", garantie: !!s.garantie };
+async function baseQuote(id: string): Promise<Pick<Quote, "numero" | "date" | "statut">> {
+  const existing = await getQuote(id);
+  return { numero: existing?.numero ?? await nextQuoteNumber(), date: new Date().toISOString(), statut: "brouillon" };
 }
 
 /** Depuis un pack : prestations du catalogue, variables remplies avec la fiche et la proposition. */
@@ -107,7 +107,7 @@ export async function aiQuoteAction(form: FormData) {
   let sug;
   try { sug = await suggestQuote(c, s, prop); }
   catch (e) { redirect(`/clients/${id}/devis?${existing ? "edit=1&" : ""}err=${encodeURIComponent(e instanceof Error ? e.message : String(e))}`); }
-  const base = existing ? { numero: existing.numero, date: existing.date, statut: existing.statut, garantie: existing.garantie } : await baseQuote(id);
+  const base = existing ? { numero: existing.numero, date: existing.date, statut: existing.statut } : await baseQuote(id);
   await saveQuote(id, {
     ...base, offreNom: sug.offreNom, lignes: withAmounts(sug.lignes, sug.budgetPub), engagementMois: sug.engagementMois,
     budgetPub: sug.budgetPub, notes: sug.notes || existing?.notes || "", remiseGlobale: existing?.remiseGlobale ?? 0,
@@ -143,7 +143,7 @@ async function saveQuoteCore(form: FormData, stay: boolean) {
   await saveQuote(id, {
     ...q, offreNom: str(form, "offreNom") || q.offreNom, lignes: withAmounts(lignes, budgetPub),
     engagementMois: Math.round(num(form, "engagementMois", q.engagementMois)), budgetPub, notes: str(form, "notes"),
-    garantie: form.get("garantie") === "on", statut, remiseGlobale: Math.min(100, num(form, "remiseGlobale")),
+    garantie: false, statut, remiseGlobale: Math.min(100, num(form, "remiseGlobale")),
     date: form.get("redate") === "on" ? new Date().toISOString() : q.date,
   });
   // L'étape commerciale suit le devis.
