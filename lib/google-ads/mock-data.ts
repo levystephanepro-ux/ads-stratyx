@@ -9,7 +9,7 @@ import type { AdsAccount, Campaign, CampaignMetrics } from "./types";
 
 export const DEMO_ACCOUNT: AdsAccount = {
   customerId: "9901234567",
-  descriptiveName: "Dupont Plomberie — Nice Centre",
+  descriptiveName: "Dupont Plomberie (Nice Centre)",
   currencyCode: "EUR",
   timeZone: "Europe/Paris",
 };
@@ -81,11 +81,11 @@ export const DEMO_METRICS_APRES: CampaignMetrics[] = [
 // Problèmes détectés (affiché pendant la démo)
 export const DEMO_PROBLEMES = [
   { gravite: "haute", texte: "47 mots-clés non qualifiés actifs (\"plombier emploi\", \"formation plomberie\", \"plombier salaire\"…)" },
-  { gravite: "haute", texte: "Aucune extension d'appel configurée — les prospects ne peuvent pas appeler en 1 clic" },
-  { gravite: "haute", texte: "Annonces identiques jour et nuit — les urgences nocturnes coûtent 3× plus sans ajustement" },
-  { gravite: "moyenne", texte: "Zone géographique trop large — vous payez des clics hors Nice (Toulon, Marseille)" },
-  { gravite: "moyenne", texte: "Pas de suivi des conversions — Google optimise sans savoir ce qui génère des appels" },
-  { gravite: "basse", texte: "Quality Score moyen 4/10 — vos annonces ne sont pas assez pertinentes pour les mots-clés" },
+  { gravite: "haute", texte: "Aucune extension d'appel configurée : les prospects ne peuvent pas appeler en 1 clic" },
+  { gravite: "haute", texte: "Annonces identiques jour et nuit : les urgences nocturnes coûtent 3× plus sans ajustement" },
+  { gravite: "moyenne", texte: "Zone géographique trop large : vous payez des clics hors Nice (Toulon, Marseille)" },
+  { gravite: "moyenne", texte: "Pas de suivi des conversions : Google optimise sans savoir ce qui génère des appels" },
+  { gravite: "basse", texte: "Quality Score moyen 4/10 : vos annonces ne sont pas assez pertinentes pour les mots-clés" },
 ];
 
 // Actions réalisées par Stratyx (affiché après la démo)

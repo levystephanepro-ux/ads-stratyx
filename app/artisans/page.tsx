@@ -3,7 +3,7 @@ import Link from "next/link";
 import "./artisans.css";
 
 export const metadata: Metadata = {
-  title: "Stratyx — Un seul artisan par métier et par zone",
+  title: "Stratyx | Un seul artisan par métier et par zone",
   description:
     "Publicité Google installée et pilotée pour les artisans des Alpes-Maritimes et du Var. Une seule place par métier et par commune. Audit de votre zone gratuit.",
   robots: { index: true, follow: true },
@@ -17,8 +17,8 @@ export const metadata: Metadata = {
      à la main. Ne laissez jamais une zone affichée "libre" si elle
      ne l'est pas : c'est la promesse centrale de la page.
    ------------------------------------------------------------------ */
-const PRIX_FORMATION = "—— €";
-const PRIX_COPILOTE = "—— € / mois";
+const PRIX_FORMATION = "Tarif à venir";
+const PRIX_COPILOTE = "Tarif à venir";
 
 const ZONES = [
   { commune: "Nice", metier: "Plomberie", libre: true },
@@ -63,7 +63,7 @@ export default function ArtisansPage() {
         <h2>Aujourd'hui, vos clients viennent d'où ?</h2>
         <p className="art-lead">
           Chez la plupart des artisans que nous rencontrons, la réponse tient en
-          trois lignes — et deux d'entre elles posent problème.
+          trois lignes, et deux d'entre elles posent problème.
         </p>
 
         <div className="art-grid">
@@ -192,15 +192,15 @@ export default function ArtisansPage() {
             « plombier emploi », « formation plomberie », « plombier salaire »
           </li>
           <li>
-            <strong>Aucun bouton d'appel</strong> — les clients ne pouvaient pas
+            <strong>Aucun bouton d'appel</strong> : les clients ne pouvaient pas
             appeler en un geste depuis leur téléphone
           </li>
           <li>
-            <strong>Zone trop large</strong> — des clics payés à Toulon et à
+            <strong>Zone trop large</strong> : des clics payés à Toulon et à
             Marseille
           </li>
           <li>
-            <strong>Aucun suivi des appels</strong> — Google optimisait sans
+            <strong>Aucun suivi des appels</strong> : Google optimisait sans
             savoir ce qui faisait sonner le téléphone
           </li>
         </ul>
@@ -220,7 +220,7 @@ export default function ArtisansPage() {
               <p>
                 Vous indiquez votre métier et votre commune. Nous vous disons
                 sous 24 h si la place est libre. Si elle est prise, nous vous le
-                disons aussi — et nous ne vous relançons pas.
+                disons aussi, et nous ne vous relançons pas.
               </p>
             </div>
           </li>
@@ -231,7 +231,7 @@ export default function ArtisansPage() {
               <p>
                 Trente minutes au téléphone ou en visio. Panier moyen, zone
                 d'intervention, capacité à décrocher. À la fin, vous savez ce
-                que vous pouvez payer un appel sans perdre d'argent — que vous
+                que vous pouvez payer un appel sans perdre d'argent, que vous
                 travailliez avec nous ou non.
               </p>
             </div>
@@ -257,7 +257,7 @@ export default function ArtisansPage() {
             <strong>Vous ne pouvez pas décrocher en journée.</strong> La
             publicité fait sonner le téléphone. Si personne ne répond, vous
             payez pour offrir vos clients au concurrent suivant. Réglez ça
-            d'abord — nous vous le dirons franchement.
+            d'abord. Nous vous le dirons franchement.
           </li>
           <li>
             <strong>Votre agenda est déjà plein sur six mois.</strong> Vous
@@ -323,7 +323,7 @@ export default function ArtisansPage() {
             <p>
               Nous vous le disons tout de suite, et nous n'insistons pas. Nous
               pouvons regarder une commune voisine si vous vous y déplacez, ou
-              vous prévenir si la place se libère — uniquement si vous nous le
+              vous prévenir si la place se libère, uniquement si vous nous le
               demandez.
             </p>
           </details>

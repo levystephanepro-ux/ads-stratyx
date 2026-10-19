@@ -40,14 +40,14 @@ const FEATURES = [
 
 const STEPS = [
   { n: "1", title: "Crée ton compte", desc: "Essai gratuit 14 jours, sans carte bancaire. Tu accèdes à l'app immédiatement." },
-  { n: "2", title: "On relie ton compte Google Ads", desc: "L'équipe Stratyx connecte ton compte en quelques heures. Tes données restent chez Google — accès en lecture, écriture uniquement sur validation." },
+  { n: "2", title: "On relie ton compte Google Ads", desc: "L'équipe Stratyx connecte ton compte en quelques heures. Tes données restent chez Google : accès en lecture, écriture uniquement sur validation." },
   { n: "3", title: "Délègue", desc: "Discute avec le copilote, active des agents, reçois tes rapports par email. Tes campagnes ne restent plus jamais 3 semaines sans audit." },
 ];
 
 const FAQ = [
   {
     q: "J'ai besoin d'un compte Claude ?",
-    a: "Non. Avec le plan Pro, tout se passe dans l'app : copilote et agents inclus. Si tu as déjà Claude Pro/Max, le plan Starter te permet de brancher tes campagnes directement dans ton Claude — c'est illimité et moins cher.",
+    a: "Non. Avec le plan Pro, tout se passe dans l'app : copilote et agents inclus. Si tu as déjà Claude Pro/Max, le plan Starter te permet de brancher tes campagnes directement dans ton Claude. C'est illimité et moins cher.",
   },
   {
     q: "Stratyx peut modifier mes campagnes sans me demander ?",
@@ -59,7 +59,7 @@ const FAQ = [
   },
   {
     q: "Je peux résilier quand je veux ?",
-    a: "Oui, sans engagement. L'essai s'arrête tout seul si tu ne t'abonnes pas — aucune carte n'est demandée.",
+    a: "Oui, sans engagement. L'essai s'arrête tout seul si tu ne t'abonnes pas. Aucune carte n'est demandée.",
   },
 ];
 
@@ -122,9 +122,9 @@ export default function LandingPage() {
               </p>
               <p style={{ margin: 0 }}>
                 <strong style={{ color: "var(--accent)" }}>Stratyx :</strong>{" "}
-                2 campagnes dépassent ce seuil : « Search — Fenêtres » (CPA 52,30€,
-                +38% vs juin) et « PMax — Rénovation » (CPA 47,10€). La première
-                brûle 68% de son budget sur 3 requêtes hors-cible — je peux te
+                2 campagnes dépassent ce seuil : « Search (Fenêtres) » (CPA 52,30€,
+                +38% vs juin) et « PMax (Rénovation) » (CPA 47,10€). La première
+                brûle 68% de son budget sur 3 requêtes hors-cible. Je peux te
                 lister les mots-clés négatifs à ajouter ?
               </p>
             </div>

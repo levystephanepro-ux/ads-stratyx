@@ -347,3 +347,8 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 - `POST /api/zone/attente` : inscription sur la liste d'attente (zone prise ou partielle) depuis la fiche créée, coordonnées lues en base, jamais envoyées par le navigateur.
 - Web3Forms retiré (clé supprimée du code). Le navigateur ne reçoit plus aucune table de zones.
 - Non testé en conditions réelles : écriture en base et e-mail (pas de zone saisie, pas de test sur la base de production). À vérifier sur l'aperçu Vercel.
+
+### 2026-10-19 · Textes : plus de tirets longs, démo avec l'offre du brief
+- Tirets longs « — » retirés des textes visibles (pages /zone, /demo, /artisans, formation, accueil, métadonnées, composants, quelques messages) et remplacés par virgule, deux-points, point ou parenthèses. Commentaires de code inchangés. Restent des tirets uniquement dans des commentaires, dans les sorties destinées à Claude (`lib/mcp`) et dans des consignes d'IA (`missions`, `persona`), qui ne sont pas affichés tels quels.
+- Les prix « —— € » de /artisans et de la formation (en attente de l'échelle tarifaire) affichent « Tarif à venir ».
+- /demo : bandeau fixe « Exemple fictif : données inventées pour illustrer, ce n'est pas un compte réel. » ; étape « L'offre » : mise en place 990 € puis 390 € par mois, « Mois 1 offert » retiré, mention du budget publicitaire minimum de 500 € et de la TVA (art. 293 B).

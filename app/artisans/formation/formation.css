@@ -132,7 +132,7 @@
 }
 
 .form-module-corps li::before {
-  content: "—";
+  content: "·";
   position: absolute;
   left: 0;
   color: var(--art-accent);

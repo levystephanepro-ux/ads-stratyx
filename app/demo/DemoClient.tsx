@@ -54,6 +54,9 @@ export default function DemoClient() {
 
         .sh{min-height:100vh;background:#f5f5f3}
 
+        /* bandeau d'avertissement */
+        .fic{position:sticky;top:0;z-index:20;background:#fff3cd;color:#5c4400;border-bottom:2px solid #e0b000;padding:12px 24px;text-align:center;font-size:15px;font-weight:600;line-height:1.4}
+
         /* header */
         .hd{background:#fff;border-bottom:1px solid #e5e5e3;padding:0 24px}
         .hd-i{max-width:820px;margin:0 auto;height:54px;display:flex;align-items:center;justify-content:space-between}
@@ -106,6 +109,7 @@ export default function DemoClient() {
         .of-badge{display:inline-block;background:#dcfce7;color:#15803d;font-size:12px;font-weight:600;padding:4px 12px;border-radius:99px;margin-bottom:16px}
         .of-price{font-size:44px;font-weight:700;color:#111;line-height:1;margin-bottom:4px}
         .of-unit{font-size:18px;font-weight:400;color:#666}
+        .of-price2{margin-top:10px;font-size:32px}
         .of-sub{font-size:13px;color:#999;margin-bottom:20px}
         .of-list{list-style:none;padding:0;border-top:1px solid #f0f0ee;padding-top:16px;margin-bottom:20px}
         .of-list li{font-size:14px;color:#111;padding:6px 0 6px 18px;position:relative;line-height:1.5;border-bottom:1px solid #f5f5f3}
@@ -121,6 +125,9 @@ export default function DemoClient() {
       `}</style>
 
       <div className="sh">
+        <div className="fic" role="note">
+          Exemple fictif : données inventées pour illustrer, ce n’est pas un compte réel.
+        </div>
         <header className="hd">
           <div className="hd-i">
             <div className="logo">stratyx</div>
@@ -148,7 +155,7 @@ export default function DemoClient() {
           {etape === "diagnostic" && (
             <>
               <h1 className="ttl">Ce que j'ai trouvé sur votre compte</h1>
-              <p className="sub">Audit réalisé ce matin — {DEMO_PROBLEMES.length} problèmes identifiés</p>
+              <p className="sub">Audit réalisé ce matin : {DEMO_PROBLEMES.length} problèmes identifiés</p>
               <div className="pb-list">
                 {DEMO_PROBLEMES.map((p, i) => (
                   <div key={i} className="pb">
@@ -167,7 +174,7 @@ export default function DemoClient() {
 
           {etape === "avant" && (
             <>
-              <h1 className="ttl">Situation actuelle — 30 derniers jours</h1>
+              <h1 className="ttl">Situation actuelle (30 derniers jours)</h1>
               <p className="sub">Sans gestion professionnelle</p>
               <div className="kpis">
                 <div className="kpi bad">
@@ -191,7 +198,7 @@ export default function DemoClient() {
               </div>
               <div className="alerte">
                 <strong>Le problème :</strong> vous payez {euros(Math.round(cpaAvant))} pour chaque appel reçu.
-                47 % du budget part sur des requêtes non qualifiées — personnes qui cherchent
+                47 % du budget part sur des requêtes non qualifiées : personnes qui cherchent
                 un emploi de plombier, une formation, ou un plombier hors de votre zone.
               </div>
               <button className="cta" onClick={() => setEtape("apres")}>
@@ -202,7 +209,7 @@ export default function DemoClient() {
 
           {etape === "apres" && (
             <>
-              <h1 className="ttl">Avec Stratyx — même budget, meilleurs résultats</h1>
+              <h1 className="ttl">Avec Stratyx : même budget, meilleurs résultats</h1>
               <p className="sub">Résultats après 30 jours de gestion</p>
               <div className="kpis">
                 <div className="kpi good">
@@ -244,22 +251,23 @@ export default function DemoClient() {
           {etape === "offre" && (
             <>
               <h1 className="ttl">L'offre Stratyx</h1>
-              <p className="sub">Zone Nice Centre — exclusivité garantie</p>
+              <p className="sub">Zone Nice Centre : exclusivité garantie</p>
               <div className="of-card">
-                <div className="of-badge">Mois 1 offert</div>
-                <div className="of-price">490 <span className="of-unit">€ / mois</span></div>
-                <div className="of-sub">À partir du mois 2 · Sans engagement · Résiliable à tout moment</div>
+                <div className="of-badge">Pack Zone Exclusive</div>
+                <div className="of-price">990 <span className="of-unit">€ de mise en place, une seule fois</span></div>
+                <div className="of-price of-price2">puis 390 <span className="of-unit">€ / mois</span></div>
+                <div className="of-sub">Sans engagement après la mise en place · Budget publicitaire minimum 500 € par mois, payé directement aux régies · TVA non applicable, art. 293 B du CGI</div>
                 <ul className="of-list">
                   <li>Gestion complète de vos campagnes Google Ads</li>
                   <li>Rapport de performance chaque lundi matin</li>
                   <li>Alerte immédiate si le budget déraille</li>
                   <li>Disponible par WhatsApp pour vos questions</li>
-                  <li className="of-hl">Exclusivité zone Nice Centre — aucun autre plombier dans mon portefeuille</li>
+                  <li className="of-hl">Exclusivité zone Nice Centre : aucun autre plombier dans mon portefeuille</li>
                 </ul>
                 <div className="of-roi">
                   <strong>Le calcul :</strong> {apres.conversions} appels × 60 % de closing × 650 € de chantier
                   moyen = <strong>{euros(Math.round(apres.conversions * 0.6 * 650))}</strong> de CA
-                  pour <strong>490 € de gestion</strong> + {euros(Math.round(apres.cost))} de budget pub.
+                  pour <strong>990 € de mise en place</strong> puis <strong>390 € de gestion par mois</strong>, plus {euros(Math.round(apres.cost))} de budget pub.
                 </div>
               </div>
             </>

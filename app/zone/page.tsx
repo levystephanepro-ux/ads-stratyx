@@ -5,7 +5,7 @@ import "../artisans/artisans.css";
 import "./zone.css";
 
 export const metadata: Metadata = {
-  title: "Vérifier ma zone — Stratyx",
+  title: "Vérifier ma zone | Stratyx",
   description:
     "Une seule place par activité autour de votre établissement, dans les Alpes-Maritimes et le Var. Vérifiez si la vôtre est encore libre. Réponse sous 24 h, sans engagement.",
   robots: { index: true, follow: true },
@@ -44,7 +44,7 @@ export default function ZonePage() {
             </li>
             <li>
               <strong>Vous repartez avec un chiffre.</strong> Ce que vous pouvez
-              payer un appel sans perdre d&apos;argent — que vous travailliez avec
+              payer un appel sans perdre d&apos;argent, que vous travailliez avec
               nous ou non.
             </li>
           </ol>

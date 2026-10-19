@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 function ownerOnly(req: Request): NextResponse | null {
   if (!isOwnerToken(req.headers.get("x-app-token"))) {
     return NextResponse.json(
-      { error: "Bibliothèque gérée par ads·stratyx — lecture seule." },
+      { error: "Bibliothèque gérée par ads·stratyx : lecture seule." },
       { status: 403 },
     );
   }

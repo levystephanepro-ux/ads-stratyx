@@ -141,7 +141,7 @@ export default function CampaignSelector({ token, accountName }: { token: string
       {!isAll && (
         <p className="subtitle" style={{ fontSize: 12, margin: 0 }}>
           {selectedIds.size === 0
-            ? "Aucune campagne sélectionnée — le copilote et les agents analyseront tout le compte."
+            ? "Aucune campagne sélectionnée : le copilote et les agents analyseront tout le compte."
             : `${selectedIds.size} campagne${selectedIds.size > 1 ? "s" : ""} sélectionnée${selectedIds.size > 1 ? "s" : ""}.`}
         </p>
       )}

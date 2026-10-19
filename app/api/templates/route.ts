@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   // seul le propriétaire de la plateforme peut la modifier.
   if (!isOwnerToken(req.headers.get("x-app-token"))) {
     return NextResponse.json(
-      { error: "Bibliothèque gérée par ads·stratyx — lecture seule." },
+      { error: "Bibliothèque gérée par ads·stratyx : lecture seule." },
       { status: 403 },
     );
   }

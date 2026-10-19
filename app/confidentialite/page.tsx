@@ -290,7 +290,7 @@ export default function ConfidentialitePage() {
           <p>
             Si notre réponse ne vous satisfait pas, vous pouvez saisir la
             Commission nationale de l&apos;informatique et des libertés (CNIL),
-            3 place de Fontenoy, 75007 Paris —{" "}
+            3 place de Fontenoy, 75007 Paris :{" "}
             <a href="https://www.cnil.fr" target="_blank" rel="noopener noreferrer">
               cnil.fr
             </a>

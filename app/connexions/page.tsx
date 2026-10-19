@@ -80,14 +80,14 @@ export default async function ConnexionsPage() {
         <div className="card">
           <p className="subtitle" style={{ margin: 0 }}>
             Aucun compte Google Ads relié à ton espace pour le moment.
-            L&apos;équipe ads·stratyx relie ton compte lors de l&apos;activation —
-            écris-nous si ce n&apos;est pas encore fait.
+            L&apos;équipe ads·stratyx relie ton compte lors de l&apos;activation.
+            Écris-nous si ce n&apos;est pas encore fait.
           </p>
         </div>
       ) : ctx.isOwner && (!isLive() || !hasEnvAccount()) ? (
         <div className="card">
           <p className="subtitle" style={{ margin: 0 }}>
-            Mode démo — connecte un compte Google Ads réel pour gérer les comptes du MCC.
+            Mode démo : connecte un compte Google Ads réel pour gérer les comptes du MCC.
           </p>
         </div>
       ) : (
@@ -147,7 +147,7 @@ export default async function ConnexionsPage() {
       <p className="subtitle" style={{ marginBottom: 16, fontSize: 13 }}>
         ads·stratyx se branche <strong>à côté</strong> des MCPs officiels gratuits.
         Tu actives le connecteur chez le provider, il cohabite avec ads·stratyx dans
-        Claude — aucun crédit consommé ici.
+        Claude, aucun crédit consommé ici.
       </p>
 
       {/* Meta Ads */}

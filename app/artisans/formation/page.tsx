@@ -4,7 +4,7 @@ import "../artisans.css";
 import "./formation.css";
 
 export const metadata: Metadata = {
-  title: "La formation — Comprendre et piloter sa publicité | Stratyx",
+  title: "La formation : comprendre et piloter sa publicité | Stratyx",
   description:
     "Six modules, une dizaine d'heures, une vingtaine de documents à garder. Google et Meta expliqués aux artisans, sans jargon. Alpes-Maritimes et Var.",
   robots: { index: true, follow: true },
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
      Si cela change, réécrire — mais ne jamais laisser entendre
      qu'un financement est possible tant qu'il ne l'est pas.
    ------------------------------------------------------------------ */
-const PRIX = "—— €";
+const PRIX = "Tarif à venir";
 
 const MODULES = [
   {
@@ -54,7 +54,7 @@ const MODULES = [
     titre: "Meta, en local",
     duree: "2 h",
     promesse:
-      "Savoir si Facebook et Instagram ont un sens pour votre métier — et comment tourner des vidéos qui marchent, au téléphone.",
+      "Savoir si Facebook et Instagram ont un sens pour votre métier, et comment tourner des vidéos qui marchent, au téléphone.",
     points: [
       "Quand Meta ne sert à rien : le savoir avant de payer",
       "Pourquoi trop cibler fait échouer une campagne",
@@ -81,7 +81,7 @@ const MODULES = [
     titre: "Les 20 minutes du lundi",
     duree: "1 h 30",
     promesse:
-      "Une routine courte, à heure fixe, qui protège votre budget — et qui se conclut le plus souvent par « je ne touche à rien ».",
+      "Une routine courte, à heure fixe, qui protège votre budget, et qui se conclut le plus souvent par « je ne touche à rien ».",
     points: [
       "L'ordre exact des vérifications",
       "Quand couper une recherche qui coûte, avec un seuil chiffré",
@@ -171,7 +171,7 @@ export default function FormationPage() {
             <h3>Vous avez essayé et perdu de l&apos;argent</h3>
             <p>
               C&apos;est le cas le plus fréquent. Dans presque tous les comptes,
-              l&apos;argent part au même endroit — et ce sont des réglages, pas
+              l&apos;argent part au même endroit : ce sont des réglages, pas
               une fatalité.
             </p>
           </article>
@@ -250,7 +250,7 @@ export default function FormationPage() {
           <li>
             <strong>Elle ne promet pas de résultat.</strong> Personne ne peut
             promettre un nombre de chantiers. Ce qu&apos;elle garantit, c&apos;est
-            que vous saurez si votre publicité rapporte — et beaucoup
+            que vous saurez si votre publicité rapporte, et beaucoup
             d&apos;artisans ne le savent pas.
           </li>
           <li>
@@ -303,7 +303,7 @@ export default function FormationPage() {
             <p>
               C&apos;est une conclusion fréquente, et c&apos;est prévu : le dernier
               module contient le calcul qui permet de trancher, en heures et en
-              euros. Nous ne prenons qu&apos;un artisan par métier et par commune —
+              euros. Nous ne prenons qu&apos;un artisan par métier et par commune.
               vérifiez d&apos;abord que votre zone est libre.
             </p>
           </details>

@@ -105,7 +105,7 @@ export async function getWorkspaceBilling(
     allowed = false;
     reason =
       `Tes ${usdToCredits(limits.monthlyBudgetUsd)} crédits IA mensuels du plan ` +
-      `${limits.label} sont épuisés. Ils se rechargent le 1er du mois — ou passe ` +
+      `${limits.label} sont épuisés. Ils se rechargent le 1er du mois, ou passe ` +
       `au plan supérieur.`;
   }
 

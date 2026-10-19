@@ -179,7 +179,7 @@ export default function SearchConsoleClient({ token, isMock }: { token: string; 
       {isMock && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 10, background: 'color-mix(in srgb, #fbbf24 10%, transparent)', border: '1px solid color-mix(in srgb, #fbbf24 35%, transparent)', fontSize: 12, color: '#fbbf24', marginBottom: 16 }}>
           <span>⚠️</span>
-          <span><strong>Mode démonstration</strong> — données fictives. Passe <code style={{ background: 'rgba(0,0,0,.15)', padding: '1px 5px', borderRadius: 4 }}>SEARCH_CONSOLE_DATA_MODE=live</code> dans .env pour connecter ton vrai compte.</span>
+          <span><strong>Mode démonstration</strong> : données fictives. Passe <code style={{ background: 'rgba(0,0,0,.15)', padding: '1px 5px', borderRadius: 4 }}>SEARCH_CONSOLE_DATA_MODE=live</code> dans .env pour connecter ton vrai compte.</span>
         </div>
       )}
 
@@ -227,7 +227,7 @@ export default function SearchConsoleClient({ token, isMock }: { token: string; 
       {/* Description onglet opportunités */}
       {tab === 'opps' && (
         <div className="card" style={{ marginBottom: 14, background: 'color-mix(in srgb, var(--accent) 8%, var(--surface))', border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)', fontSize: 13 }}>
-          <strong>Requêtes en position 4–20</strong> avec &gt;100 impressions — tu as de la visibilité organique mais tu n'es pas en top 3.
+          <strong>Requêtes en position 4–20</strong> avec &gt;100 impressions : tu as de la visibilité organique mais tu n'es pas en top 3.
           Lancer une campagne Search sur ces termes te donnerait une présence immédiate pendant que le SEO progresse.
         </div>
       )}
@@ -283,7 +283,7 @@ export default function SearchConsoleClient({ token, isMock }: { token: string; 
                       {tab === 'opps' && (
                         <td style={{ padding: '10px 14px' }}>
                           <a
-                            href={`/copilote?token=${encodeURIComponent(token)}&q=${encodeURIComponent(`Lance une campagne Google Search sur la requête "${label}" — je suis en position ${pos(r.position)} en organique avec ${r.impressions} impressions.`)}`}
+                            href={`/copilote?token=${encodeURIComponent(token)}&q=${encodeURIComponent(`Lance une campagne Google Search sur la requête "${label}", je suis en position ${pos(r.position)} en organique avec ${r.impressions} impressions.`)}`}
                             className="btn-ghost"
                             style={{ fontSize: 11, padding: '5px 10px', display: 'inline-block', whiteSpace: 'nowrap' }}
                           >

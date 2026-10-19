@@ -41,7 +41,7 @@ const SECTIONS = [
       },
       {
         q: "Puis-je démarrer depuis un template ?",
-        a: "Oui. Dans la page Templates, clique sur n'importe quel prompt — il s'ouvre directement dans le Copilote avec le texte pré-rempli.",
+        a: "Oui. Dans la page Templates, clique sur n'importe quel prompt : il s'ouvre directement dans le Copilote avec le texte pré-rempli.",
       },
       {
         q: "Le Copilote a-t-il accès à mes vraies données ?",

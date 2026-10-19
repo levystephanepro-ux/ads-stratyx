@@ -370,8 +370,8 @@ const MOCK_ADS: AdRow[] = [
     adStrength: "GOOD",
     approvalStatus: "APPROVED",
     campaignId: "100000001",
-    campaignName: "Démo — Search",
-    adGroupName: "Démo — Groupe 1",
+    campaignName: "Démo (Search)",
+    adGroupName: "Démo (Groupe 1)",
     headlines: [
       { text: "Devis gratuit sous 48h", pinnedField: "HEADLINE_1" },
       { text: "Artisan local certifié", pinnedField: null },

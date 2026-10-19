@@ -152,7 +152,7 @@ export default function FormulaireZone() {
           ? `Vous aviez demandé ${rayonKm} km. Nous pouvons réserver un rayon plus réduit : dites-le-nous au téléphone, ou inscrivez-vous sur la liste d'attente pour le rayon complet.`
           : etat === "prise"
             ? "Nous préférons vous le dire tout de suite plutôt que vous faire attendre. Vous pouvez vous inscrire sur la liste d'attente : nous vous prévenons si la place se libère."
-            : "Nous vérifions la disponibilité autour de votre établissement et nous vous répondons sous 24 h ouvrées — que la place soit libre ou non.";
+            : "Nous vérifions la disponibilité autour de votre établissement et nous vous répondons sous 24 h ouvrées, que la place soit libre ou non.";
 
     return (
       <div className="zone-reponse" role="status" aria-live="polite">

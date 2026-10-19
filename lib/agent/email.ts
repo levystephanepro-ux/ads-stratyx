@@ -49,7 +49,7 @@ function renderHtml(title: string, md: string): string {
 <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #eadfce;border-radius:14px;padding:28px">
 <div style="font-weight:700;font-size:15px;color:#0B3C5D;margin-bottom:18px">ads<span style="color:#F2A122">·stratyx</span> <span style="color:#6b665e;font-weight:500">· Agent IA</span></div>
 ${body}
-<div style="margin-top:24px;padding-top:16px;border-top:1px solid #eadfce;color:#6b665e;font-size:12px">Rapport généré automatiquement — ${escapeHtml(title)}</div>
+<div style="margin-top:24px;padding-top:16px;border-top:1px solid #eadfce;color:#6b665e;font-size:12px">Rapport généré automatiquement : ${escapeHtml(title)}</div>
 </div></body></html>`;
 }
 

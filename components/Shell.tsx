@@ -259,7 +259,7 @@ export default function Shell({
             <span style={{ color: trialDaysLeft <= 3 ? 'var(--red)' : trialDaysLeft <= 7 ? '#fbbf24' : 'var(--accent-2)' }}>
               {trialDaysLeft === 0
                 ? '⚠️ Ton essai a expiré.'
-                : `⏳ Essai gratuit — il te reste ${trialDaysLeft} jour${trialDaysLeft > 1 ? 's' : ''}.`}
+                : `⏳ Essai gratuit : il te reste ${trialDaysLeft} jour${trialDaysLeft > 1 ? 's' : ''}.`}
             </span>
             <a href="/pricing" style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent-2)', whiteSpace: 'nowrap' }}>
               Passer Pro →

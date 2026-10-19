@@ -15,8 +15,8 @@ const DAYS = [
 ];
 
 const MODELS = [
-  { id: "claude-haiku-4-5-20251001", label: "Haiku 4.5 — rapide & économique" },
-  { id: "claude-sonnet-5", label: "Sonnet 5 — plus puissant" },
+  { id: "claude-haiku-4-5-20251001", label: "Haiku 4.5 : rapide & économique" },
+  { id: "claude-sonnet-5", label: "Sonnet 5 : plus puissant" },
 ];
 
 function catHue(cat: string): number {
@@ -242,7 +242,7 @@ export default function AgentTasksManager({
         const hint = res.status === 504 || res.status === 524
           ? "L'agent a dépassé le délai maximum (timeout Vercel)."
           : `Réponse inattendue du serveur (${res.status}).`;
-        setRuns((r) => ({ ...r, [t.id]: { error: `${hint}${preview ? ` — ${preview}` : ""}` } }));
+        setRuns((r) => ({ ...r, [t.id]: { error: `${hint}${preview ? ` : ${preview}` : ""}` } }));
         return;
       }
       if (!res.ok) {
@@ -400,7 +400,7 @@ export default function AgentTasksManager({
 
             <label>
               <div className="subtitle" style={{ fontSize: 13, marginBottom: 4 }}>
-                Consigne (prompt) — ce que l'agent doit faire
+                Consigne (prompt) : ce que l'agent doit faire
               </div>
               <textarea
                 style={{ ...inputStyle, minHeight: 120, resize: "vertical", fontFamily: "inherit" }}

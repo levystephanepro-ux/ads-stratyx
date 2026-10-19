@@ -58,7 +58,7 @@ export default async function AgentPage() {
 
       <p className="subtitle" style={{ fontSize: 13, marginTop: 24 }}>
         Les agents « Programmé » tournent automatiquement (cron quotidien) et
-        t'envoient le rapport par email — sans que tu aies à ouvrir cette page.
+        t'envoient le rapport par email, sans que tu aies à ouvrir cette page.
       </p>
     </Shell>
   );

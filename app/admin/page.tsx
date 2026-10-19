@@ -24,7 +24,7 @@ export default async function AdminPage() {
       <p><a className="btn-ghost" href="/admin/sante">Bilan de santé de l&apos;installation</a></p>
       <p className="page-lede">
         Tes clients, leurs plans et leur consommation. Relie les comptes Google
-        Ads et active les abonnements en un clic — plus besoin de SQL.
+        Ads et active les abonnements en un clic. Plus besoin de SQL.
       </p>
       <AdminManager rows={rows} summary={summary} mccAccounts={accounts} />
     </Shell>
