@@ -120,9 +120,22 @@
   }
 }
 
+/* Listes déroulantes : couleurs forcées, lisibles quel que soit le thème.
+   Le menu déroulant natif n'hérite pas toujours des variables du site. */
+.zone-champ select,
+.zone-champ select option,
+.zone-champ select optgroup {
+  color: #2e2b25;
+  background-color: #ffffff;
+}
+
+.zone-champ select option:disabled {
+  color: #6b665e;
+}
+
 .zone-champ select {
-  background-image: linear-gradient(45deg, transparent 50%, var(--art-muted) 50%),
-    linear-gradient(135deg, var(--art-muted) 50%, transparent 50%);
+  background-image: linear-gradient(45deg, transparent 50%, #6b665e 50%),
+    linear-gradient(135deg, #6b665e 50%, transparent 50%);
   background-position: calc(100% - 20px) 20px, calc(100% - 14px) 20px;
   background-size: 6px 6px, 6px 6px;
   background-repeat: no-repeat;
