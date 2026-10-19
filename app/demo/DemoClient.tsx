@@ -1,6 +1,5 @@
 "use client";
 import { useState } from "react";
-import BrandLogo from "@/components/BrandLogo";
 import {
   DEMO_ACCOUNT,
   DEMO_METRICS_AVANT,
@@ -130,7 +129,7 @@ export default function DemoClient() {
         </div>
         <header className="hd">
           <div className="hd-i">
-            <BrandLogo size={22} baseline={false} />
+            <img src="/logo-stratyxmedia.svg" alt="STRATYXMEDIA" height="22" />
             <div className="pill">
               <span className="dot" />
               {DEMO_ACCOUNT.descriptiveName}
