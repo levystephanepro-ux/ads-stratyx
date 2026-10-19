@@ -330,3 +330,12 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 ### 2026-10-18 · Étape 0 : clause de vérité retirée
 - Plus de clause de vérité ni de mois offert : champ retiré des réglages de devis, case retirée de la page de devis, section « Notre engagement » retirée du PDF (remplacée plus tard par « Exclusivité »).
 - `garantie` reste optionnel dans `QuoteSettings` et `Quote` pour lire les devis déjà enregistrés ; il est ignoré et vidé au prochain enregistrement.
+
+### 2026-10-19 · Étape 1 : modèle de zone par rayon
+- Migration `0024_zones_exclusives.sql` (lancée dans Supabase) : tables `zones_exclusives` (centre = adresse de l'établissement, rayon, statut gardee / reserve / actif / liberation / libere, expire_le) et `zones_attente`. RLS sans policy, écriture serveur seulement.
+- `lib/zones.ts` réécrit, module pur sans table : constantes de l'offre, `ACTIVITES` (19, « Autre » toujours en vérification manuelle), `distanceKm` (haversine), `controleZone` (états libre / partielle / prise / inconnue, `rayonMaxKm`), `supplementMensuel`, `suggestions`, `zonesAExpirer`. En cas de doute (activité hors liste, adresse non géocodée, rayon ou zone illisible) : « inconnue », jamais « libre ». L'ancien tableau de 6 lignes est supprimé : la table démarre vide.
+- `lib/geocode.ts` (API Adresse, score minimum 0,7, sinon null), `lib/zones-store.ts` (lecture des zones, expiration, liste d'attente), `lib/communes.ts` + `lib/data/communes-06-83.json` (316 communes, généré par `scripts/build-communes.mjs`).
+- Cron `/api/cron/zones` (tous les jours à 5 h 15) : libère les zones gardées 7 jours non signées et les zones en libération 30 jours, e-mail à Stéph si une zone libérée correspond à la liste d'attente.
+- `lib/zones.test.ts` : 16 tests (`npm run test:zones`). `tsconfig` : `allowImportingTsExtensions` pour ces tests.
+- `/artisans/ma-zone` : transitoire, répond « à vérifier » (plus aucune table envoyée au navigateur) jusqu'à l'étape 2.
+- Choix à valider : une « tranche » de rayon = 10 km au-delà de 10 km (15 et 20 km = 100 €, 25 km = 200 €), constante `TRANCHE_RAYON_KM`.

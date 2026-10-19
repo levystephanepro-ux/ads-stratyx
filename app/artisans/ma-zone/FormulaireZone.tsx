@@ -2,13 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import {
-  METIERS,
-  COMMUNES,
-  etatZone,
-  communesVoisines,
-  type EtatZone,
-} from "@/lib/zones";
+import { ACTIVITES as METIERS, type EtatZone } from "@/lib/zones";
+import { NOMS_COMMUNES as COMMUNES } from "@/lib/communes";
 
 /* ------------------------------------------------------------------
    app/artisans/ma-zone/FormulaireZone.tsx  —  version Web3Forms
@@ -70,7 +65,9 @@ export default function FormulaireZone() {
     if (Object.keys(err).length > 0) return;
 
     /* --------------------------- État de la zone -------------------------- */
-    const etat = etatZone(metier, commune);
+    // Transitoire : la table des zones n'est plus envoyée au navigateur. Le contrôle réel par rayon
+    // passe par une route serveur à l'étape 2 ; d'ici là, vérification manuelle (jamais « libre »).
+    const etat: EtatZone = "inconnue";
 
     /* ----------------------------- Envoi ---------------------------------- */
     setEnvoi(true);
@@ -122,7 +119,7 @@ export default function FormulaireZone() {
       etat,
       commune,
       metier,
-      suggestions: etat === "prise" ? communesVoisines(commune, metier) : [],
+      suggestions: [],
     });
     setEnvoi(false);
   }

@@ -1,33 +1,48 @@
 /* ------------------------------------------------------------------
    lib/zones.ts
-   Source unique de vérité pour l'exclusivité territoriale.
-   Importé par /artisans (affichage) ET par le formulaire (contrôle).
+   Exclusivité territoriale par rayon autour de l'établissement.
+   Centre de zone = adresse de l'établissement (fiche Google Business).
 
-   RÈGLE ABSOLUE : ne jamais laisser une entrée "libre" qui ne l'est
-   plus. C'est la promesse centrale de l'offre ; une seule erreur ici
-   coûte plus cher que dix leads manqués.
+   Module pur : aucune donnée, aucun accès base, aucun import alias.
+   Les zones occupées et les communes sont passées en paramètre, pour
+   que le navigateur ne reçoive jamais la table des zones.
 
-   À terme : brancher sur Notion (base "Exclusivités") et remplacer
-   ce tableau par un fetch avec revalidation. En attendant, édition
-   manuelle après chaque signature.
+   RÈGLE ABSOLUE : ne jamais annoncer « libre » en cas de doute.
+   Erreur de lecture, activité non reconnue, adresse non géocodée,
+   rayon invalide : état « inconnue », vérification manuelle.
    ------------------------------------------------------------------ */
 
-export type Metier =
-  | "Plomberie"
-  | "Chauffage / climatisation"
-  | "Électricité"
-  | "Serrurerie"
-  | "Couverture"
-  | "Maçonnerie"
-  | "Menuiserie / cuisine"
-  | "Peinture"
-  | "Carrelage"
-  | "Paysagisme"
-  | "Piscine"
-  | "Vitrerie"
-  | "Autre";
+/* ------------------------------ Constantes ------------------------------ */
 
-export const METIERS: Metier[] = [
+/** Rayon compris dans le pack (km). */
+export const RAYON_INCLUS_KM = 10;
+export const RAYONS_PROPOSES = [5, 10, 15, 20] as const;
+/** Nombre de zones comprises dans le pack. */
+export const ZONES_INCLUSES = 1;
+/** Supplément mensuel (€) par zone ou tranche supplémentaire. */
+export const PRIX_ZONE_SUPP_MOIS = 100;
+/** Budget publicitaire minimum supplémentaire (€ par mois) par zone supplémentaire. */
+export const BUDGET_SUPP_PAR_ZONE = 250;
+/** Deux zones se chevauchent si distance < r1 + r2 - tolérance (km). 0 = aucun recouvrement toléré. */
+export const TOLERANCE_CHEVAUCHEMENT_KM = 0;
+/** En dessous de ce rayon libre, la zone est considérée comme prise (km). */
+export const RAYON_MIN_KM = 3;
+export const GARDE_APRES_APPEL_JOURS = 7;
+export const LIBERATION_APRES_ARRET_JOURS = 30;
+/** Largeur d'une tranche de rayon au-delà du rayon inclus (km) : 15 et 20 km = 1 tranche. */
+export const TRANCHE_RAYON_KM = 10;
+/** Suggestions de communes voisines : distance maximale (km) et nombre. */
+export const RAYON_SUGGESTION_KM = 30;
+export const NB_SUGGESTIONS = 3;
+/** Score minimum de l'API Adresse pour accepter un géocodage (0 à 1). */
+export const SCORE_MIN_GEOCODAGE = 0.7;
+
+/* ------------------------------ Activités ------------------------------- */
+
+export const ACTIVITE_AUTRE = "Autre";
+
+export const ACTIVITES: readonly string[] = [
+  // Bâtiment
   "Plomberie",
   "Chauffage / climatisation",
   "Électricité",
@@ -40,104 +55,229 @@ export const METIERS: Metier[] = [
   "Paysagisme",
   "Piscine",
   "Vitrerie",
-  "Autre",
+  // Autres métiers locaux
+  "Coiffure et beauté",
+  "Kiné et ostéopathie",
+  "Garage et auto",
+  "Immobilier",
+  "Salle de sport",
+  "Services à la personne",
+  // Toujours en vérification manuelle
+  ACTIVITE_AUTRE,
 ];
 
-/** Communes proposées en autocomplétion. Liste indicative, non limitative. */
-export const COMMUNES: string[] = [
-  // Alpes-Maritimes (06)
-  "Nice",
-  "Cagnes-sur-Mer",
-  "Saint-Laurent-du-Var",
-  "Antibes",
-  "Villeneuve-Loubet",
-  "Cannes",
-  "Le Cannet",
-  "Mandelieu-la-Napoule",
-  "Grasse",
-  "Mougins",
-  "Vallauris",
-  "Menton",
-  "Roquebrune-Cap-Martin",
-  "Beausoleil",
-  "Carros",
-  "Vence",
-  "Saint-Laurent-du-Var",
-  "La Trinité",
-  "Mouans-Sartoux",
-  "Valbonne",
-  // Var (83)
-  "Fréjus",
-  "Saint-Raphaël",
-  "Draguignan",
-  "Toulon",
-  "Hyères",
-  "La Seyne-sur-Mer",
-  "Six-Fours-les-Plages",
-  "Sainte-Maxime",
-  "Saint-Tropez",
-  "Brignoles",
-];
-
-export type Exclusivite = {
-  commune: string;
-  metier: Metier;
-  libre: boolean;
-};
-
-/** État réel des places. À mettre à jour à chaque signature. */
-export const ZONES: Exclusivite[] = [
-  { commune: "Nice", metier: "Plomberie", libre: true },
-  { commune: "Nice", metier: "Électricité", libre: false },
-  { commune: "Cagnes-sur-Mer", metier: "Plomberie", libre: true },
-  { commune: "Antibes", metier: "Menuiserie / cuisine", libre: true },
-  { commune: "Saint-Laurent-du-Var", metier: "Couverture", libre: true },
-  { commune: "Cannes", metier: "Paysagisme", libre: false },
-];
-
-/** Normalise pour comparer "Saint-Laurent du Var" et "saint laurent-du-var". */
+/** Normalise pour comparer « Saint-Laurent du Var » et « saint laurent-du-var ». */
 export function normalise(valeur: string): string {
   return valeur
     .trim()
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 }
 
-export type EtatZone = "libre" | "prise" | "inconnue";
-
-/**
- * Renvoie l'état connu d'un couple métier/commune.
- * "inconnue" = pas encore attribuée dans notre suivi : c'est le cas
- * le plus fréquent, et il se traite par une vérification manuelle.
- */
-export function etatZone(metier: string, commune: string): EtatZone {
-  const m = normalise(metier);
-  const c = normalise(commune);
-  const trouve = ZONES.find(
-    (z) => normalise(z.metier) === m && normalise(z.commune) === c
-  );
-  if (!trouve) return "inconnue";
-  return trouve.libre ? "libre" : "prise";
+/** Libellé canonique de l'activité, ou null si elle n'est pas dans la liste. « Autre » n'est jamais contrôlable. */
+export function activiteReconnue(activite: string): string | null {
+  const n = normalise(activite);
+  if (!n || n === normalise(ACTIVITE_AUTRE)) return null;
+  return ACTIVITES.find((a) => normalise(a) === n) ?? null;
 }
 
-/** Communes voisines à proposer quand une place est prise. */
-export function communesVoisines(commune: string, metier: string): string[] {
-  const groupes: string[][] = [
-    ["Nice", "Saint-Laurent-du-Var", "Cagnes-sur-Mer", "La Trinité", "Carros"],
-    ["Antibes", "Villeneuve-Loubet", "Vallauris", "Valbonne", "Mougins"],
-    ["Cannes", "Le Cannet", "Mandelieu-la-Napoule", "Mouans-Sartoux", "Grasse"],
-    ["Menton", "Roquebrune-Cap-Martin", "Beausoleil"],
-    ["Fréjus", "Saint-Raphaël", "Sainte-Maxime", "Draguignan"],
-    ["Toulon", "La Seyne-sur-Mer", "Six-Fours-les-Plages", "Hyères"],
-  ];
-  const c = normalise(commune);
-  const groupe = groupes.find((g) => g.some((x) => normalise(x) === c));
-  if (!groupe) return [];
-  return groupe
-    .filter((x) => normalise(x) !== c)
-    .filter((x) => etatZone(metier, x) !== "prise")
-    .slice(0, 3);
+/* -------------------------------- Types --------------------------------- */
+
+export type StatutZone = "gardee" | "reserve" | "actif" | "liberation" | "libere";
+
+export interface Point {
+  lat: number;
+  lng: number;
+}
+
+export interface ZoneOccupee extends Point {
+  activite: string;
+  rayonKm: number;
+  statut: StatutZone;
+  /** Fin de garde (gardee) ou de libération (liberation), ISO. */
+  expireLe: string | null;
+  clientId?: string | null;
+}
+
+export interface CommuneCentre extends Point {
+  nom: string;
+}
+
+export type EtatZone = "libre" | "partielle" | "prise" | "inconnue";
+
+export interface ResultatControle {
+  etat: EtatZone;
+  /** Rayon maximal possible sans chevauchement (km), arrondi à l'inférieur au dixième. Renseigné pour libre, partielle et prise. */
+  rayonMaxKm?: number;
+  /** Raison de l'état « inconnue » (usage interne, jamais affichée au public). */
+  raison?: string;
+}
+
+/* ------------------------------- Distance ------------------------------- */
+
+const RAYON_TERRE_KM = 6371.0088;
+
+function rad(deg: number): number {
+  return (deg * Math.PI) / 180;
+}
+
+export function pointValide(p: Partial<Point> | null | undefined): p is Point {
+  return (
+    !!p &&
+    typeof p.lat === "number" && Number.isFinite(p.lat) && p.lat >= -90 && p.lat <= 90 &&
+    typeof p.lng === "number" && Number.isFinite(p.lng) && p.lng >= -180 && p.lng <= 180
+  );
+}
+
+/** Distance à vol d'oiseau (haversine), en km. */
+export function distanceKm(a: Point, b: Point): number {
+  const dLat = rad(b.lat - a.lat);
+  const dLng = rad(b.lng - a.lng);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * RAYON_TERRE_KM * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/* ------------------------------ Occupation ------------------------------ */
+
+function apres(iso: string | null, maintenant: Date): boolean {
+  if (!iso) return true; // date absente ou illisible : on considère la zone encore occupée
+  const t = Date.parse(iso);
+  return Number.isNaN(t) ? true : t > maintenant.getTime();
+}
+
+/** Une zone bloque le territoire : gardée ou en libération non expirée, réservée, active. */
+export function estOccupee(z: Pick<ZoneOccupee, "statut" | "expireLe">, maintenant: Date = new Date()): boolean {
+  switch (z.statut) {
+    case "reserve":
+    case "actif":
+      return true;
+    case "gardee":
+    case "liberation":
+      return apres(z.expireLe, maintenant);
+    case "libere":
+      return false;
+    default:
+      return true; // statut inattendu : on bloque, jamais l'inverse
+  }
+}
+
+/* ------------------------------- Contrôle ------------------------------- */
+
+export interface OptionsControle {
+  maintenant?: Date;
+  /** Ignore les zones de ce client (recalcul de sa propre zone). */
+  exclureClientId?: string | null;
+}
+
+function arrondiInf(x: number): number {
+  return Math.floor(x * 10 + 1e-9) / 10;
+}
+
+/**
+ * Contrôle d'un établissement (point + rayon voulu) contre les zones occupées.
+ * Deux zones de même activité se chevauchent si distance < r1 + r2 - tolérance.
+ * rayonMaxLibre = min sur les zones occupées de (distance - rayon existant + tolérance).
+ */
+export function controleZone(
+  activite: string,
+  point: Partial<Point> | null | undefined,
+  rayonKm: number,
+  zonesOccupees: readonly ZoneOccupee[],
+  options: OptionsControle = {},
+): ResultatControle {
+  const act = activiteReconnue(activite);
+  if (!act) return { etat: "inconnue", raison: "activité non reconnue ou « Autre »" };
+  if (!pointValide(point)) return { etat: "inconnue", raison: "adresse non géocodée" };
+  if (typeof rayonKm !== "number" || !Number.isFinite(rayonKm) || rayonKm <= 0) {
+    return { etat: "inconnue", raison: "rayon invalide" };
+  }
+  if (!Array.isArray(zonesOccupees)) return { etat: "inconnue", raison: "zones illisibles" };
+
+  const maintenant = options.maintenant ?? new Date();
+  const cible = normalise(act);
+  let rayonMax = Number.POSITIVE_INFINITY;
+
+  for (const z of zonesOccupees) {
+    if (normalise(z.activite) !== cible) continue;
+    if (options.exclureClientId && z.clientId === options.exclureClientId) continue;
+    if (!estOccupee(z, maintenant)) continue;
+    if (!pointValide({ lat: z.lat, lng: z.lng }) || typeof z.rayonKm !== "number" || !Number.isFinite(z.rayonKm)) {
+      return { etat: "inconnue", raison: "zone existante illisible" }; // doute : jamais « libre »
+    }
+    rayonMax = Math.min(rayonMax, distanceKm(point, z) - z.rayonKm + TOLERANCE_CHEVAUCHEMENT_KM);
+  }
+
+  if (rayonMax >= rayonKm - 1e-9) {
+    return { etat: "libre", rayonMaxKm: Number.isFinite(rayonMax) ? arrondiInf(rayonMax) : undefined };
+  }
+  const max = arrondiInf(Math.max(0, rayonMax));
+  return max >= RAYON_MIN_KM
+    ? { etat: "partielle", rayonMaxKm: max }
+    : { etat: "prise", rayonMaxKm: max };
+}
+
+/* ------------------------------ Supplément ------------------------------ */
+
+/**
+ * Supplément mensuel (€) : 100 € par tranche de rayon au-delà de 10 km
+ * (15 et 20 km = 1 tranche) et 100 € par zone au-delà de la première.
+ * Le rayon est celui de la zone principale.
+ */
+export function supplementMensuel(rayonKm: number, nbZones: number = ZONES_INCLUSES): number {
+  const tranches = rayonKm > RAYON_INCLUS_KM ? Math.ceil((rayonKm - RAYON_INCLUS_KM) / TRANCHE_RAYON_KM - 1e-9) : 0;
+  const zonesSupp = Math.max(0, Math.floor(nbZones) - ZONES_INCLUSES);
+  return (tranches + zonesSupp) * PRIX_ZONE_SUPP_MOIS;
+}
+
+/* ------------------------------ Suggestions ----------------------------- */
+
+/**
+ * Jusqu'à 3 communes dans 30 km, libres pour le rayon voulu, triées par distance.
+ * Le centre de la commune sert de point de test. Une commune « inconnue » n'est jamais proposée.
+ */
+export function suggestions(
+  activite: string,
+  point: Partial<Point> | null | undefined,
+  rayonKm: number,
+  communes: readonly CommuneCentre[],
+  zonesOccupees: readonly ZoneOccupee[],
+  options: OptionsControle = {},
+): CommuneCentre[] {
+  if (!activiteReconnue(activite) || !pointValide(point)) return [];
+  return communes
+    .map((c) => ({ c, d: distanceKm(point, c) }))
+    .filter(({ d }) => d <= RAYON_SUGGESTION_KM)
+    .sort((x, y) => x.d - y.d)
+    .filter(({ c }) => controleZone(activite, c, rayonKm, zonesOccupees, options).etat === "libre")
+    .slice(0, NB_SUGGESTIONS)
+    .map(({ c }) => c);
+}
+
+/* ------------------------------ Expiration ------------------------------ */
+
+export interface ZoneAvecStatut {
+  id: string;
+  statut: StatutZone;
+  expireLe: string | null;
+}
+
+/** Zones à passer à « libere » : gardée ou en libération, avec une date d'expiration dépassée. */
+export function zonesAExpirer<T extends ZoneAvecStatut>(zones: readonly T[], maintenant: Date = new Date()): T[] {
+  return zones.filter((z) => {
+    if (z.statut !== "gardee" && z.statut !== "liberation") return false;
+    if (!z.expireLe) return false; // pas de date : on ne libère jamais seul
+    const t = Date.parse(z.expireLe);
+    return !Number.isNaN(t) && t <= maintenant.getTime();
+  });
+}
+
+/** Date d'expiration à poser : garde de 7 jours ou libération de 30 jours. */
+export function expirationPour(statut: "gardee" | "liberation", depuis: Date = new Date()): string {
+  const jours = statut === "gardee" ? GARDE_APRES_APPEL_JOURS : LIBERATION_APRES_ARRET_JOURS;
+  return new Date(depuis.getTime() + jours * 86_400_000).toISOString();
 }
