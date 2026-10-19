@@ -339,3 +339,11 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 - `lib/zones.test.ts` : 16 tests (`npm run test:zones`). `tsconfig` : `allowImportingTsExtensions` pour ces tests.
 - `/artisans/ma-zone` : transitoire, répond « à vérifier » (plus aucune table envoyée au navigateur) jusqu'à l'étape 2.
 - Choix à valider : une « tranche » de rayon = 10 km au-delà de 10 km (15 et 20 km = 100 €, 25 km = 200 €), constante `TRANCHE_RAYON_KM`.
+
+### 2026-10-19 · Étape 2 : page publique de vérification /zone
+- La page vit sur `/zone` (préfixes `/zone` et `/api/zone` publics dans le middleware) ; `/artisans/ma-zone` redirige en 308, y compris en mode interne. Liens de `/artisans` et `/artisans/formation` mis à jour.
+- Formulaire : activité, adresse de l'établissement (autocomplétion API Adresse), rayon 5 / 10 km inclus ou 15 / 20 km (supplément 100 € par mois), nom, téléphone, e-mail, consentement. Résultat indicatif et signalé comme tel quand l'adresse n'est que la rue ou la commune.
+- `POST /api/zone/check` : géocode, contrôle, crée la fiche prospect (stage `prospect`, source « vérification de zone », activité, adresse, rayon et coordonnées dans `answers`) et envoie l'e-mail à Stéphane (Resend). Réponse limitée à `etat`, `rayonMaxKm` (entier, seulement si partielle), `suggestions` (noms de communes), `indicatif`, `supplement`, `demandeId`. Limites : 8 demandes par heure et par IP, 40 par heure au total, champ piège anti-robots.
+- `POST /api/zone/attente` : inscription sur la liste d'attente (zone prise ou partielle) depuis la fiche créée, coordonnées lues en base, jamais envoyées par le navigateur.
+- Web3Forms retiré (clé supprimée du code). Le navigateur ne reçoit plus aucune table de zones.
+- Non testé en conditions réelles : écriture en base et e-mail (pas de zone saisie, pas de test sur la base de production). À vérifier sur l'aperçu Vercel.

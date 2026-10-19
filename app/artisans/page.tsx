@@ -46,7 +46,7 @@ export default function ArtisansPage() {
           par métier et par commune. Quand elle est prise, elle est prise.
         </p>
         <div className="art-cta">
-          <Link className="btn" href="/artisans/ma-zone">
+          <Link className="btn" href="/zone">
             Voir si ma zone est libre
           </Link>
           <Link className="btn btn-ghost" href="/demo">
@@ -123,7 +123,7 @@ export default function ArtisansPage() {
               </li>
             ))}
           </ul>
-          <Link className="btn" href="/artisans/ma-zone">
+          <Link className="btn" href="/zone">
             Vérifier ma commune et mon métier
           </Link>
         </div>
@@ -172,7 +172,7 @@ export default function ArtisansPage() {
             <p className="art-offre-note">
               Vous décrochez le téléphone. Nous nous occupons du reste.
             </p>
-            <Link className="btn" href="/artisans/ma-zone">
+            <Link className="btn" href="/zone">
               Voir si ma zone est libre
             </Link>
           </article>
@@ -344,7 +344,7 @@ export default function ArtisansPage() {
           Dites-nous votre métier et votre commune. Réponse sous 24 h, sans
           engagement.
         </p>
-        <Link className="btn" href="/artisans/ma-zone">
+        <Link className="btn" href="/zone">
           Vérifier ma zone
         </Link>
       </section>

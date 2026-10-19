@@ -64,6 +64,42 @@ export async function createPartnerLead(input: { name: string; activite: string;
   if (error) throw new Error(error.message);
   return share_token;
 }
+export const SOURCE_VERIFICATION_ZONE = "vérification de zone";
+
+export interface ZoneLeadInput {
+  nom: string; telephone: string; email: string; situation: string;
+  activite: string; adresse: string; rayonKm: number;
+  etat: string; indicatif: boolean;
+  geo: { lat: number; lng: number; commune: string; precision: string } | null;
+}
+
+/** Demande de la page publique /zone : nouvelle fiche prospect (jamais d'anti-doublon par nom). Renvoie l'id de la fiche. */
+export async function createZoneLead(input: ZoneLeadInput): Promise<string> {
+  const since = new Date(Date.now() - 3600_000).toISOString();
+  const { count } = await db().from("clients").select("id", { count: "exact", head: true }).gte("created_at", since).eq("answers->>source", SOURCE_VERIFICATION_ZONE);
+  if ((count ?? 0) >= 40) throw new Error("trop_de_demandes");
+  const answers: Record<string, string> = {
+    source: SOURCE_VERIFICATION_ZONE,
+    activite_exclusive: input.activite,
+    adresse_etablissement: input.adresse,
+    rayon_km: String(input.rayonKm),
+    zone_etat: input.etat,
+    zone_indicatif: input.indicatif ? "oui" : "non",
+  };
+  if (input.geo) {
+    answers.zone_lat = String(input.geo.lat);
+    answers.zone_lng = String(input.geo.lng);
+    answers.zone_commune = input.geo.commune;
+    answers.zone_precision = input.geo.precision;
+  }
+  const { data, error } = await db().from("clients").insert({
+    name: input.nom, customer_id: null, share_token: randomBytes(18).toString("base64url"), answers,
+    contact_name: input.nom, contact_phone: input.telephone, contact_email: input.email,
+    notes: `Source : ${SOURCE_VERIFICATION_ZONE}.${input.situation ? ` Situation : ${input.situation}.` : ""} Consentement à être recontacté donné sur la page /zone.`,
+  }).select("id").single();
+  if (error) throw new Error(error.message);
+  return data.id as string;
+}
 export async function updateClient(id: string, patch: Partial<Pick<Client, "name" | "customer_id" | "website" | "contact_email" | "notes" | "answers" | "status" | "submitted_at" | "stage" | "contact_name" | "contact_phone">>) {
   const { error } = await db().from("clients").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id);
   if (error) throw new Error(error.message);

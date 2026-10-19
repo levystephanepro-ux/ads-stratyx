@@ -144,7 +144,7 @@ export default function FormationPage() {
           sans sigle, sans anglais, avec des chiffres qui sont les vôtres.
         </p>
         <div className="art-cta">
-          <Link className="btn" href="/artisans/ma-zone">
+          <Link className="btn" href="/zone">
             Nous en parler
           </Link>
           <a className="btn btn-ghost" href="#programme">
@@ -325,7 +325,7 @@ export default function FormationPage() {
           Dans les deux cas, ça commence par la même question : votre zone
           est-elle encore libre ? Réponse sous 24 h, sans engagement.
         </p>
-        <Link className="btn" href="/artisans/ma-zone">
+        <Link className="btn" href="/zone">
           Vérifier ma zone
         </Link>
       </section>

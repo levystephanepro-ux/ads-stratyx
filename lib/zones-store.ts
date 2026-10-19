@@ -82,3 +82,13 @@ export async function attenteConcernee(liberees: ZoneLiberee[], maintenant: Date
   }
   return res;
 }
+
+/** Inscription d'un prospect sur la liste d'attente d'une zone prise. */
+export async function ajouterAttente(e: { activite: string; adresse: string; lat: number; lng: number; rayonKm: number; clientId: string }): Promise<void> {
+  const act = activiteReconnue(e.activite);
+  if (!act) throw new Error("activité non reconnue");
+  const { error } = await db().from("zones_attente").insert({
+    activite: act, adresse: e.adresse, lat: e.lat, lng: e.lng, rayon_km: e.rayonKm, client_id: e.clientId,
+  });
+  if (error) throw new Error(error.message);
+}

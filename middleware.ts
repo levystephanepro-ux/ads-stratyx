@@ -7,6 +7,8 @@ const PUBLIC_PREFIXES = [
   "/pricing",
   "/demo",
   "/artisans",
+  "/zone", // vérification de zone par rayon (page publique)
+  "/api/zone",
   "/confidentialite",
   "/auth",
   "/api/auth",
@@ -35,7 +37,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
   // Usage interne : pages héritées de la version SaaS, renvoyées vers l'app.
-  if (process.env.STRATYX_INTERNAL_MODE === "true" && ["/agent", "/templates", "/artisans", "/demo"].some((p) => path === p || path.startsWith(p + "/"))) {
+  if (process.env.STRATYX_INTERNAL_MODE === "true" && ["/agent", "/templates", "/artisans", "/demo"].some((p) => path === p || path.startsWith(p + "/")) && path !== "/artisans/ma-zone") {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

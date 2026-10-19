@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------
-   /artisans/ma-zone — CSS vanilla, scopé sous .zone
+   /zone — CSS vanilla, scopé sous .zone
    Hérite des variables de .art (artisans.css), importé avant.
    ------------------------------------------------------------------ */
 
@@ -270,6 +270,12 @@
   border-radius: 999px;
   font-size: 0.88rem;
   font-weight: 600;
+}
+
+.zone-note {
+  margin-top: 12px;
+  font-size: 0.9rem;
+  color: var(--art-muted);
 }
 
 .zone-suite {
