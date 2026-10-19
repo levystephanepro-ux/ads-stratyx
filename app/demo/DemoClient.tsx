@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import BrandLogo from "@/components/BrandLogo";
 import {
   DEMO_ACCOUNT,
   DEMO_METRICS_AVANT,
@@ -60,8 +61,6 @@ export default function DemoClient() {
         /* header */
         .hd{background:#fff;border-bottom:1px solid #e5e5e3;padding:0 24px}
         .hd-i{max-width:820px;margin:0 auto;height:54px;display:flex;align-items:center;justify-content:space-between}
-        /* logo : mêmes classes et même police (Syne) que le header du site ; la page /demo reste claire en thème sombre, donc la couleur du texte est fixée à celle du thème clair de globals.css */
-        .hd .brand{color:#2e2b25}
         .pill{display:flex;align-items:center;gap:6px;font-size:13px;color:#555;background:#f0f0ee;padding:4px 12px;border-radius:99px;border:1px solid #e0e0de}
         .dot{width:7px;height:7px;border-radius:50%;background:#16a34a;flex-shrink:0}
 
@@ -131,7 +130,7 @@ export default function DemoClient() {
         </div>
         <header className="hd">
           <div className="hd-i">
-            <div className="brand" style={{ fontSize: 20 }}><span className="brand-txt">ads<b>·stratyx</b></span></div>
+            <BrandLogo size={22} baseline={false} />
             <div className="pill">
               <span className="dot" />
               {DEMO_ACCOUNT.descriptiveName}
