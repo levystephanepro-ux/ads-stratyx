@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import BrandLogo from "@/components/BrandLogo";
 import {
   DEMO_ACCOUNT,
   DEMO_METRICS_AVANT,
@@ -60,7 +61,6 @@ export default function DemoClient() {
         /* header */
         .hd{background:#fff;border-bottom:1px solid #e5e5e3;padding:0 24px}
         .hd-i{max-width:820px;margin:0 auto;height:54px;display:flex;align-items:center;justify-content:space-between}
-        .logo{font-size:17px;font-weight:600;color:#111;letter-spacing:-.02em}
         .pill{display:flex;align-items:center;gap:6px;font-size:13px;color:#555;background:#f0f0ee;padding:4px 12px;border-radius:99px;border:1px solid #e0e0de}
         .dot{width:7px;height:7px;border-radius:50%;background:#16a34a;flex-shrink:0}
 
@@ -130,7 +130,7 @@ export default function DemoClient() {
         </div>
         <header className="hd">
           <div className="hd-i">
-            <div className="logo">stratyx</div>
+            <BrandLogo size={22} />
             <div className="pill">
               <span className="dot" />
               {DEMO_ACCOUNT.descriptiveName}
