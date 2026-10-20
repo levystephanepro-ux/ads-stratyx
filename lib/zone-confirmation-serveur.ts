@@ -2,7 +2,7 @@
 import { sendProspectEmail } from "@/lib/agent/email";
 import { confirmationsRecentesZone, noterConfirmationEnvoyee } from "@/lib/clients/store";
 import {
-  AntiDoublon, DELAI_ANTI_DOUBLON_MS, cleDoublon, envoyerConfirmation, type DemandeConfirmation,
+  AntiDoublon, DELAI_ANTI_DOUBLON_MS, cleDoublon, envoyerConfirmation, resoudreContactProspect, type DemandeConfirmation,
 } from "@/lib/zone-confirmation";
 
 // Mémoire de l'instance serveur : protège contre un double envoi du formulaire (clic répété, rechargement).
@@ -11,10 +11,11 @@ const antiDoublon = new AntiDoublon();
 /**
  * Envoie la confirmation à l'adresse saisie par le prospect. Ne lève jamais : un échec est écrit dans les logs
  * (sans l'adresse e-mail) et la demande, déjà enregistrée, n'est pas affectée.
- * Variables : PROSPECT_EMAIL_FROM (sinon AGENT_EMAIL_FROM), PROSPECT_REPLY_TO (sinon AGENT_EMAIL_TO), PROSPECT_PHONE (facultative).
+ * Variables facultatives : PROSPECT_EMAIL_FROM (sinon AGENT_EMAIL_FROM), PROSPECT_CONTACT_EMAIL (adresse affichée, sinon
+ * contact@stratyxmedia.fr), PROSPECT_REPLY_TO (sinon PROSPECT_CONTACT_EMAIL, puis contact@stratyxmedia.fr, puis AGENT_EMAIL_TO).
  */
 export async function confirmerDemande(demandeId: string, d: DemandeConfirmation): Promise<"envoye" | "doublon" | "echec"> {
-  const replyTo = process.env.PROSPECT_REPLY_TO || process.env.AGENT_EMAIL_TO || null;
+  const { contactEmail, replyTo } = resoudreContactProspect(process.env);
   try {
     return await envoyerConfirmation({
       envoyer: sendProspectEmail,
@@ -27,7 +28,7 @@ export async function confirmerDemande(demandeId: string, d: DemandeConfirmation
       noterEnvoi: () => noterConfirmationEnvoyee(demandeId),
       journal: (message, detail) => console.error(message, detail),
       antiDoublon,
-      contact: { telephone: process.env.PROSPECT_PHONE || null, email: replyTo },
+      contact: { email: contactEmail },
       replyTo,
     }, d, demandeId);
   } catch {

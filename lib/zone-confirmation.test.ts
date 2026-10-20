@@ -4,13 +4,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
-  AntiDoublon, DELAI_ANTI_DOUBLON_MS, OBJET_CONFIRMATION, cleDoublon, construireConfirmation, envoyerConfirmation, escapeHtml,
-  nettoyerPourLog, type DemandeConfirmation, type DepsConfirmation,
+  AntiDoublon, DEFAUT_EMAIL_CONTACT, DELAI_ANTI_DOUBLON_MS, OBJET_CONFIRMATION, adresseSimple, cleDoublon, construireConfirmation,
+  envoyerConfirmation, escapeHtml, nettoyerPourLog, resoudreContactProspect, type DemandeConfirmation, type DepsConfirmation,
 } from "./zone-confirmation.ts";
 import { ACTIVITES } from "./zones.ts";
 
 const DEMANDE: DemandeConfirmation = { email: "marie.dupont@example.com", activiteId: "plomberie", adresse: "10 avenue Jean Médecin 06000 Nice", rayonKm: 10 };
-const CONTACT = { telephone: "06 12 34 56 78", email: "stephane@stratyxmedia.fr" };
+const CONTACT = { email: "contact@stratyxmedia.fr" };
 
 /* ------------------------------- contenu ------------------------------- */
 
@@ -23,15 +23,14 @@ test("objet et texte : demande reçue, vérification de la disponibilité, signa
     "",
     "Merci, j'ai bien reçu votre demande pour votre activité de plombier autour de 10 avenue Jean Médecin 06000 Nice, rayon de 10 km.",
     "",
-    "Je vérifie la disponibilité et je vous rappelle sous 24 h ouvrées pour valider votre zone ensemble. Aucun engagement.",
-    "",
-    "Mon numéro : 06 12 34 56 78",
-    "Mon adresse email : stephane@stratyxmedia.fr",
+    "Je vérifie la disponibilité. Je vous rappelle sous 24 h ouvrées pour valider votre zone ensemble. Aucun engagement. Vous pouvez aussi me répondre directement à contact@stratyxmedia.fr.",
     "",
     "Stéphane Levy",
     "STRATYXMEDIA",
   ].join("\n"));
   assert.match(m.html, /Stéphane Levy<br>STRATYXMEDIA/);
+  // Version HTML : l'adresse est un lien mailto:.
+  assert.match(m.html, /Vous pouvez aussi me répondre directement à <a href="mailto:contact@stratyxmedia\.fr"[^>]*>contact@stratyxmedia\.fr<\/a>\./);
 });
 
 test("jamais « réservée » ni « garantie », jamais le résultat du contrôle, pas de tiret cadratin", () => {
@@ -67,22 +66,68 @@ test("libellé court de chaque activité, avec élision (de plombier, d'électri
 test("« Autre activité » : même mail, activité saisie, aucune promesse de disponibilité", () => {
   const m = construireConfirmation({ ...DEMANDE, activiteId: "autre", autreActivite: "  Spa   de luxe " }, CONTACT);
   assert.match(m.text, /pour votre activité \(Spa de luxe\) autour de/);
-  assert.match(m.text, /Je vérifie la disponibilité et je vous rappelle sous 24 h ouvrées/);
+  assert.match(m.text, /Je vérifie la disponibilité\. Je vous rappelle sous 24 h ouvrées/);
   assert.ok(!/disponible\b/.test(m.text));
   const sans = construireConfirmation({ ...DEMANDE, activiteId: "autre" }, CONTACT);
   assert.match(sans.text, /pour votre activité autour de/);
 });
 
-test("coordonnées de Stéphane : repli sur rien si absentes", () => {
-  const rien = construireConfirmation(DEMANDE, {});
-  assert.ok(!/Mon numéro|Mon adresse email/.test(rien.text));
-  const seulEmail = construireConfirmation(DEMANDE, { telephone: "", email: "s@x.fr" });
-  assert.ok(!/Mon numéro/.test(seulEmail.text));
-  assert.match(seulEmail.text, /Mon adresse email : s@x\.fr/);
-  const seulTel = construireConfirmation(DEMANDE, { telephone: "0612345678", email: null });
-  assert.match(seulTel.text, /Mon numéro : 0612345678/);
-  assert.ok(!/Mon adresse email/.test(seulTel.text));
-  assert.ok(!rien.text.includes("undefined") && !rien.text.includes("null"));
+test("adresse de contact : lien mailto: en HTML, jamais de téléphone ni de numéro", () => {
+  const m = construireConfirmation(DEMANDE, CONTACT);
+  assert.ok(m.text.includes("me répondre directement à contact@stratyxmedia.fr."));
+  assert.ok(m.html.includes('<a href="mailto:contact@stratyxmedia.fr"'));
+  for (const contenu of [m.subject, m.text, m.html]) {
+    assert.ok(!/num[ée]ro|t[ée]l[ée]phone|\bt[ée]l\b|\bportable\b|\b0[1-9](?:[ .]?\d{2}){4}\b|\+33/i.test(contenu), contenu);
+  }
+  // Une adresse de la forme « Nom <adresse> » : seule l'adresse nue est affichée.
+  const nom = construireConfirmation(DEMANDE, { email: "Stéphane Levy <contact@stratyxmedia.fr>" });
+  assert.ok(nom.text.includes("directement à contact@stratyxmedia.fr."));
+  assert.ok(!nom.text.includes("<"));
+});
+
+test("sans adresse de contact valide : la phrase de réponse directe est omise, rien n'est affiché de travers", () => {
+  for (const contact of [{}, { email: null }, { email: "" }, { email: "pas une adresse" }, { email: "<script>alert(1)</script>@x.fr" }]) {
+    const m = construireConfirmation(DEMANDE, contact);
+    assert.ok(!/répondre directement/.test(m.text) && !/répondre directement/.test(m.html), JSON.stringify(contact));
+    assert.ok(!/mailto:|undefined|null/.test(m.html + m.text), JSON.stringify(contact));
+    assert.match(m.text, /Aucun engagement\.\n\nStéphane Levy/);
+  }
+});
+
+test("aucune mention « ne pas répondre » : le prospect peut répondre au mail", () => {
+  const m = construireConfirmation(DEMANDE, CONTACT);
+  for (const contenu of [m.text, m.html]) assert.ok(!/ne pas r[ée]pondre|no-?reply|noreply|ne r[ée]pondez pas|message automatique/i.test(contenu));
+});
+
+test("adresseSimple", () => {
+  assert.equal(adresseSimple("contact@stratyxmedia.fr"), "contact@stratyxmedia.fr");
+  assert.equal(adresseSimple("  contact@stratyxmedia.fr "), "contact@stratyxmedia.fr");
+  assert.equal(adresseSimple("Stéphane <contact@stratyxmedia.fr>"), "contact@stratyxmedia.fr");
+  for (const v of ["", "contact", "contact@", "@x.fr", "a b@x.fr", "a@x.fr, b@y.fr", "<a@x.fr", "javascript:alert(1)", 'a"b@x.fr', null, undefined]) {
+    assert.equal(adresseSimple(v), null, String(v));
+  }
+});
+
+test("coordonnées d'après l'environnement : contact par défaut, reply-to, jamais AGENT_EMAIL_TO dans le corps", () => {
+  const D = DEFAUT_EMAIL_CONTACT;
+  assert.equal(D, "contact@stratyxmedia.fr");
+  // Variable absente : valeur par défaut, pour l'adresse affichée et pour le reply-to.
+  assert.deepEqual(resoudreContactProspect({}), { contactEmail: D, replyTo: D });
+  assert.deepEqual(resoudreContactProspect({ PROSPECT_CONTACT_EMAIL: "", PROSPECT_REPLY_TO: "  " }), { contactEmail: D, replyTo: D });
+  // PROSPECT_CONTACT_EMAIL fixée : affichée et utilisée comme reply-to.
+  assert.deepEqual(resoudreContactProspect({ PROSPECT_CONTACT_EMAIL: "info@exemple.fr" }), { contactEmail: "info@exemple.fr", replyTo: "info@exemple.fr" });
+  // PROSPECT_REPLY_TO prioritaire pour le reply-to, sans changer l'adresse affichée.
+  assert.deepEqual(
+    resoudreContactProspect({ PROSPECT_CONTACT_EMAIL: "info@exemple.fr", PROSPECT_REPLY_TO: "reponses@exemple.fr" }),
+    { contactEmail: "info@exemple.fr", replyTo: "reponses@exemple.fr" },
+  );
+  assert.equal(resoudreContactProspect({ PROSPECT_REPLY_TO: "Stéphane <reponses@exemple.fr>" }).replyTo, "Stéphane <reponses@exemple.fr>");
+  // AGENT_EMAIL_TO ne sert ni à l'adresse affichée ni au reply-to tant qu'une adresse de contact existe.
+  const agent = resoudreContactProspect({ AGENT_EMAIL_TO: "perso@exemple.fr" });
+  assert.deepEqual(agent, { contactEmail: D, replyTo: D });
+  assert.ok(!JSON.stringify(agent).includes("perso@"));
+  // Valeur invalide : retour au défaut.
+  assert.deepEqual(resoudreContactProspect({ PROSPECT_CONTACT_EMAIL: "pas une adresse" }), { contactEmail: D, replyTo: D });
 });
 
 /* ----------------------------- échappement ----------------------------- */
@@ -96,7 +141,7 @@ test("toute valeur saisie est échappée dans le HTML", () => {
   const piege = `<script>alert(1)</script><img src=x onerror=alert(2)> "&'`;
   const m = construireConfirmation(
     { ...DEMANDE, activiteId: "autre", autreActivite: piege, adresse: piege },
-    { telephone: piege, email: piege },
+    { email: piege },
   );
   assert.ok(!/<script|<img|onerror=alert/i.test(m.html.replace(/&lt;[^&]*&gt;/g, "")), "aucune balise active dans le HTML");
   assert.ok(!m.html.includes("<script"));
@@ -107,6 +152,10 @@ test("toute valeur saisie est échappée dans le HTML", () => {
   assert.ok(m.text.includes("<script>alert(1)</script>"));
   const multiligne = construireConfirmation({ ...DEMANDE, adresse: "10 rue A\nBcc: evil@example.com" }, {});
   assert.ok(!/\nBcc:/.test(multiligne.text));
+  // L'adresse de contact est échappée aussi dans l'attribut href.
+  const href = construireConfirmation(DEMANDE, { email: "a&b@example.com" });
+  assert.ok(href.html.includes('href="mailto:a&amp;b@example.com"'));
+  assert.ok(!href.html.includes("a&b@"));
 });
 
 /* ----------------------------- anti-doublon ---------------------------- */
@@ -147,21 +196,23 @@ function faux(surcharge: Partial<DepsConfirmation> = {}) {
     noterEnvoi: async () => { appels.noter++; },
     journal: (message, detail) => { appels.journal.push([message, detail]); },
     antiDoublon: new AntiDoublon(),
-    contact: { telephone: "06 12 34 56 78", email: "stephane@stratyxmedia.fr" },
-    replyTo: "stephane@stratyxmedia.fr",
+    contact: { email: "contact@stratyxmedia.fr" },
+    replyTo: "contact@stratyxmedia.fr",
     ...surcharge,
   };
   return { deps, appels };
 }
 
-test("envoi : un mail à l'adresse saisie, reply-to Stéphane, noté sur la fiche, rien dans les logs", async () => {
+test("envoi : un mail à l'adresse saisie, reply-to vers la boîte contact, noté sur la fiche, rien dans les logs", async () => {
   const { deps, appels } = faux();
   assert.equal(await envoyerConfirmation(deps, DEMANDE, "fiche-1"), "envoye");
   assert.equal(appels.envoyer.length, 1);
   const m = appels.envoyer[0];
   assert.equal(m.to, "marie.dupont@example.com");
   assert.equal(m.subject, "Votre demande de zone, bien reçue");
-  assert.equal(m.replyTo, "stephane@stratyxmedia.fr");
+  assert.equal(m.replyTo, "contact@stratyxmedia.fr");
+  assert.match(m.text, /Vous pouvez aussi me répondre directement à contact@stratyxmedia\.fr\./);
+  assert.ok(m.html.includes("mailto:contact@stratyxmedia.fr"));
   assert.match(m.text, /Je vérifie la disponibilité/);
   assert.ok(m.html.length > 0);
   assert.equal(appels.noter, 1);
@@ -254,7 +305,21 @@ test("sendProspectEmail : expéditeur PROSPECT_EMAIL_FROM puis AGENT_EMAIL_FROM,
   assert.match(corps, /process\.env\.PROSPECT_EMAIL_FROM \|\| process\.env\.AGENT_EMAIL_FROM/);
   assert.match(corps, /reply_to: m\.replyTo/);
   assert.ok(!corps.includes("res.text()"), "la réponse de Resend (qui peut contenir l'adresse) n'est jamais relue");
+});
+
+test("le corps du mail n'utilise jamais AGENT_EMAIL_TO ; plus aucune trace de téléphone dans le code", () => {
   const serveur = src("lib/zone-confirmation-serveur.ts");
-  assert.match(serveur, /PROSPECT_REPLY_TO \|\| process\.env\.AGENT_EMAIL_TO/);
-  assert.match(serveur, /PROSPECT_PHONE/);
+  assert.match(serveur, /resoudreContactProspect\(process\.env\)/);
+  assert.match(serveur, /contact: \{ email: contactEmail \}/);
+  const logique = src("lib/zone-confirmation.ts");
+  // L'adresse affichée vient uniquement de deps.contact ; le reply-to n'est pas réinjecté dans le corps.
+  assert.match(logique, /construireConfirmation\(d, \{ email: deps\.contact\.email \}\)/);
+  const construire = logique.slice(logique.indexOf("export function construireConfirmation"), logique.indexOf("/** Clé de l'anti-doublon"));
+  assert.ok(!/AGENT_EMAIL_TO|process\.env/.test(construire));
+  // Variable de téléphone supprimée partout (nom construit pour que ce test ne la réintroduise pas).
+  const ancienneVariable = ["PROSPECT", "PHONE"].join("_");
+  for (const f of ["lib/zone-confirmation.ts", "lib/zone-confirmation-serveur.ts", "lib/agent/email.ts", ".env.local.example", "STATUS.md"]) {
+    assert.ok(!src(f).includes(ancienneVariable), `${f} : variable de téléphone supprimée`);
+  }
+  assert.ok(!/telephone|Mon numéro/.test(logique));
 });

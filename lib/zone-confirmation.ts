@@ -21,8 +21,33 @@ export interface DemandeConfirmation {
 }
 
 export interface ContactStephane {
-  telephone?: string | null;
+  /** Adresse de contact affichée dans le mail (lien mailto: en HTML). Absente : la phrase de réponse directe est omise. */
   email?: string | null;
+}
+
+/** Adresse de contact par défaut, affichée dans le mail quand PROSPECT_CONTACT_EMAIL est absente. */
+export const DEFAUT_EMAIL_CONTACT = "contact@stratyxmedia.fr";
+
+/** Adresse e-mail nue (« contact@x.fr » ou « Nom <contact@x.fr> » donne « contact@x.fr »), ou null si elle n'est pas simple et sûre. */
+export function adresseSimple(valeur: string | null | undefined): string | null {
+  const v = uneLigne(valeur ?? "");
+  const nue = /^[^\s<>"',;()]+@[^\s<>"',;()]+\.[^\s<>"',;()]+$/;
+  if (nue.test(v)) return v;
+  const entre = v.match(/<([^<>\s]+@[^<>\s]+)>$/);
+  return entre && nue.test(entre[1]) ? entre[1] : null;
+}
+
+/**
+ * Coordonnées du mail d'après l'environnement.
+ *  - contactEmail, affichée dans le corps : PROSPECT_CONTACT_EMAIL, sinon contact@stratyxmedia.fr (jamais AGENT_EMAIL_TO).
+ *  - replyTo : PROSPECT_REPLY_TO, sinon PROSPECT_CONTACT_EMAIL, sinon contact@stratyxmedia.fr, sinon AGENT_EMAIL_TO en dernier recours.
+ */
+export function resoudreContactProspect(env: Record<string, string | undefined>): { contactEmail: string; replyTo: string | null } {
+  const contactEmail = adresseSimple(env.PROSPECT_CONTACT_EMAIL) ?? DEFAUT_EMAIL_CONTACT;
+  const replyTo = [env.PROSPECT_REPLY_TO, env.PROSPECT_CONTACT_EMAIL, DEFAUT_EMAIL_CONTACT, env.AGENT_EMAIL_TO]
+    .map((v) => uneLigne(v ?? ""))
+    .find((v) => adresseSimple(v)) ?? null;
+  return { contactEmail, replyTo };
 }
 
 export interface MailConfirmation {
@@ -56,22 +81,18 @@ function phraseActivite(d: DemandeConfirmation): string {
 export function construireConfirmation(d: DemandeConfirmation, contact: ContactStephane = {}): MailConfirmation {
   const activite = phraseActivite(d);
   const adresse = uneLigne(d.adresse);
-  const telephone = uneLigne(contact.telephone ?? "");
-  const email = uneLigne(contact.email ?? "");
+  const email = adresseSimple(contact.email);
 
   const intro = `Merci, j'ai bien reçu votre demande pour ${activite} autour de ${adresse}, rayon de ${d.rayonKm} km.`;
-  const suite = "Je vérifie la disponibilité et je vous rappelle sous 24 h ouvrées pour valider votre zone ensemble. Aucun engagement.";
-  const coordonnees: { libelle: string; valeur: string }[] = [];
-  if (telephone) coordonnees.push({ libelle: "Mon numéro", valeur: telephone });
-  if (email) coordonnees.push({ libelle: "Mon adresse email", valeur: email });
+  const suite = "Je vérifie la disponibilité. Je vous rappelle sous 24 h ouvrées pour valider votre zone ensemble. Aucun engagement.";
+  const reponse = "Vous pouvez aussi me répondre directement à";
 
   const text = [
     "Bonjour,",
     "",
     intro,
     "",
-    suite,
-    ...(coordonnees.length ? ["", ...coordonnees.map((c) => `${c.libelle} : ${c.valeur}`)] : []),
+    email ? `${suite} ${reponse} ${email}.` : suite,
     "",
     "Stéphane Levy",
     "STRATYXMEDIA",
@@ -82,8 +103,9 @@ export function construireConfirmation(d: DemandeConfirmation, contact: ContactS
     '<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:#2e2b25">',
     p("Bonjour,"),
     p(escapeHtml(intro)),
-    p(escapeHtml(suite)),
-    ...(coordonnees.length ? [p(coordonnees.map((c) => `${escapeHtml(c.libelle)} : ${escapeHtml(c.valeur)}`).join("<br>"))] : []),
+    p(email
+      ? `${escapeHtml(suite)} ${escapeHtml(reponse)} <a href="mailto:${escapeHtml(email)}" style="color:#0b3c5d">${escapeHtml(email)}</a>.`
+      : escapeHtml(suite)),
     p("Stéphane Levy<br>STRATYXMEDIA"),
     "</div>",
   ].join("\n");
@@ -138,8 +160,9 @@ export interface DepsConfirmation {
   /** Logs serveur : ne jamais y mettre l'adresse e-mail ni l'adresse de l'établissement. */
   journal(message: string, detail: Record<string, unknown>): void;
   antiDoublon: AntiDoublon;
+  /** Adresse de contact affichée dans le mail. */
   contact: ContactStephane;
-  /** Adresse de réponse (reply-to) : celle de Stéphane. */
+  /** Adresse de réponse (reply-to) : la réponse du prospect arrive dans la boîte de contact. */
   replyTo?: string | null;
 }
 
@@ -154,7 +177,7 @@ export async function envoyerConfirmation(
   if (!deps.antiDoublon.reserver(cle)) return "doublon";
   try {
     if (await deps.dejaConfirmee()) return "doublon";
-    const mail = construireConfirmation(d, { telephone: deps.contact.telephone, email: deps.contact.email ?? deps.replyTo });
+    const mail = construireConfirmation(d, { email: deps.contact.email });
     await deps.envoyer({ to: d.email, subject: mail.subject, text: mail.text, html: mail.html, replyTo: deps.replyTo ?? null });
   } catch (e) {
     deps.antiDoublon.liberer(cle);
