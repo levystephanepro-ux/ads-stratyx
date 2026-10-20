@@ -2,7 +2,7 @@
 // Les coordonnées viennent de la fiche créée par /api/zone/check, jamais du navigateur.
 import { NextResponse } from "next/server";
 import { sendAgentEmail } from "@/lib/agent/email";
-import { getAppUrl } from "@/lib/app-url";
+import { lienFicheClient } from "@/lib/app-url";
 import { SOURCE_VERIFICATION_ZONE, getClient, updateClient } from "@/lib/clients/store";
 import { ipDe, limite } from "@/lib/rate-limit";
 import { ajouterAttente } from "@/lib/zones-store";
@@ -34,8 +34,11 @@ export async function POST(req: Request) {
   }
   if (a.liste_attente === "oui") return NextResponse.json({ ok: true });
 
+  // Inscription volontaire : cette route n'est appelée que par le clic sur « Me prévenir si la place se libère ».
+  // Une seule ligne par client, activité et adresse : une inscription déjà faite est un succès, sans doublon ni e-mail.
+  let resultat: "ajoutee" | "deja";
   try {
-    await ajouterAttente({
+    resultat = await ajouterAttente({
       activite: a.activite_exclusive, adresse: a.adresse_etablissement, lat: point.lat, lng: point.lng,
       rayonKm: Number(a.rayon_km), clientId: c.id,
     });
@@ -43,11 +46,12 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "enregistrement_impossible" }, { status: 500 });
   }
+  if (resultat === "deja") return NextResponse.json({ ok: true });
 
   try {
     await sendAgentEmail(
       `⏳ Liste d'attente · ${libelleActivite(a.activite_exclusive)} · ${a.zone_commune || a.adresse_etablissement}`,
-      `${c.name} (${c.contact_phone ?? "sans téléphone"}) s'inscrit sur la liste d'attente, rayon ${a.rayon_km} km.\n\nFiche : ${getAppUrl()}/clients/${c.id}`,
+      `${c.name} (${c.contact_phone ?? "sans téléphone"}) s'inscrit sur la liste d'attente, rayon ${a.rayon_km} km.\n\nFiche : ${lienFicheClient(c.id, req)}`,
     );
   } catch {
     // L'inscription est enregistrée même sans e-mail.

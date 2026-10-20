@@ -358,3 +358,19 @@ export function transitionZone(
   }
   return null;
 }
+
+/* ---------------------------- Liste d'attente ---------------------------- */
+
+export interface InscriptionAttente {
+  clientId: string | null;
+  activite: string;
+  adresse: string;
+}
+
+/** Deux inscriptions sont la même si le client, l'activité et l'adresse (sans accents ni casse) sont identiques. */
+export function memeInscriptionAttente(a: InscriptionAttente, b: InscriptionAttente): boolean {
+  if (!a.clientId || !b.clientId || a.clientId !== b.clientId) return false;
+  const actA = activiteReconnue(a.activite) ?? normalise(a.activite);
+  const actB = activiteReconnue(b.activite) ?? normalise(b.activite);
+  return actA === actB && normalise(a.adresse) === normalise(b.adresse);
+}

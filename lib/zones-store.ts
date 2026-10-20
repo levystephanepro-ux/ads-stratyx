@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getSetting, setSetting } from "@/lib/agent/store";
 import { lireEchec, synchroniserAvecJournal, type EchecSynchro } from "@/lib/zones-sync";
 import {
-  activiteReconnue, controleZone, distanceKm, transitionZone, zonesAExpirer,
+  activiteReconnue, controleZone, distanceKm, memeInscriptionAttente, transitionZone, zonesAExpirer,
   type StatutZone, type ZoneOccupee,
 } from "@/lib/zones";
 
@@ -85,14 +85,27 @@ export async function attenteConcernee(liberees: ZoneLiberee[], maintenant: Date
   return res;
 }
 
-/** Inscription d'un prospect sur la liste d'attente d'une zone prise. */
-export async function ajouterAttente(e: { activite: string; adresse: string; lat: number; lng: number; rayonKm: number; clientId: string }): Promise<void> {
+/**
+ * Inscription volontaire d'un prospect sur la liste d'attente d'une zone prise. Appelée uniquement par /api/zone/attente,
+ * après un clic. Une seule ligne par client, activité et adresse : renvoie « deja » si l'inscription existe.
+ */
+export async function ajouterAttente(
+  e: { activite: string; adresse: string; lat: number; lng: number; rayonKm: number; clientId: string },
+): Promise<"ajoutee" | "deja"> {
   const act = activiteReconnue(e.activite);
   if (!act) throw new Error("activité non reconnue");
+  const existantes = await db().from("zones_attente").select("client_id, activite, adresse").eq("client_id", e.clientId).eq("activite", act);
+  if (existantes.error) throw new Error(existantes.error.message);
+  const nouvelle = { clientId: e.clientId, activite: act, adresse: e.adresse };
+  if ((existantes.data ?? []).some((r: { client_id: string; activite: string; adresse: string }) =>
+    memeInscriptionAttente(nouvelle, { clientId: r.client_id, activite: r.activite, adresse: r.adresse }))) return "deja";
   const { error } = await db().from("zones_attente").insert({
     activite: act, adresse: e.adresse, lat: e.lat, lng: e.lng, rayon_km: e.rayonKm, client_id: e.clientId,
   });
+  // 23505 : l'index unique de la migration 0025 a refusé un doublon posé entre-temps par un autre clic.
+  if (error && (error as { code?: string }).code === "23505") return "deja";
   if (error) throw new Error(error.message);
+  return "ajoutee";
 }
 
 /* ----------------------- Zone d'un client (fiche /clients/[id]) ----------------------- */

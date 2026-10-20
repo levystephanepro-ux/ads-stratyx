@@ -4,7 +4,7 @@
 // ni le contenu de la table des zones.
 import { NextResponse } from "next/server";
 import { sendAgentEmail } from "@/lib/agent/email";
-import { getAppUrl } from "@/lib/app-url";
+import { lienFicheClient } from "@/lib/app-url";
 import { createZoneLead } from "@/lib/clients/store";
 import { ipDe, limite } from "@/lib/rate-limit";
 import { verifierZone } from "@/lib/zone-check";
@@ -109,7 +109,7 @@ export async function POST(req: Request) {
       `- **Téléphone** : ${telephone}`,
       `- **Email** : ${email}`,
       `- **Situation** : ${situation || "non précisée"}`,
-      "", `Fiche : ${getAppUrl()}/clients/${demandeId}`,
+      "", `Fiche : ${lienFicheClient(demandeId, req)}`,
     );
     await sendAgentEmail(
       autre

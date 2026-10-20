@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   ACTIVITES, ACTIVITES_CHOIX, MESSAGE_ACTIVITE_AUTRE, activiteReconnue, controleZone, distanceKm, estAutreActivite, estOccupee,
-  expirationPour, expressionPlace, libelleActivite, libelleCourtActivite, suggestions, transitionZone,
+  expirationPour, expressionPlace, libelleActivite, libelleCourtActivite, memeInscriptionAttente, suggestions, transitionZone,
   supplementMensuel, zonesAExpirer, RAYON_MIN_KM,
   type CommuneCentre, type ZoneOccupee,
 } from "./zones.ts";
@@ -306,4 +306,18 @@ test("zone libérée à la main puis fiche toujours « Signé » : la reprise ex
   assert.equal(t.reverification, true);
   const autreClient = zone(NICE, 10, { clientId: "c2" });
   assert.equal(controleZone("plomberie", NICE, 10, [autreClient], { maintenant: NOW, exclureClientId: "c1" }).etat, "prise");
+});
+
+test("liste d'attente : une seule inscription par client, activité et adresse", () => {
+  const base = { clientId: "c1", activite: "plomberie", adresse: "10 avenue Jean Médecin 06000 Nice" };
+  assert.equal(memeInscriptionAttente(base, { ...base }), true);
+  // Adresse comparée sans accents, casse ni ponctuation ; activité par identifiant ou libellé.
+  assert.equal(memeInscriptionAttente(base, { ...base, adresse: "  10 AVENUE jean medecin, 06000 nice " }), true);
+  assert.equal(memeInscriptionAttente(base, { ...base, activite: "Plomberie (dépannage et installation)" }), true);
+  // Autre client, autre activité ou autre adresse : une nouvelle ligne.
+  assert.equal(memeInscriptionAttente(base, { ...base, clientId: "c2" }), false);
+  assert.equal(memeInscriptionAttente(base, { ...base, activite: "electricite" }), false);
+  assert.equal(memeInscriptionAttente(base, { ...base, adresse: "12 rue de la République 06000 Nice" }), false);
+  // Sans client connu, jamais de fusion à l'aveugle.
+  assert.equal(memeInscriptionAttente({ ...base, clientId: null }, { ...base, clientId: null }), false);
 });
