@@ -1,6 +1,8 @@
 // Accès base des zones d'exclusivité (migration 0024), service_role, serveur seulement.
 // Une erreur de lecture est propagée : l'appelant doit alors répondre « inconnue », jamais « libre ».
 import { createClient } from "@supabase/supabase-js";
+import { getSetting, setSetting } from "@/lib/agent/store";
+import { lireEchec, synchroniserAvecJournal, type EchecSynchro } from "@/lib/zones-sync";
 import {
   activiteReconnue, controleZone, distanceKm, transitionZone, zonesAExpirer,
   type StatutZone, type ZoneOccupee,
@@ -208,3 +210,38 @@ export async function synchroniserZone(clientId: string, stage: string, maintena
   return { statut: t.statut, conflit: false };
 }
 
+/* ------------------- Échecs de synchronisation (affichés sur la fiche) ------------------- */
+
+const cleEchec = (clientId: string) => `zone_sync_echec:${clientId}`;
+
+export async function echecSynchro(clientId: string): Promise<EchecSynchro | null> {
+  return lireEchec(await getSetting(cleEchec(clientId)).catch(() => null));
+}
+
+/** Aligne la zone sur l'étape sans jamais lever : un échec est écrit dans les logs et noté pour la fiche. */
+export function synchroniserZoneSansBloquer(clientId: string, stage: string): Promise<boolean> {
+  return synchroniserAvecJournal({
+    synchroniser: synchroniserZone,
+    noter: (id, echec) => setSetting(cleEchec(id), JSON.stringify(echec)),
+    effacer: async (id) => {
+      // Évite une écriture inutile quand il n'y a aucun échec à effacer.
+      if (await getSetting(cleEchec(id)).catch(() => null)) await setSetting(cleEchec(id), "");
+    },
+    journal: (message, detail) => console.error(message, detail),
+  }, clientId, stage);
+}
+
+export async function effacerEchecSynchro(clientId: string): Promise<void> {
+  if (await getSetting(cleEchec(clientId)).catch(() => null)) await setSetting(cleEchec(clientId), "");
+}
+
+/** Libère la zone en cours du client tout de suite (sans attendre les 30 jours). Renvoie false s'il n'y avait rien à libérer. */
+export async function libererZoneMaintenant(clientId: string): Promise<boolean> {
+  const zone = await zoneDuClient(clientId);
+  if (!zone || zone.statut === "libere") return false;
+  const { data, error } = await db()
+    .from("zones_exclusives").update({ statut: "libere", expire_le: null })
+    .eq("id", zone.id).in("statut", ["gardee", "reserve", "actif", "liberation"]).select("id");
+  if (error) throw new Error(error.message);
+  return (data ?? []).length > 0;
+}

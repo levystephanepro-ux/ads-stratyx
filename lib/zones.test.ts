@@ -288,3 +288,22 @@ test("zone libérée par l'étape : le territoire redevient libre pour un autre 
   const z2 = zone(NICE, 10, { statut: t2.statut, expireLe: t2.expireLe, clientId: "c1" });
   assert.equal(controleZone("plomberie", NICE, 10, [z2], { maintenant: NOW }).etat, "prise");
 });
+
+test("libération immédiate : une zone réservée, active ou en libération repasse libérée et le territoire redevient libre", () => {
+  for (const statut of ["gardee", "reserve", "actif", "liberation"] as const) {
+    const avant = zone(NICE, 10, { statut, expireLe: statut === "reserve" || statut === "actif" ? null : PLUS(20), clientId: "c1" });
+    assert.equal(controleZone("plomberie", NICE, 10, [avant], { maintenant: NOW }).etat, "prise", `${statut} bloque`);
+    const apres = { ...avant, statut: "libere" as const, expireLe: null };
+    assert.equal(estOccupee(apres, NOW), false, `${statut} libérée ne bloque plus`);
+    assert.equal(controleZone("plomberie", NICE, 10, [apres], { maintenant: NOW }).etat, "libre", `${statut} libérée`);
+  }
+});
+
+test("zone libérée à la main puis fiche toujours « Signé » : la reprise exige un nouveau contrôle", () => {
+  // Un autre client a pris le territoire entre-temps : la reprise doit être refusée par le contrôle.
+  const t = transitionZone("signe", { statut: "libere", expireLe: null }, NOW)!;
+  assert.equal(t.statut, "reserve");
+  assert.equal(t.reverification, true);
+  const autreClient = zone(NICE, 10, { clientId: "c2" });
+  assert.equal(controleZone("plomberie", NICE, 10, [autreClient], { maintenant: NOW, exclureClientId: "c1" }).etat, "prise");
+});

@@ -4,11 +4,15 @@
 import type { Client } from "@/lib/clients/store";
 import type { Stage } from "@/lib/clients/stages";
 import type { ZoneClient } from "@/lib/zones-store";
+import type { EchecSynchro } from "@/lib/zones-sync";
+import ConfirmButton from "@/components/ConfirmButton";
 import {
   ACTIVITES, ACTIVITE_AUTRE, GARDE_APRES_APPEL_JOURS, PRIX_ZONE_SUPP_MOIS, RAYONS_PROPOSES, RAYON_INCLUS_KM,
   estOccupee, supplementMensuel, type ResultatControle, type StatutZone,
 } from "@/lib/zones";
-import { enregistrerChampsZoneAction, geocoderZoneAction, gardeZoneAction, reserverZoneAction } from "@/app/clients/zone-actions";
+import {
+  enregistrerChampsZoneAction, geocoderZoneAction, gardeZoneAction, libererZoneAction, resynchroniserZoneAction, reserverZoneAction,
+} from "@/app/clients/zone-actions";
 
 const input = { padding: "9px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface-2)", color: "var(--text)", width: "100%" } as const;
 const lab = { fontSize: 12, textTransform: "uppercase", color: "var(--muted)", display: "block", marginBottom: 4 } as const;
@@ -20,6 +24,10 @@ const STATUT: Record<StatutZone, string> = {
 
 const date = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("fr-FR") : "");
 const STAGES_CLIENT = ["signe", "lancement", "actif"];
+const ETAPES: Record<string, string> = {
+  prospect: "Prospect", decouverte: "Découverte faite", proposition: "Proposition envoyée", signe: "Signé",
+  lancement: "En lancement", actif: "Campagnes actives", pause: "En pause", perdu: "Perdu",
+};
 
 export interface Props {
   client: Client;
@@ -29,10 +37,12 @@ export interface Props {
   controle: ResultatControle | null;
   /** Message de la dernière action (paramètre ?zone=ok:... ou err:...). */
   message: { ok: boolean; texte: string } | null;
+  /** Dernier échec de synchronisation de la zone lors d'un changement d'étape (null si aucun). */
+  echec?: EchecSynchro | null;
   maintenant?: Date;
 }
 
-export default function ZoneExclusivite({ client: c, stage, zone, controle, message, maintenant = new Date() }: Props) {
+export default function ZoneExclusivite({ client: c, stage, zone, controle, message, echec = null, maintenant = new Date() }: Props) {
   const a = c.answers ?? {};
   const actif = zone && zone.statut !== "libere";
   const activite = a.activite_exclusive || zone?.activite || "";
@@ -70,6 +80,20 @@ export default function ZoneExclusivite({ client: c, stage, zone, controle, mess
       </div>
 
       {message && <div style={alerte(message.ok ? "var(--green)" : "var(--red)")}>{message.texte}</div>}
+
+      {echec && (
+        <div role="alert" style={{ ...alerte("var(--red)"), display: "grid", gap: 8 }}>
+          <div>
+            <strong>La zone n&apos;a pas suivi le changement d&apos;étape{echec.stage ? ` (« ${ETAPES[echec.stage] ?? echec.stage} »)` : ""}</strong>
+            {` le ${new Date(echec.at).toLocaleString("fr-FR")}. L'étape de la fiche est bien enregistrée, mais la zone n'a pas changé de statut.`}
+            <br />{echec.message}
+          </div>
+          <form action={resynchroniserZoneAction}>
+            <input type="hidden" name="id" value={c.id} />
+            <button type="submit" className="btn-ghost">Réessayer la synchronisation</button>
+          </form>
+        </div>
+      )}
 
       {signeOuPlus && !bloquee && (
         <div style={alerte("var(--red)")}>
@@ -177,6 +201,16 @@ export default function ZoneExclusivite({ client: c, stage, zone, controle, mess
           <button type="submit" formAction={geocoderZoneAction} className="btn-ghost">{actif ? "Recalculer" : "Géocoder"}</button>
           {peutGarder && <button type="submit" formAction={gardeZoneAction} disabled={autre}>Garder {GARDE_APRES_APPEL_JOURS} jours</button>}
           {peutReserver && <button type="submit" formAction={reserverZoneAction} disabled={autre}>Réserver</button>}
+          {actif && (
+            <ConfirmButton
+              action={libererZoneAction}
+              className="btn-ghost"
+              style={{ color: "var(--red)", marginLeft: "auto" }}
+              message={`Libérer la zone tout de suite ?\n\nLe territoire redevient disponible pour un autre client de même activité, sans attendre les 30 jours.${signeOuPlus ? `\n\nAttention : cette fiche est encore à l'étape « ${ETAPES[stage] ?? stage} ».` : ""}`}
+            >
+              Libérer maintenant
+            </ConfirmButton>
+          )}
         </div>
         <p className="subtitle" style={{ margin: 0, fontSize: 12 }}>
           « Signé » réserve la zone, « En lancement » ou « Campagnes actives » la rend active, « Perdu » ou « En pause » la libère après 30 jours. Rien à faire à la main : le changement d&apos;étape suffit.

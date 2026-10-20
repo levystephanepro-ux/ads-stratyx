@@ -16,7 +16,7 @@ import { getOAuthMeta } from "@/lib/oauth-store";
 import CopyTextButton from "@/components/CopyTextButton";
 import { STAGES, stageOf, nextAction } from "@/lib/clients/stages";
 import { parcoursOf, ALL_QUESTIONS } from "@/lib/clients/questions";
-import { zoneDuClient, zonesOccupees } from "@/lib/zones-store";
+import { echecSynchro, zoneDuClient, zonesOccupees } from "@/lib/zones-store";
 import { RAYON_INCLUS_KM, activiteReconnue, controleZone, pointValide, type ResultatControle } from "@/lib/zones";
 
 export const dynamic = "force-dynamic";
@@ -58,7 +58,7 @@ export default async function ClientPage({ params, searchParams }: { params: P; 
   const next = nextAction(c, !!prop);
 
   // Zone d'exclusivité : zone enregistrée (null si la migration 0024 manque) et contrôle de l'adresse saisie.
-  const zone = await zoneDuClient(c.id).catch(() => null);
+  const [zone, zoneEchec] = await Promise.all([zoneDuClient(c.id).catch(() => null), echecSynchro(c.id)]);
   const zoneAct = activiteReconnue(c.answers?.activite_exclusive ?? zone?.activite ?? "");
   const zonePoint = { lat: Number(c.answers?.zone_lat), lng: Number(c.answers?.zone_lng) };
   let zoneControle: ResultatControle | null = null;
@@ -101,7 +101,7 @@ export default async function ClientPage({ params, searchParams }: { params: P; 
 
       <ClientSteps c={c} hasProposal={!!prop} />
 
-      <ZoneExclusivite client={c} stage={stage} zone={zone} controle={zoneControle} message={zoneMessage} />
+      <ZoneExclusivite client={c} stage={stage} zone={zone} controle={zoneControle} message={zoneMessage} echec={zoneEchec} />
 
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 13, margin: "0 0 16px" }}>
         <span className="subtitle" style={{ margin: 0 }}>Aussi :</span>

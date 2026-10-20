@@ -5,13 +5,17 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getDashboardContext } from "@/lib/workspace";
 import { getClient, updateClient, type Client } from "@/lib/clients/store";
+import { stageLabel, stageOf } from "@/lib/clients/stages";
 import { geocoder } from "@/lib/geocode";
 import { nettoyerTexte } from "@/lib/zone-validation";
 import {
   ACTIVITE_AUTRE, GARDE_APRES_APPEL_JOURS, RAYONS_PROPOSES, activiteReconnue, controleZone, expirationPour, pointValide,
   type Point,
 } from "@/lib/zones";
-import { deplacerZone, enregistrerZone, zoneDuClient, zonesOccupees, type SourceCoordonnees } from "@/lib/zones-store";
+import {
+  deplacerZone, effacerEchecSynchro, enregistrerZone, libererZoneMaintenant, synchroniserZoneSansBloquer, zoneDuClient, zonesOccupees,
+  type SourceCoordonnees,
+} from "@/lib/zones-store";
 
 async function owner() {
   const ctx = await getDashboardContext();
@@ -234,3 +238,33 @@ async function prendreZone(form: FormData, statut: "gardee" | "reserve") {
 
 export async function gardeZoneAction(form: FormData) { return prendreZone(form, "gardee"); }
 export async function reserverZoneAction(form: FormData) { return prendreZone(form, "reserve"); }
+
+/** Libère la zone tout de suite, sans attendre les 30 jours. La confirmation est demandée par le bouton (ConfirmButton). */
+export async function libererZoneAction(form: FormData) {
+  await owner();
+  const id = String(form.get("id") ?? "");
+  let libere = false;
+  try {
+    libere = await libererZoneMaintenant(id);
+    if (libere) await effacerEchecSynchro(id).catch(() => undefined);
+  } catch (e) {
+    console.error("[zones] libération immédiate impossible", { clientId: id, erreur: e instanceof Error ? e.message : String(e) });
+    retour(id, false, `Libération impossible : ${e instanceof Error ? e.message : "erreur inconnue"}.`);
+  }
+  if (!libere) retour(id, false, "Aucune zone à libérer pour ce client.");
+  console.info("[zones] zone libérée à la main", { clientId: id });
+  retour(id, true, "Zone libérée : le territoire est de nouveau disponible pour un autre client de même activité.");
+}
+
+/** Rejoue l'alignement de la zone sur l'étape actuelle de la fiche (après un échec de synchronisation). */
+export async function resynchroniserZoneAction(form: FormData) {
+  await owner();
+  const id = String(form.get("id") ?? "");
+  const c = await getClient(id);
+  if (!c) redirect("/clients");
+  const stage = stageOf(c);
+  const ok = await synchroniserZoneSansBloquer(id, stage);
+  retour(id, ok, ok
+    ? `Zone alignée sur l'étape « ${stageLabel(stage)} ».`
+    : "La synchronisation a encore échoué. Le détail est affiché dans le bloc et écrit dans les logs du serveur.");
+}
