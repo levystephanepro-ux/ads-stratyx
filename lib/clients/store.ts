@@ -113,6 +113,21 @@ export async function createZoneLead(input: ZoneLeadInput): Promise<string> {
   if (error) throw new Error(error.message);
   return data.id as string;
 }
+/** Demandes /zone récentes (hors celle en cours) dont la confirmation est partie : sert à n'envoyer qu'un mail par demande. */
+export async function confirmationsRecentesZone(depuisIso: string, sauf: string): Promise<{ contact_email: string | null; answers: Record<string, string> }[]> {
+  const { data, error } = await db().from("clients").select("id, contact_email, answers")
+    .gte("created_at", depuisIso).eq("answers->>source", SOURCE_VERIFICATION_ZONE).neq("id", sauf).limit(100);
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as { contact_email: string | null; answers: Record<string, string> | null }[])
+    .filter((r) => !!r.answers?.confirmation_envoyee)
+    .map((r) => ({ contact_email: r.contact_email, answers: r.answers ?? {} }));
+}
+/** Note sur la fiche que la confirmation au prospect est partie. */
+export async function noterConfirmationEnvoyee(id: string): Promise<void> {
+  const c = await getClient(id);
+  if (!c) return;
+  await updateClient(id, { answers: { ...(c.answers ?? {}), confirmation_envoyee: new Date().toISOString() } });
+}
 export async function updateClient(id: string, patch: Partial<Pick<Client, "name" | "customer_id" | "website" | "contact_email" | "notes" | "answers" | "status" | "submitted_at" | "stage" | "contact_name" | "contact_phone">>) {
   const { error } = await db().from("clients").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id);
   if (error) throw new Error(error.message);

@@ -8,6 +8,7 @@ import { lienFicheClient } from "@/lib/app-url";
 import { createZoneLead } from "@/lib/clients/store";
 import { ipDe, limite } from "@/lib/rate-limit";
 import { verifierZone } from "@/lib/zone-check";
+import { confirmerDemande } from "@/lib/zone-confirmation-serveur";
 import { nettoyerTexte, validerAutreActivite, type AutreActiviteValide } from "@/lib/zone-validation";
 import {
   MESSAGE_ACTIVITE_AUTRE, RAYONS_PROPOSES, activiteReconnue, estAutreActivite, libelleActivite, supplementMensuel,
@@ -87,8 +88,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "enregistrement_impossible" }, { status: 500 });
   }
 
-  // L'e-mail à Stéphane ne bloque jamais la réponse : la fiche est déjà enregistrée.
+  // Les e-mails ne bloquent jamais la réponse : la fiche est déjà enregistrée.
   try {
+    // Confirmation au prospect (un seul mail par demande). Ne lève jamais : un échec n'est écrit que dans les logs.
+    await confirmerDemande(demandeId, {
+      email, activiteId, autreActivite: autre?.autreActivite ?? null, adresse, rayonKm,
+    });
+    // Notification à Stéphane.
     const lignes = [
       "# Nouvelle vérification de zone", "",
       `- **État** : ${v.etat}${v.indicatif ? " (adresse imprécise, à confirmer)" : ""}${v.rayonMaxKm !== undefined ? `, rayon libre jusqu'à ${v.rayonMaxKm} km` : ""}`,

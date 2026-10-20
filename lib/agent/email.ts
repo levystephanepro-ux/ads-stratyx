@@ -40,6 +40,35 @@ export async function sendAgentEmail(
   }
 }
 
+export interface MailProspect {
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+  /** Adresse de réponse (reply-to). */
+  replyTo?: string | null;
+}
+
+/**
+ * Mail envoyé à un prospect (confirmation de demande). Expéditeur : PROSPECT_EMAIL_FROM, sinon AGENT_EMAIL_FROM.
+ * Le message d'erreur ne reprend jamais la réponse de Resend : elle peut contenir l'adresse du destinataire.
+ */
+export async function sendProspectEmail(m: MailProspect): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.PROSPECT_EMAIL_FROM || process.env.AGENT_EMAIL_FROM || "STRATYXMEDIA <onboarding@resend.dev>";
+  if (!apiKey) throw new Error("Email non configuré : RESEND_API_KEY manquante.");
+
+  const res = await fetch(RESEND_ENDPOINT, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from, to: m.to, subject: m.subject, text: m.text, html: m.html,
+      ...(m.replyTo ? { reply_to: m.replyTo } : {}),
+    }),
+  });
+  if (!res.ok) throw new Error(`Envoi email échoué (Resend ${res.status})`);
+}
+
 // --- Mini convertisseur Markdown → HTML ---
 // L'agent renvoie du markdown (titres, gras, listes, tableaux). On le transforme
 // en HTML lisible dans un client mail. Volontairement minimal mais robuste.
