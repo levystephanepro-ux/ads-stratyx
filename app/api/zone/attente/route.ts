@@ -6,7 +6,7 @@ import { getAppUrl } from "@/lib/app-url";
 import { SOURCE_VERIFICATION_ZONE, getClient, updateClient } from "@/lib/clients/store";
 import { ipDe, limite } from "@/lib/rate-limit";
 import { ajouterAttente } from "@/lib/zones-store";
-import { pointValide } from "@/lib/zones";
+import { libelleActivite, pointValide } from "@/lib/zones";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
 
   try {
     await sendAgentEmail(
-      `⏳ Liste d'attente · ${a.activite_exclusive} · ${a.zone_commune || a.adresse_etablissement}`,
+      `⏳ Liste d'attente · ${libelleActivite(a.activite_exclusive)} · ${a.zone_commune || a.adresse_etablissement}`,
       `${c.name} (${c.contact_phone ?? "sans téléphone"}) s'inscrit sur la liste d'attente, rayon ${a.rayon_km} km.\n\nFiche : ${getAppUrl()}/clients/${c.id}`,
     );
   } catch {

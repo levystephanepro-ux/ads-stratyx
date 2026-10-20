@@ -68,7 +68,13 @@ export const SOURCE_VERIFICATION_ZONE = "vérification de zone";
 
 export interface ZoneLeadInput {
   nom: string; telephone: string; email: string; situation: string;
-  activite: string; adresse: string; rayonKm: number;
+  /** Identifiant d'activité (voir ACTIVITES), ou « autre ». */
+  activite: string;
+  /** Libellé affiché de l'activité. */
+  activiteLibelle: string;
+  /** Champs de « Autre activité », déjà validés et nettoyés par la route. */
+  autre?: { autreActivite: string; panierMoyen: number; description: string };
+  adresse: string; rayonKm: number;
   etat: string; indicatif: boolean;
   geo: { lat: number; lng: number; commune: string; precision: string } | null;
 }
@@ -86,6 +92,12 @@ export async function createZoneLead(input: ZoneLeadInput): Promise<string> {
     zone_etat: input.etat,
     zone_indicatif: input.indicatif ? "oui" : "non",
   };
+  if (input.autre) {
+    answers.autre_activite = input.autre.autreActivite;
+    answers.autre_panier_moyen = String(input.autre.panierMoyen);
+    if (input.autre.description) answers.autre_description = input.autre.description;
+    answers.verification_manuelle_zones = "oui";
+  }
   if (input.geo) {
     answers.zone_lat = String(input.geo.lat);
     answers.zone_lng = String(input.geo.lng);
@@ -95,7 +107,7 @@ export async function createZoneLead(input: ZoneLeadInput): Promise<string> {
   const { data, error } = await db().from("clients").insert({
     name: input.nom, customer_id: null, share_token: randomBytes(18).toString("base64url"), answers,
     contact_name: input.nom, contact_phone: input.telephone, contact_email: input.email,
-    notes: `Source : ${SOURCE_VERIFICATION_ZONE}.${input.situation ? ` Situation : ${input.situation}.` : ""} Consentement à être recontacté donné sur la page /zone.`,
+    notes: `Source : ${SOURCE_VERIFICATION_ZONE}.${input.situation ? ` Situation : ${input.situation}.` : ""}${input.autre ? ` Autre activité : ${input.autre.autreActivite}, panier moyen estimé ${input.autre.panierMoyen} euros. À vérifier manuellement : zones existantes.` : ""} Consentement à être recontacté donné sur la page /zone.`,
   }).select("id").single();
   if (error) throw new Error(error.message);
   return data.id as string;

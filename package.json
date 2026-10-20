@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "test:zones": "node --no-warnings --test lib/zones.test.ts",
+    "test:zones": "node --no-warnings --test lib/zones.test.ts lib/zone-validation.test.ts",
     "start": "next start",
     "types": "supabase gen types typescript --local > lib/database.types.ts"
   },

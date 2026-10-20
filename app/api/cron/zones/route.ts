@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { sendAgentEmail } from "@/lib/agent/email";
 import { attenteConcernee, expirerZones } from "@/lib/zones-store";
+import { libelleActivite } from "@/lib/zones";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -19,7 +20,7 @@ export async function GET(req: Request) {
     let email = "rien à signaler";
     if (attente.length) {
       const lignes = attente.map((a) =>
-        `- **${a.activite}** · ${a.adresse} : ${a.etat === "libre" ? `libre pour ${a.rayonKm} km` : `libre jusqu'à ${a.rayonMaxKm} km (demandé : ${a.rayonKm} km)`}`);
+        `- **${libelleActivite(a.activite)}** · ${a.adresse} : ${a.etat === "libre" ? `libre pour ${a.rayonKm} km` : `libre jusqu'à ${a.rayonMaxKm} km (demandé : ${a.rayonKm} km)`}`);
       try {
         await sendAgentEmail(`📍 Zone libérée · ${attente.length} personne(s) en liste d'attente`, ["# Zone libérée", "", ...lignes].join("\n"));
         email = "envoyé";

@@ -39,32 +39,42 @@ export const SCORE_MIN_GEOCODAGE = 0.7;
 
 /* ------------------------------ Activités ------------------------------- */
 
-export const ACTIVITE_AUTRE = "Autre";
+/** Activité contrôlable : identifiant stable (minuscules, sans accents) stocké en base, libellé affiché. */
+export interface Activite {
+  id: string;
+  label: string;
+}
 
-export const ACTIVITES: readonly string[] = [
-  // Bâtiment
-  "Plomberie",
-  "Chauffage / climatisation",
-  "Électricité",
-  "Serrurerie",
-  "Couverture",
-  "Maçonnerie",
-  "Menuiserie / cuisine",
-  "Peinture",
-  "Carrelage",
-  "Paysagisme",
-  "Piscine",
-  "Vitrerie",
-  // Autres métiers locaux
-  "Coiffure et beauté",
-  "Kiné et ostéopathie",
-  "Garage et auto",
-  "Immobilier",
-  "Salle de sport",
-  "Services à la personne",
-  // Toujours en vérification manuelle
-  ACTIVITE_AUTRE,
+export const ACTIVITES: readonly Activite[] = [
+  { id: "plomberie", label: "Plomberie (dépannage et installation)" },
+  { id: "electricite", label: "Électricité" },
+  { id: "serrurerie-vitrerie", label: "Serrurerie et vitrerie (dépannage)" },
+  { id: "chauffage-climatisation", label: "Chauffage et climatisation (pompes à chaleur)" },
+  { id: "couverture-etancheite", label: "Couverture et étanchéité" },
+  { id: "fenetres-volets-verandas", label: "Fenêtres, volets et vérandas" },
+  { id: "piscine-paysagisme", label: "Piscine et paysagisme (création)" },
+  { id: "cuisine-salle-de-bain", label: "Cuisine et salle de bain" },
+  { id: "immobilier", label: "Immobilier (agents et agences)" },
+  { id: "dentiste-sante", label: "Dentiste et santé à fort panier (implants, orthodontie, esthétique médicale)" },
+  { id: "yachting-refit", label: "Yachting et refit" },
 ];
+
+/** Dernier choix : jamais contrôlable, toujours en vérification manuelle. */
+export const ACTIVITE_AUTRE: Activite = { id: "autre", label: "Autre activité" };
+
+/** Liste affichée dans le formulaire : les 11 activités puis « Autre activité ». */
+export const ACTIVITES_CHOIX: readonly Activite[] = [...ACTIVITES, ACTIVITE_AUTRE];
+
+/** Réponse à toute demande « Autre activité ». */
+export const MESSAGE_ACTIVITE_AUTRE =
+  "Je regarde votre activité à la main et je vous réponds sous 24 h ouvrées.";
+
+/** Limites des champs de « Autre activité ». */
+export const AUTRE_ACTIVITE_MIN = 3;
+export const AUTRE_ACTIVITE_MAX = 80;
+export const PANIER_MIN_EUR = 1;
+export const PANIER_MAX_EUR = 100_000;
+export const DESCRIPTION_MAX = 200;
 
 /** Normalise pour comparer « Saint-Laurent du Var » et « saint laurent-du-var ». */
 export function normalise(valeur: string): string {
@@ -77,11 +87,24 @@ export function normalise(valeur: string): string {
     .trim();
 }
 
-/** Libellé canonique de l'activité, ou null si elle n'est pas dans la liste. « Autre » n'est jamais contrôlable. */
-export function activiteReconnue(activite: string): string | null {
-  const n = normalise(activite);
-  if (!n || n === normalise(ACTIVITE_AUTRE)) return null;
-  return ACTIVITES.find((a) => normalise(a) === n) ?? null;
+/** Identifiant de l'activité, ou null si elle n'est pas dans la liste. Accepte l'identifiant ou le libellé. « Autre activité » n'est jamais contrôlable. */
+export function activiteReconnue(valeur: string): string | null {
+  if (typeof valeur !== "string") return null;
+  const n = normalise(valeur);
+  if (!n) return null;
+  return ACTIVITES.find((a) => normalise(a.id) === n || normalise(a.label) === n)?.id ?? null;
+}
+
+/** Vrai pour « Autre activité » (identifiant ou libellé). */
+export function estAutreActivite(valeur: string): boolean {
+  if (typeof valeur !== "string") return false;
+  const n = normalise(valeur);
+  return n === normalise(ACTIVITE_AUTRE.id) || n === normalise(ACTIVITE_AUTRE.label);
+}
+
+/** Libellé à afficher pour un identifiant d'activité (identifiant renvoyé tel quel s'il est inconnu). */
+export function libelleActivite(id: string): string {
+  return [...ACTIVITES, ACTIVITE_AUTRE].find((a) => a.id === id)?.label ?? id;
 }
 
 /* -------------------------------- Types --------------------------------- */
@@ -191,7 +214,7 @@ export function controleZone(
   options: OptionsControle = {},
 ): ResultatControle {
   const act = activiteReconnue(activite);
-  if (!act) return { etat: "inconnue", raison: "activité non reconnue ou « Autre »" };
+  if (!act) return { etat: "inconnue", raison: "activité non reconnue ou « Autre activité »" };
   if (!pointValide(point)) return { etat: "inconnue", raison: "adresse non géocodée" };
   if (typeof rayonKm !== "number" || !Number.isFinite(rayonKm) || rayonKm <= 0) {
     return { etat: "inconnue", raison: "rayon invalide" };

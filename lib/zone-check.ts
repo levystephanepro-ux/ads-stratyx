@@ -3,7 +3,7 @@
 import { COMMUNES_06_83 } from "@/lib/communes";
 import { geocoder, type Geocodage } from "@/lib/geocode";
 import { zonesOccupees } from "@/lib/zones-store";
-import { activiteReconnue, controleZone, suggestions, type EtatZone } from "@/lib/zones";
+import { activiteReconnue, controleZone, estAutreActivite, suggestions, type EtatZone } from "@/lib/zones";
 
 export interface VerificationZone {
   etat: EtatZone;
@@ -13,13 +13,17 @@ export interface VerificationZone {
   suggestions: string[];
   /** Adresse non précise (rue ou commune seulement) : résultat à confirmer. */
   indicatif: boolean;
+  /** « Autre activité » : jamais contrôlée, toujours à vérifier à la main. */
+  autre?: boolean;
   /** Usage serveur uniquement : jamais renvoyé au navigateur. */
   geo: Geocodage | null;
 }
 
 export async function verifierZone(activite: string, adresse: string, rayonKm: number): Promise<VerificationZone> {
-  const act = activiteReconnue(activite);
   const geo = await geocoder(adresse);
+  // « Autre activité » : aucune lecture des zones, jamais « libre » ni « prise ».
+  if (estAutreActivite(activite)) return { etat: "inconnue", suggestions: [], indicatif: false, autre: true, geo };
+  const act = activiteReconnue(activite);
   if (!act || !geo) return { etat: "inconnue", suggestions: [], indicatif: false, geo };
 
   let occupees;

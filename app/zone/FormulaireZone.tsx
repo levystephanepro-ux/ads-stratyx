@@ -2,7 +2,11 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ACTIVITES, PRIX_ZONE_SUPP_MOIS, RAYONS_PROPOSES, RAYON_INCLUS_KM, type EtatZone } from "@/lib/zones";
+import {
+  ACTIVITES_CHOIX, ACTIVITE_AUTRE, AUTRE_ACTIVITE_MAX, AUTRE_ACTIVITE_MIN, DESCRIPTION_MAX, PANIER_MAX_EUR, PANIER_MIN_EUR,
+  PRIX_ZONE_SUPP_MOIS, RAYONS_PROPOSES, RAYON_INCLUS_KM, type EtatZone,
+} from "@/lib/zones";
+import { validerAutreActivite } from "@/lib/zone-validation";
 
 /* ------------------------------------------------------------------
    app/zone/FormulaireZone.tsx
@@ -22,6 +26,8 @@ type Reponse = {
   indicatif: boolean;
   supplement: number;
   demandeId?: string;
+  /** Message du serveur pour « Autre activité ». */
+  message?: string;
 };
 
 type Resultat = Reponse & { activite: string; rayonKm: number };
@@ -33,6 +39,8 @@ export default function FormulaireZone() {
   const [resultat, setResultat] = useState<Resultat | null>(null);
   const [attente, setAttente] = useState<"non" | "envoi" | "ok" | "echec">("non");
   const [propositions, setPropositions] = useState<string[]>([]);
+  const [activiteChoisie, setActiviteChoisie] = useState("");
+  const autre = activiteChoisie === ACTIVITE_AUTRE.id;
   const minuteur = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => () => { if (minuteur.current) clearTimeout(minuteur.current); }, []);
@@ -75,6 +83,10 @@ export default function FormulaireZone() {
     /* ----------------------------- Validation ----------------------------- */
     const err: Record<string, string> = {};
     if (!activite) err.activite = "Choisissez votre activité.";
+    if (activite === ACTIVITE_AUTRE.id) {
+      const r = validerAutreActivite({ autreActivite: lire("autreActivite"), panierMoyen: lire("panierMoyen"), description: lire("description") });
+      if (!r.ok) Object.assign(err, r.erreurs);
+    }
     if (adresse.length < 5) err.adresse = "Indiquez l'adresse de votre établissement.";
     if (!rayonKm) err.rayon = "Choisissez un rayon.";
     if (nom.length < 2) err.nom = "Indiquez votre nom.";
@@ -94,6 +106,9 @@ export default function FormulaireZone() {
         body: JSON.stringify({
           activite, adresse, rayonKm, nom, telephone, email,
           situation: lire("situation"),
+          ...(activite === ACTIVITE_AUTRE.id
+            ? { autreActivite: lire("autreActivite"), panierMoyen: lire("panierMoyen"), description: lire("description") }
+            : {}),
           consentement: true,
           site_web: lire("site_web"),
         }),
@@ -107,7 +122,9 @@ export default function FormulaireZone() {
         setPanne("L'envoi n'a pas abouti. Merci de réessayer dans quelques minutes, ou de nous appeler directement.");
       } else {
         const j = (await res.json()) as Reponse;
-        setResultat({ ...j, activite, rayonKm });
+        // Libellé court (sans la précision entre parenthèses) pour les phrases de réponse.
+        const libelle = ACTIVITES_CHOIX.find((a) => a.id === activite)?.label ?? activite;
+        setResultat({ ...j, activite: libelle.replace(/\s*\(.*\)$/, ""), rayonKm });
       }
     } catch {
       setPanne("L'envoi n'a pas abouti. Vérifiez votre connexion, ou appelez-nous directement.");
@@ -131,7 +148,7 @@ export default function FormulaireZone() {
 
   /* ------------------------- Écran de réponse ------------------------------ */
   if (resultat) {
-    const { etat, activite, rayonKm, rayonMaxKm, suggestions, indicatif, supplement, demandeId } = resultat;
+    const { etat, activite, rayonKm, rayonMaxKm, suggestions, indicatif, supplement, demandeId, message } = resultat;
     const act = activite.toLowerCase();
 
     const titre =
@@ -145,7 +162,7 @@ export default function FormulaireZone() {
             ? `La place ${act} est déjà prise autour de votre établissement.`
             : "Votre demande est bien enregistrée.";
 
-    const detail =
+    const detail = message ? message :
       etat === "libre"
         ? "Nous vous rappelons sous 24 h ouvrées pour la bloquer et regarder vos chiffres ensemble. Aucun engagement à ce stade."
         : etat === "partielle"
@@ -234,19 +251,62 @@ export default function FormulaireZone() {
       </div>
 
       <div className="zone-champ">
-        <label htmlFor="activite">Votre activité</label>
-        <select id="activite" name="activite" defaultValue="">
+        <label htmlFor="activite">Votre secteur d&apos;activité</label>
+        <select
+          id="activite"
+          name="activite"
+          value={activiteChoisie}
+          onChange={(e) => setActiviteChoisie(e.target.value)}
+        >
           <option value="" disabled>
             Choisissez…
           </option>
-          {ACTIVITES.map((a) => (
-            <option key={a} value={a}>
-              {a}
+          {ACTIVITES_CHOIX.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.label}
             </option>
           ))}
         </select>
         {erreurs.activite && <span className="zone-erreur">{erreurs.activite}</span>}
       </div>
+
+      {autre && (
+        <>
+          <div className="zone-champ">
+            <label htmlFor="autreActivite">Votre activité</label>
+            <input
+              id="autreActivite"
+              name="autreActivite"
+              type="text"
+              minLength={AUTRE_ACTIVITE_MIN}
+              maxLength={AUTRE_ACTIVITE_MAX}
+              placeholder="Par exemple : paysagiste, spa, électricien auto"
+            />
+            {erreurs.autreActivite && <span className="zone-erreur">{erreurs.autreActivite}</span>}
+          </div>
+
+          <div className="zone-champ">
+            <label htmlFor="panierMoyen">Panier moyen estimé, en euros</label>
+            <input
+              id="panierMoyen"
+              name="panierMoyen"
+              type="number"
+              inputMode="decimal"
+              min={PANIER_MIN_EUR}
+              max={PANIER_MAX_EUR}
+              step="any"
+              placeholder="450"
+            />
+            {erreurs.panierMoyen && <span className="zone-erreur">{erreurs.panierMoyen}</span>}
+          </div>
+
+          <div className="zone-champ">
+            <label htmlFor="description">Décrivez en une phrase ce que vous vendez (facultatif)</label>
+            <input id="description" name="description" type="text" maxLength={DESCRIPTION_MAX} />
+            {erreurs.description && <span className="zone-erreur">{erreurs.description}</span>}
+          </div>
+        </>
+      )}
 
       <div className="zone-champ">
         <label htmlFor="adresse">Adresse de votre établissement</label>
