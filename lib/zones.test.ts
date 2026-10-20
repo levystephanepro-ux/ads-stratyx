@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   ACTIVITES, ACTIVITES_CHOIX, MESSAGE_ACTIVITE_AUTRE, activiteReconnue, controleZone, distanceKm, estAutreActivite, estOccupee,
-  expirationPour, libelleActivite, suggestions,
+  expirationPour, expressionPlace, libelleActivite, libelleCourtActivite, suggestions,
   supplementMensuel, zonesAExpirer, RAYON_MIN_KM,
   type CommuneCentre, type ZoneOccupee,
 } from "./zones.ts";
@@ -194,4 +194,40 @@ test("suggestions : 3 communes libres dans 30 km, triées par distance", () => {
   // Doute : aucune suggestion.
   assert.deepEqual(suggestions("autre", NICE, 5, communes, [], { maintenant: NOW }), []);
   assert.deepEqual(suggestions("plomberie", null, 5, communes, [], { maintenant: NOW }), []);
+});
+
+test("libellés courts : un par activité, distincts du libellé complet du menu", () => {
+  const attendus: Record<string, string> = {
+    plomberie: "plombier",
+    electricite: "électricien",
+    "serrurerie-vitrerie": "serrurier ou vitrier",
+    "chauffage-climatisation": "chauffagiste",
+    "couverture-etancheite": "couvreur",
+    "fenetres-volets-verandas": "installateur de fenêtres et volets",
+    "piscine-paysagisme": "pisciniste ou paysagiste",
+    "cuisine-salle-de-bain": "cuisiniste",
+    immobilier: "agent immobilier",
+    "dentiste-sante": "dentiste ou praticien de santé",
+    "yachting-refit": "professionnel du yachting",
+  };
+  assert.deepEqual(Object.keys(attendus), ACTIVITES.map((a) => a.id));
+  for (const a of ACTIVITES) {
+    assert.equal(a.court, attendus[a.id], a.id);
+    assert.equal(libelleCourtActivite(a.id), attendus[a.id]);
+    assert.notEqual(a.court, a.label, `${a.id} : libellé court différent du libellé du menu`);
+  }
+  // Le libellé complet reste celui du menu et des e-mails.
+  assert.equal(libelleActivite("plomberie"), "Plomberie (dépannage et installation)");
+  assert.equal(libelleActivite("dentiste-sante"), "Dentiste et santé à fort panier (implants, orthodontie, esthétique médicale)");
+  assert.equal(libelleCourtActivite("inconnue"), "inconnue");
+});
+
+test("expressionPlace : « de » ou « d' » selon la première lettre", () => {
+  assert.equal(expressionPlace("plomberie"), "de plombier");
+  assert.equal(expressionPlace("electricite"), "d'électricien");
+  assert.equal(expressionPlace("immobilier"), "d'agent immobilier");
+  assert.equal(expressionPlace("fenetres-volets-verandas"), "d'installateur de fenêtres et volets");
+  assert.equal(expressionPlace("chauffage-climatisation"), "de chauffagiste");
+  assert.equal(expressionPlace("yachting-refit"), "de professionnel du yachting");
+  assert.equal(`La place ${expressionPlace("plomberie")} est libre autour de votre établissement`, "La place de plombier est libre autour de votre établissement");
 });

@@ -42,25 +42,28 @@ export const SCORE_MIN_GEOCODAGE = 0.7;
 /** Activité contrôlable : identifiant stable (minuscules, sans accents) stocké en base, libellé affiché. */
 export interface Activite {
   id: string;
+  /** Libellé complet : menu du formulaire et e-mails. */
   label: string;
+  /** Libellé court : phrases de réponse affichées au public (« la place de plombier »). */
+  court: string;
 }
 
 export const ACTIVITES: readonly Activite[] = [
-  { id: "plomberie", label: "Plomberie (dépannage et installation)" },
-  { id: "electricite", label: "Électricité" },
-  { id: "serrurerie-vitrerie", label: "Serrurerie et vitrerie (dépannage)" },
-  { id: "chauffage-climatisation", label: "Chauffage et climatisation (pompes à chaleur)" },
-  { id: "couverture-etancheite", label: "Couverture et étanchéité" },
-  { id: "fenetres-volets-verandas", label: "Fenêtres, volets et vérandas" },
-  { id: "piscine-paysagisme", label: "Piscine et paysagisme (création)" },
-  { id: "cuisine-salle-de-bain", label: "Cuisine et salle de bain" },
-  { id: "immobilier", label: "Immobilier (agents et agences)" },
-  { id: "dentiste-sante", label: "Dentiste et santé à fort panier (implants, orthodontie, esthétique médicale)" },
-  { id: "yachting-refit", label: "Yachting et refit" },
+  { id: "plomberie", label: "Plomberie (dépannage et installation)", court: "plombier" },
+  { id: "electricite", label: "Électricité", court: "électricien" },
+  { id: "serrurerie-vitrerie", label: "Serrurerie et vitrerie (dépannage)", court: "serrurier ou vitrier" },
+  { id: "chauffage-climatisation", label: "Chauffage et climatisation (pompes à chaleur)", court: "chauffagiste" },
+  { id: "couverture-etancheite", label: "Couverture et étanchéité", court: "couvreur" },
+  { id: "fenetres-volets-verandas", label: "Fenêtres, volets et vérandas", court: "installateur de fenêtres et volets" },
+  { id: "piscine-paysagisme", label: "Piscine et paysagisme (création)", court: "pisciniste ou paysagiste" },
+  { id: "cuisine-salle-de-bain", label: "Cuisine et salle de bain", court: "cuisiniste" },
+  { id: "immobilier", label: "Immobilier (agents et agences)", court: "agent immobilier" },
+  { id: "dentiste-sante", label: "Dentiste et santé à fort panier (implants, orthodontie, esthétique médicale)", court: "dentiste ou praticien de santé" },
+  { id: "yachting-refit", label: "Yachting et refit", court: "professionnel du yachting" },
 ];
 
 /** Dernier choix : jamais contrôlable, toujours en vérification manuelle. */
-export const ACTIVITE_AUTRE: Activite = { id: "autre", label: "Autre activité" };
+export const ACTIVITE_AUTRE: Activite = { id: "autre", label: "Autre activité", court: "autre activité" };
 
 /** Liste affichée dans le formulaire : les 11 activités puis « Autre activité ». */
 export const ACTIVITES_CHOIX: readonly Activite[] = [...ACTIVITES, ACTIVITE_AUTRE];
@@ -100,6 +103,18 @@ export function estAutreActivite(valeur: string): boolean {
   if (typeof valeur !== "string") return false;
   const n = normalise(valeur);
   return n === normalise(ACTIVITE_AUTRE.id) || n === normalise(ACTIVITE_AUTRE.label);
+}
+
+/** Libellé court d'une activité (« plombier »), ou le libellé complet si l'identifiant est inconnu. */
+export function libelleCourtActivite(id: string): string {
+  const a = [...ACTIVITES, ACTIVITE_AUTRE].find((x) => x.id === id);
+  return a ? a.court : id;
+}
+
+/** « de plombier », « d'électricien » : complément du nom « place », avec élision devant une voyelle ou un h muet. */
+export function expressionPlace(id: string): string {
+  const court = libelleCourtActivite(id);
+  return /^[aeiouyhàâäéèêëîïôöùûüœ]/i.test(court) ? "d'" + court : "de " + court;
 }
 
 /** Libellé à afficher pour un identifiant d'activité (identifiant renvoyé tel quel s'il est inconnu). */

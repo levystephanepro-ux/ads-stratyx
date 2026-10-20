@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import {
   ACTIVITES_CHOIX, ACTIVITE_AUTRE, AUTRE_ACTIVITE_MAX, AUTRE_ACTIVITE_MIN, DESCRIPTION_MAX, PANIER_MAX_EUR, PANIER_MIN_EUR,
-  PRIX_ZONE_SUPP_MOIS, RAYONS_PROPOSES, RAYON_INCLUS_KM, type EtatZone,
+  PRIX_ZONE_SUPP_MOIS, RAYONS_PROPOSES, RAYON_INCLUS_KM, expressionPlace, type EtatZone,
 } from "@/lib/zones";
 import { validerAutreActivite } from "@/lib/zone-validation";
 
@@ -122,9 +122,7 @@ export default function FormulaireZone() {
         setPanne("L'envoi n'a pas abouti. Merci de réessayer dans quelques minutes, ou de nous appeler directement.");
       } else {
         const j = (await res.json()) as Reponse;
-        // Libellé court (sans la précision entre parenthèses) pour les phrases de réponse.
-        const libelle = ACTIVITES_CHOIX.find((a) => a.id === activite)?.label ?? activite;
-        setResultat({ ...j, activite: libelle.replace(/\s*\(.*\)$/, ""), rayonKm });
+        setResultat({ ...j, activite, rayonKm });
       }
     } catch {
       setPanne("L'envoi n'a pas abouti. Vérifiez votre connexion, ou appelez-nous directement.");
@@ -149,17 +147,18 @@ export default function FormulaireZone() {
   /* ------------------------- Écran de réponse ------------------------------ */
   if (resultat) {
     const { etat, activite, rayonKm, rayonMaxKm, suggestions, indicatif, supplement, demandeId, message } = resultat;
-    const act = activite.toLowerCase();
+    // Libellé court de l'activité (« de plombier »), distinct du libellé complet du menu.
+    const place = expressionPlace(activite);
 
     const titre =
       etat === "libre"
         ? indicatif
-          ? `La place ${act} semble libre autour de cette adresse.`
-          : `La place ${act} est libre dans un rayon de ${rayonKm} km autour de votre établissement.`
+          ? `La place ${place} semble libre autour de cette adresse.`
+          : `La place ${place} est libre dans un rayon de ${rayonKm} km autour de votre établissement.`
         : etat === "partielle"
-          ? `La place ${act} est libre jusqu'à ${rayonMaxKm ?? "quelques"} km autour de votre établissement.`
+          ? `La place ${place} est libre jusqu'à ${rayonMaxKm ?? "quelques"} km autour de votre établissement.`
           : etat === "prise"
-            ? `La place ${act} est déjà prise autour de votre établissement.`
+            ? `La place ${place} est déjà prise autour de votre établissement.`
             : "Votre demande est bien enregistrée.";
 
     const detail = message ? message :
