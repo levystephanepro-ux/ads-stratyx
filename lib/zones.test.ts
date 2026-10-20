@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   ACTIVITES, ACTIVITES_CHOIX, MESSAGE_ACTIVITE_AUTRE, activiteReconnue, controleZone, distanceKm, estAutreActivite, estOccupee,
-  expirationPour, expressionPlace, libelleActivite, libelleCourtActivite, suggestions,
+  expirationPour, expressionPlace, libelleActivite, libelleCourtActivite, suggestions, transitionZone,
   supplementMensuel, zonesAExpirer, RAYON_MIN_KM,
   type CommuneCentre, type ZoneOccupee,
 } from "./zones.ts";
@@ -230,4 +230,61 @@ test("expressionPlace : « de » ou « d' » selon la première lettre", () => {
   assert.equal(expressionPlace("chauffage-climatisation"), "de chauffagiste");
   assert.equal(expressionPlace("yachting-refit"), "de professionnel du yachting");
   assert.equal(`La place ${expressionPlace("plomberie")} est libre autour de votre établissement`, "La place de plombier est libre autour de votre établissement");
+});
+
+test("étape de la fiche : « Signé » réserve la zone, sans autre action", () => {
+  const t = transitionZone("signe", { statut: "gardee", expireLe: PLUS(3) }, NOW);
+  assert.deepEqual(t, { statut: "reserve", expireLe: null, reverification: false });
+  assert.equal(transitionZone("signe", { statut: "liberation", expireLe: PLUS(10) }, NOW)?.statut, "reserve");
+  assert.equal(transitionZone("signe", { statut: "reserve", expireLe: null }, NOW), null);
+  assert.equal(transitionZone("signe", { statut: "actif", expireLe: null }, NOW), null);
+});
+
+test("signature d'une zone qui ne bloquait plus rien : vérification obligatoire avant reprise", () => {
+  assert.equal(transitionZone("signe", { statut: "gardee", expireLe: PLUS(-1) }, NOW)?.reverification, true); // garde expirée
+  assert.equal(transitionZone("signe", { statut: "libere", expireLe: null }, NOW)?.reverification, true);
+  assert.equal(transitionZone("actif", { statut: "liberation", expireLe: PLUS(-2) }, NOW)?.reverification, true);
+  assert.equal(transitionZone("actif", { statut: "libere", expireLe: null }, NOW)?.reverification, true);
+  assert.equal(transitionZone("actif", { statut: "liberation", expireLe: PLUS(5) }, NOW)?.reverification, false); // retour en pause avant la fin
+});
+
+test("étape de la fiche : « En lancement » et « Campagnes actives » rendent la zone active", () => {
+  for (const stage of ["lancement", "actif"]) {
+    assert.deepEqual(transitionZone(stage, { statut: "reserve", expireLe: null }, NOW), { statut: "actif", expireLe: null, reverification: false });
+    assert.equal(transitionZone(stage, { statut: "actif", expireLe: null }, NOW), null);
+    assert.equal(transitionZone(stage, { statut: "gardee", expireLe: PLUS(2) }, NOW)?.statut, "actif");
+  }
+});
+
+test("étape de la fiche : « Perdu » et « En pause » libèrent après 30 jours", () => {
+  for (const stage of ["perdu", "pause"]) {
+    for (const statut of ["reserve", "actif"] as const) {
+      const t = transitionZone(stage, { statut, expireLe: null }, NOW);
+      assert.equal(t?.statut, "liberation", `${stage} ${statut}`);
+      assert.equal(Date.parse(t!.expireLe!) - NOW.getTime(), 30 * 86_400_000);
+      assert.equal(t?.reverification, false);
+    }
+    // Zone seulement gardée (jamais signée) : libérée tout de suite.
+    assert.deepEqual(transitionZone(stage, { statut: "gardee", expireLe: PLUS(4) }, NOW), { statut: "libere", expireLe: null, reverification: false });
+    // Déjà en libération ou libérée : on ne repousse jamais la date.
+    assert.equal(transitionZone(stage, { statut: "liberation", expireLe: PLUS(12) }, NOW), null);
+    assert.equal(transitionZone(stage, { statut: "libere", expireLe: null }, NOW), null);
+  }
+});
+
+test("étapes sans effet sur la zone (prospect, découverte, proposition, inconnue), même en retour arrière", () => {
+  for (const stage of ["prospect", "decouverte", "proposition", "nimporte-quoi", ""]) {
+    for (const statut of ["gardee", "reserve", "actif", "liberation", "libere"] as const) {
+      assert.equal(transitionZone(stage, { statut, expireLe: PLUS(3) }, NOW), null, `${stage} ${statut}`);
+    }
+  }
+});
+
+test("zone libérée par l'étape : le territoire redevient libre pour un autre client", () => {
+  const t = transitionZone("perdu", { statut: "gardee", expireLe: PLUS(4) }, NOW)!;
+  const z = zone(NICE, 10, { statut: t.statut, expireLe: t.expireLe, clientId: "c1" });
+  assert.equal(controleZone("plomberie", NICE, 10, [z], { maintenant: NOW }).etat, "libre");
+  const t2 = transitionZone("signe", { statut: "gardee", expireLe: PLUS(4) }, NOW)!;
+  const z2 = zone(NICE, 10, { statut: t2.statut, expireLe: t2.expireLe, clientId: "c1" });
+  assert.equal(controleZone("plomberie", NICE, 10, [z2], { maintenant: NOW }).etat, "prise");
 });

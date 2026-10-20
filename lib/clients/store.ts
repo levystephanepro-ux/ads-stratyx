@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getSetting, setSetting } from "@/lib/agent/store";
 import { contextKey } from "@/lib/account-context";
 import { ALL_QUESTIONS, INTERNAL_KEYS } from "./questions";
+import { synchroniserZone } from "@/lib/zones-store";
 
 export interface Client {
   id: string; name: string; customer_id: string | null; website: string | null; contact_email: string | null; notes: string | null;
@@ -115,6 +116,9 @@ export async function createZoneLead(input: ZoneLeadInput): Promise<string> {
 export async function updateClient(id: string, patch: Partial<Pick<Client, "name" | "customer_id" | "website" | "contact_email" | "notes" | "answers" | "status" | "submitted_at" | "stage" | "contact_name" | "contact_phone">>) {
   const { error } = await db().from("clients").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id);
   if (error) throw new Error(error.message);
+  // Toute écriture d'étape (menu, boutons du parcours, devis accepté) aligne la zone d'exclusivité du client.
+  // Une erreur de zone (migration 0024 absente, base indisponible) ne bloque jamais le changement d'étape.
+  if (patch.stage) await synchroniserZone(id, patch.stage).catch(() => undefined);
 }
 export async function deleteClient(id: string) {
   await db().from("clients").delete().eq("id", id);

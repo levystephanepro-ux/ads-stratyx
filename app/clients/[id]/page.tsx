@@ -5,6 +5,7 @@ import Shell from "@/components/Shell";
 import QuestionFields from "@/components/QuestionFields";
 import CopyLinkButton from "@/components/CopyLinkButton";
 import ClientSteps from "@/components/ClientSteps";
+import ZoneExclusivite from "@/components/ZoneExclusivite";
 import { getDashboardContext } from "@/lib/workspace";
 import { getAccountsInfo } from "@/lib/google-ads/default-account";
 import { getClient } from "@/lib/clients/store";
@@ -15,6 +16,8 @@ import { getOAuthMeta } from "@/lib/oauth-store";
 import CopyTextButton from "@/components/CopyTextButton";
 import { STAGES, stageOf, nextAction } from "@/lib/clients/stages";
 import { parcoursOf, ALL_QUESTIONS } from "@/lib/clients/questions";
+import { zoneDuClient, zonesOccupees } from "@/lib/zones-store";
+import { RAYON_INCLUS_KM, activiteReconnue, controleZone, pointValide, type ResultatControle } from "@/lib/zones";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -24,7 +27,7 @@ const lab = { fontSize: 12, textTransform: "uppercase", color: "var(--muted)", d
 const LABEL = { a_envoyer: "Questionnaire à envoyer", envoye: "Envoyé, en attente", brouillon: "Brouillon en cours", rempli: "Questionnaire rempli" } as const;
 
 type P = Promise<{ id: string }>;
-type SP = Promise<{ saved?: string; err?: string }>;
+type SP = Promise<{ saved?: string; err?: string; zone?: string }>;
 
 export default async function ClientPage({ params, searchParams }: { params: P; searchParams: SP }) {
   const ctx = await getDashboardContext();
@@ -53,6 +56,20 @@ export default async function ClientPage({ params, searchParams }: { params: P; 
   ].join("\n");
   const stage = stageOf(c);
   const next = nextAction(c, !!prop);
+
+  // Zone d'exclusivité : zone enregistrée (null si la migration 0024 manque) et contrôle de l'adresse saisie.
+  const zone = await zoneDuClient(c.id).catch(() => null);
+  const zoneAct = activiteReconnue(c.answers?.activite_exclusive ?? zone?.activite ?? "");
+  const zonePoint = { lat: Number(c.answers?.zone_lat), lng: Number(c.answers?.zone_lng) };
+  let zoneControle: ResultatControle | null = null;
+  if (zoneAct && c.answers?.zone_lat && c.answers?.zone_lng && pointValide(zonePoint)) {
+    try {
+      zoneControle = controleZone(zoneAct, zonePoint, Number(c.answers?.rayon_km) || zone?.rayonKm || RAYON_INCLUS_KM, await zonesOccupees(zoneAct), { exclureClientId: c.id });
+    } catch {
+      zoneControle = { etat: "inconnue", raison: "zones illisibles" };
+    }
+  }
+  const zoneMessage = sp.zone ? { ok: sp.zone.startsWith("ok:"), texte: sp.zone.replace(/^(ok|err):/, "") } : null;
   const acc = c.customer_id ? `?account=${c.customer_id}` : "";
 
   const accesAll = ALL_QUESTIONS.find((q) => q.key === "acces_obtenus")?.choices ?? [];
@@ -83,6 +100,8 @@ export default async function ClientPage({ params, searchParams }: { params: P; 
       {sp.saved && <div className="card" style={{ borderColor: "var(--green)", margin: "12px 0" }}>{sp.saved === "sync" ? "Fiche enregistrée, et le contexte IA du compte est mis à jour (Copilote et Prévisions s'en servent)." : sp.saved === "draft" ? "Brouillon enregistré. Tu peux quitter la page et reprendre plus tard." : "Fiche enregistrée et marquée comme remplie."}</div>}
 
       <ClientSteps c={c} hasProposal={!!prop} />
+
+      <ZoneExclusivite client={c} stage={stage} zone={zone} controle={zoneControle} message={zoneMessage} />
 
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 13, margin: "0 0 16px" }}>
         <span className="subtitle" style={{ margin: 0 }}>Aussi :</span>

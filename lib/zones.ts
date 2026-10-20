@@ -319,3 +319,42 @@ export function expirationPour(statut: "gardee" | "liberation", depuis: Date = n
   const jours = statut === "gardee" ? GARDE_APRES_APPEL_JOURS : LIBERATION_APRES_ARRET_JOURS;
   return new Date(depuis.getTime() + jours * 86_400_000).toISOString();
 }
+
+/* ------------------------ Étape commerciale et zone ------------------------ */
+
+export interface TransitionZone {
+  statut: StatutZone;
+  expireLe: string | null;
+  /** La zone ne bloquait plus rien (libérée ou expirée) : vérifier l'absence de chevauchement avant de la reprendre. */
+  reverification: boolean;
+}
+
+/**
+ * Statut que doit prendre la zone d'un client quand sa fiche change d'étape, ou null si rien ne change.
+ *  - signe : réservée.
+ *  - lancement ou actif : active.
+ *  - perdu ou pause : en libération 30 jours (zone réservée ou active) ; libérée tout de suite si elle n'était que gardée.
+ *  - toute autre étape (prospect, découverte, proposition) : aucun changement, y compris en cas de retour en arrière.
+ */
+export function transitionZone(
+  stage: string,
+  zone: { statut: StatutZone; expireLe: string | null },
+  maintenant: Date = new Date(),
+): TransitionZone | null {
+  const bloquait = estOccupee(zone, maintenant);
+  if (stage === "signe") {
+    if (zone.statut === "reserve" || zone.statut === "actif") return null;
+    return { statut: "reserve", expireLe: null, reverification: !bloquait };
+  }
+  if (stage === "lancement" || stage === "actif") {
+    if (zone.statut === "actif") return null;
+    return { statut: "actif", expireLe: null, reverification: !bloquait };
+  }
+  if (stage === "perdu" || stage === "pause") {
+    if (zone.statut === "libere") return null;
+    if (zone.statut === "liberation") return null; // déjà en cours de libération : on garde la date
+    if (zone.statut === "gardee") return { statut: "libere", expireLe: null, reverification: false };
+    return { statut: "liberation", expireLe: expirationPour("liberation", maintenant), reverification: false };
+  }
+  return null;
+}

@@ -2,7 +2,7 @@
 // Une erreur de lecture est propagée : l'appelant doit alors répondre « inconnue », jamais « libre ».
 import { createClient } from "@supabase/supabase-js";
 import {
-  activiteReconnue, controleZone, distanceKm, zonesAExpirer,
+  activiteReconnue, controleZone, distanceKm, transitionZone, zonesAExpirer,
   type StatutZone, type ZoneOccupee,
 } from "@/lib/zones";
 
@@ -92,3 +92,119 @@ export async function ajouterAttente(e: { activite: string; adresse: string; lat
   });
   if (error) throw new Error(error.message);
 }
+
+/* ----------------------- Zone d'un client (fiche /clients/[id]) ----------------------- */
+
+export type SourceCoordonnees = "ban" | "fiche_google" | "manuel";
+
+export interface ZoneClient {
+  id: string;
+  clientId: string;
+  activite: string;
+  adresse: string;
+  commune: string | null;
+  lat: number;
+  lng: number;
+  source: SourceCoordonnees;
+  lienFicheGoogle: string | null;
+  rayonKm: number;
+  statut: StatutZone;
+  expireLe: string | null;
+  createdAt: string;
+}
+
+const COLONNES_CLIENT =
+  "id, client_id, activite, adresse, commune, lat, lng, source_coordonnees, lien_fiche_google, rayon_km, statut, expire_le, created_at";
+
+interface LigneZoneClient {
+  id: string; client_id: string; activite: string; adresse: string; commune: string | null; lat: number; lng: number;
+  source_coordonnees: SourceCoordonnees; lien_fiche_google: string | null; rayon_km: number | string;
+  statut: StatutZone; expire_le: string | null; created_at: string;
+}
+
+function versZoneClient(r: LigneZoneClient): ZoneClient {
+  return {
+    id: r.id, clientId: r.client_id, activite: r.activite, adresse: r.adresse, commune: r.commune,
+    lat: Number(r.lat), lng: Number(r.lng), source: r.source_coordonnees, lienFicheGoogle: r.lien_fiche_google,
+    rayonKm: Number(r.rayon_km), statut: r.statut, expireLe: r.expire_le, createdAt: r.created_at,
+  };
+}
+
+/** Zone en cours du client (la plus récente non libérée), sinon la dernière zone libérée, sinon null. */
+export async function zoneDuClient(clientId: string): Promise<ZoneClient | null> {
+  const { data, error } = await db()
+    .from("zones_exclusives").select(COLONNES_CLIENT).eq("client_id", clientId).order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  const zones = ((data ?? []) as LigneZoneClient[]).map(versZoneClient);
+  return zones.find((z) => z.statut !== "libere") ?? zones[0] ?? null;
+}
+
+export interface DonneesZone {
+  activite: string;
+  adresse: string;
+  commune: string | null;
+  lat: number;
+  lng: number;
+  source: SourceCoordonnees;
+  lienFicheGoogle: string | null;
+  rayonKm: number;
+}
+
+/** Crée la zone du client, ou met à jour sa zone en cours, avec le statut demandé. */
+export async function enregistrerZone(
+  clientId: string, d: DonneesZone, statut: StatutZone, expireLe: string | null,
+): Promise<void> {
+  const act = activiteReconnue(d.activite);
+  if (!act) throw new Error("activité non reconnue");
+  const courante = await zoneDuClient(clientId);
+  const valeurs = {
+    activite: act, adresse: d.adresse, commune: d.commune, lat: d.lat, lng: d.lng,
+    source_coordonnees: d.source, lien_fiche_google: d.lienFicheGoogle, rayon_km: d.rayonKm,
+    statut, expire_le: expireLe,
+  };
+  if (courante && courante.statut !== "libere") {
+    const { error } = await db().from("zones_exclusives").update(valeurs).eq("id", courante.id);
+    if (error) throw new Error(error.message);
+    return;
+  }
+  const { error } = await db().from("zones_exclusives").insert({ client_id: clientId, ...valeurs });
+  if (error) throw new Error(error.message);
+}
+
+/** Met à jour le centre et le rayon de la zone en cours, sans toucher au statut. */
+export async function deplacerZone(zoneId: string, d: Pick<DonneesZone, "adresse" | "commune" | "lat" | "lng" | "source" | "rayonKm" | "lienFicheGoogle">): Promise<void> {
+  const { error } = await db().from("zones_exclusives").update({
+    adresse: d.adresse, commune: d.commune, lat: d.lat, lng: d.lng, source_coordonnees: d.source,
+    rayon_km: d.rayonKm, lien_fiche_google: d.lienFicheGoogle,
+  }).eq("id", zoneId);
+  if (error) throw new Error(error.message);
+}
+
+export interface ResultatSynchro {
+  /** Statut posé, ou null si rien n'a changé. */
+  statut: StatutZone | null;
+  /** La zone n'a pas pu être reprise : une autre zone du même métier la chevauche. */
+  conflit: boolean;
+}
+
+/**
+ * Aligne la zone du client sur l'étape de sa fiche (voir transitionZone). Appelée à chaque changement d'étape,
+ * d'où qu'il vienne : une fiche passée à « Signé » bloque sa zone sans autre action.
+ */
+export async function synchroniserZone(clientId: string, stage: string, maintenant: Date = new Date()): Promise<ResultatSynchro> {
+  const zone = await zoneDuClient(clientId);
+  if (!zone) return { statut: null, conflit: false };
+  const t = transitionZone(stage, zone, maintenant);
+  if (!t) return { statut: null, conflit: false };
+
+  if (t.reverification) {
+    // La zone ne bloquait plus rien : un autre client a pu la prendre entre-temps. Jamais de chevauchement.
+    const occupees = await zonesOccupees(zone.activite);
+    const c = controleZone(zone.activite, zone, zone.rayonKm, occupees, { exclureClientId: clientId, maintenant });
+    if (c.etat !== "libre") return { statut: null, conflit: true };
+  }
+  const { error } = await db().from("zones_exclusives").update({ statut: t.statut, expire_le: t.expireLe }).eq("id", zone.id);
+  if (error) throw new Error(error.message);
+  return { statut: t.statut, conflit: false };
+}
+
