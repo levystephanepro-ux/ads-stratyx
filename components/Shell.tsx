@@ -42,6 +42,7 @@ const SECTIONS: Section[] = [
   { id: "analyser", label: "Analyser", ic: "chart", items: [
     { label: "Carte des causes", href: "/analyser/carte" },
     { label: "CPC vs marché", href: "/analyser/cpc" },
+    { label: "Payant et naturel", href: "/analyser/payant-naturel" },
     { label: "Audit", href: "/analyser/audit" },
     { label: "Alertes du matin", href: "/alertes" },
   ] },
