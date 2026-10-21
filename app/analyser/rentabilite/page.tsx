@@ -1,13 +1,16 @@
-// Rentabilité : KPI cibles (CPA, ROAS, CPL, budget) à partir des marges, puis diagnostic
-// du compte et de chaque campagne contre ces cibles, avec conseils chiffrés. Sans IA.
+// Rentabilité : KPI cibles (CPA, ROAS, CPL, budget) à partir des marges, taux devis → vente
+// mesuré, diagnostic du compte, des campagnes, des mots-clés et des recherches, et
+// simulateur « et si ». Sans IA.
 import OptPage from "@/components/opt/OptPage";
 import Table, { type Col } from "@/components/opt/Table";
+import RentaGauge from "@/components/opt/RentaGauge";
+import SimuRenta from "@/components/opt/SimuRenta";
 import { Notice, Panel, Stat } from "@/components/ui";
 import SubmitButton from "@/components/SubmitButton";
 import { getScope, type ScopeParams } from "@/lib/optimize/scope";
-import { campaignPerf, eur, int, type CampaignPerf } from "@/lib/optimize/data";
-import { compute, EXEMPLE, readRenta, verdict, VERDICT_TXT, type RentaInput, type Targets, type Verdict } from "@/lib/optimize/rentabilite";
-import { saveRentabiliteAction } from "../../optimiser/actions";
+import { campaignPerf, keywordReport, termReport, eur, fmtKw, int, type CampaignPerf, type KeywordRow, type Metrics, type TermRow } from "@/lib/optimize/data";
+import { compute, effectiveRate, EXEMPLE, lastMonths, leadsByMonth, readRenta, readSales, verdict, VERDICT_TXT, type RentaInput, type Targets, type Verdict } from "@/lib/optimize/rentabilite";
+import { saveRentabiliteAction, saveVentesAction } from "../../optimiser/actions";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -15,45 +18,72 @@ export const maxDuration = 120;
 const x2 = (n: number | null) => (n === null ? "–" : n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 const e0 = (n: number) => eur(n, 0);
 const TONE: Record<Verdict, string> = { bon: "good", limite: "warn", perte: "bad", aucune: "" };
+const MONTHS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+const monthName = (m: string) => `${MONTHS[Number(m.slice(5)) - 1]} ${m.slice(0, 4)}`;
 
-interface Row { id: string; name: string; cost: number; conv: number; ventes: number | null; cpa: number | null; roas: number | null; v: Verdict; lostBudget: number | null }
+interface Row { id: string; name: string; cost: number; conv: number; ventes: number | null; cpa: number | null; roas: number | null; v: Verdict; dry: boolean; lostBudget: number | null }
 
 export default async function Rentabilite({ searchParams }: { searchParams: Promise<ScopeParams> }) {
   const sp = await searchParams;
   const scope = await getScope("/analyser/rentabilite", sp);
   const cid = scope.account?.customerId ?? "";
   const saved = cid ? await readRenta(cid) : null;
-  const inp: RentaInput = saved ?? EXEMPLE;
+  const base: RentaInput = saved ?? EXEMPLE;
+  const lead = base.mode === "lead";
+
+  // Taux devis → vente : mesuré à partir des ventes signées saisies, sinon celui saisi.
+  const [sales, leadsM] = cid && saved && lead
+    ? await Promise.all([readSales(cid), leadsByMonth(cid).catch(() => ({} as Record<string, number>))])
+    : [{}, {} as Record<string, number>];
+  const eff = effectiveRate(base, sales, leadsM);
+  const inp: RentaInput = lead ? { ...base, conv: eff.rate } : base;
   const t = compute(inp);
-  const lead = inp.mode === "lead";
 
   let perf: CampaignPerf[] = [];
+  let kws: KeywordRow[] = [];
+  let terms: TermRow[] = [];
   let err: string | null = null;
   if (scope.ads && saved) {
-    try { perf = await campaignPerf(scope.ads, scope.p, scope.campaignId); } catch (e) { err = e instanceof Error ? e.message : String(e); }
+    try {
+      [perf, kws, terms] = await Promise.all([
+        campaignPerf(scope.ads, scope.p, scope.campaignId),
+        keywordReport(scope.ads, scope.p, scope.campaignId).catch(() => [] as KeywordRow[]),
+        termReport(scope.ads, scope.p, scope.campaignId).catch(() => [] as TermRow[]),
+      ]);
+    } catch (e) { err = e instanceof Error ? e.message : String(e); }
   }
   const conv = lead && inp.conv > 0 ? inp.conv / 100 : 1;
-  const row = (id: string, name: string, m: CampaignPerf["cur"]): Row => {
+  // Seuil sous lequel une dépense sans résultat est encore normale : le coût d'un lead (ou d'une vente) au seuil de perte.
+  const dryLimit = lead ? (t.cplCritique ?? 0) : t.cpaCritique;
+  const row = (id: string, name: string, m: Metrics, lostBudget: number | null = null): Row => {
     const ventes = lead ? m.conversions * conv : m.conversions;
     const cpa = ventes > 0 ? m.cost / ventes : null;
     const rev = lead ? ventes * inp.panier : m.value;
-    return { id, name, cost: m.cost, conv: m.conversions, ventes, cpa, roas: m.cost > 0 && rev > 0 ? rev / m.cost : null, v: verdict(cpa, t), lostBudget: m.lostBudget };
+    const dry = m.conversions === 0 && dryLimit > 0 && m.cost >= dryLimit;
+    return { id, name, cost: m.cost, conv: m.conversions, ventes, cpa, roas: m.cost > 0 && rev > 0 ? rev / m.cost : null, v: dry ? "perte" : verdict(cpa, t), dry, lostBudget };
   };
-  const rows = perf.filter((c) => c.cur.cost > 0).map((c) => row(c.id, c.name, c.cur)).sort((a, b) => b.cost - a.cost);
-  const tot = perf.reduce((s, c) => ({ cost: s.cost + c.cur.cost, conversions: s.conversions + c.cur.conversions, value: s.value + c.cur.value, clicks: 0, impressions: 0 }), { cost: 0, conversions: 0, value: 0, clicks: 0, impressions: 0 });
-  const all = saved ? row("all", "Compte", { ...tot, is: null, lostBudget: null, lostRank: null, top: null, absTop: null, eligible: 0 }) : null;
+  const rows = perf.filter((c) => c.cur.cost > 0).map((c) => row(c.id, c.name, c.cur, c.cur.lostBudget)).sort((a, b) => b.cost - a.cost);
+  const kwRows = kws.filter((k) => k.cur.cost > 0).map((k) => row(k.key, `${fmtKw(k.text, k.matchType)} · ${k.campaign}`, k.cur)).sort((a, b) => b.cost - a.cost);
+  const termRows = terms.filter((k) => k.cur.cost > 0).map((k) => row(`${k.campaignId}|${k.term}`, `${k.term} · ${k.campaign}`, k.cur)).sort((a, b) => b.cost - a.cost);
+  const lossOf = (rs: Row[]) => rs.filter((r) => r.v === "perte").reduce((s, r) => s + r.cost, 0);
+  const tot: Metrics = perf.reduce((s, c) => ({ cost: s.cost + c.cur.cost, conversions: s.conversions + c.cur.conversions, value: s.value + c.cur.value, clicks: 0, impressions: 0 }), { cost: 0, conversions: 0, value: 0, clicks: 0, impressions: 0 });
+  const all = saved ? row("all", "Compte", tot) : null;
   const advice = saved && all ? advise(inp, t, all, rows, scope.p.days) : [];
   const msg = sp.msg ? { ok: sp.msg.startsWith("ok:"), text: sp.msg.replace(/^(ok|err):/, "") } : null;
+  const monthly = all ? (all.cost / Math.max(1, scope.p.days)) * 30 : 0;
+  const unitCost = all && all.conv > 0 ? all.cost / all.conv : lead ? t.cplCible ?? 50 : t.cpaCible;
 
-  const cols: Col<Row>[] = [
-    { id: "name", label: "Campagne", render: (r) => <strong>{r.name}</strong> },
+  const cols = (first: string): Col<Row>[] => [
+    { id: "name", label: first, render: (r) => <strong>{r.name}</strong> },
     { id: "cost", label: "Dépense", num: true, render: (r) => eur(r.cost) },
     { id: "conv", label: lead ? "Leads" : "Conversions", num: true, render: (r) => int(r.conv) },
     { id: "cpa", label: "Coût par vente", num: true, render: (r) => (r.cpa === null ? "–" : eur(r.cpa)) },
     { id: "roas", label: "ROAS", num: true, render: (r) => x2(r.roas) },
-    { id: "g", label: "Position", render: (r) => <Gauge cpa={r.cpa} t={t} small /> },
-    { id: "v", label: "Verdict", render: (r) => <span className={`op-tag ${r.v === "bon" ? "green" : r.v === "limite" ? "" : r.v === "perte" ? "red" : "blue"}`}>{VERDICT_TXT[r.v]}</span> },
+    { id: "g", label: "Position", render: (r) => <RentaGauge cpa={r.cpa ?? (r.dry ? t.cpaCritique * 1.4 : null)} cible={t.cpaCible} critique={t.cpaCritique} small /> },
+    { id: "v", label: "Verdict", render: (r) => <span className={`op-tag ${r.v === "bon" ? "green" : r.v === "limite" ? "" : r.v === "perte" ? "red" : "blue"}`}>{r.dry ? "Dépensé sans résultat" : r.cost > 0 && r.v === "aucune" ? "Trop tôt pour juger" : VERDICT_TXT[r.v]}</span> },
   ];
+  const months = lastMonths(6);
+  const nowM = new Date().toISOString().slice(0, 7);
 
   return (
     <OptPage
@@ -61,12 +91,13 @@ export default async function Rentabilite({ searchParams }: { searchParams: Prom
       title="Rentabilité : ROAS et KPI cibles"
       sub={saved ? <>CPA cible {eur(t.cpaCible)} · CPA critique {eur(t.cpaCritique)} · ROAS cible {x2(t.roasCible)} · ROAS critique {x2(t.roasCritique)}{all ? <> — le compte est : <strong>{VERDICT_TXT[all.v].toLowerCase()}</strong>.</> : null}</> : "Renseigne tes marges pour obtenir ton CPA cible, ton ROAS de rentabilité et ton budget."}
       filters="period"
-      ia="Analyse la rentabilité de mon compte par rapport à mon CPA cible et mon ROAS critique, et dis-moi quelles campagnes couper, garder ou pousser, avec les chiffres"
+      ia="Analyse la rentabilité de mon compte par rapport à mon CPA cible et mon ROAS critique, et dis-moi quelles campagnes, mots-clés ou recherches couper, garder ou pousser, avec les chiffres"
       help={<>
         <p>Tu saisis la <strong>valeur d&apos;une vente</strong> et tes coûts en % de cette valeur. Stratyx en déduit :</p>
         <p><strong>CPA critique</strong> = ce qui reste après tous tes coûts : au-delà, chaque vente fait perdre de l&apos;argent (ROAS critique = seuil de rentabilité). <strong>CPA cible</strong> = CPA critique moins le bénéfice voulu : c&apos;est le coût maximum à viser. <strong>ROAS</strong> = valeur de la vente ÷ CPA.</p>
-        <p>En <strong>génération de leads</strong>, le taux prospect → client convertit tes leads en ventes : <strong>CPL cible</strong> = CPA cible × taux de conversion. Le budget mensuel = CPA cible × nombre de ventes pour atteindre ton objectif de chiffre d&apos;affaires.</p>
-        <p>Le diagnostic compare le coût par vente réel du compte et de chaque campagne à ces seuils, sur la période choisie. Méthode inspirée du calculateur « Budget pub & KPIs cibles ».</p>
+        <p>En <strong>génération de leads</strong>, le taux devis → vente convertit tes leads en ventes : <strong>CPL cible</strong> = CPA cible × taux. Tu peux le saisir à la main ou, mieux, laisser Stratyx le <strong>mesurer</strong> : note chaque mois les ventes signées, et le taux est calculé sur tes vrais chiffres (au moins 10 leads, mois en cours exclu).</p>
+        <p>Le diagnostic compare le coût par vente réel à ces seuils pour le compte, chaque campagne, chaque mot-clé et chaque recherche. Une ligne sans conversion est « dépensée sans résultat » quand sa dépense dépasse déjà ce qu&apos;un lead peut coûter au maximum.</p>
+        <p>Le <strong>simulateur</strong> montre l&apos;effet d&apos;un meilleur taux de signature, d&apos;un coût par lead plus bas ou d&apos;un autre budget sur ton bénéfice. Rien n&apos;est modifié dans Google Ads.</p>
       </>}
     >
       {msg && <Notice tone={msg.ok ? "ok" : "err"}>{msg.ok ? "✓ " : ""}{msg.text}</Notice>}
@@ -79,20 +110,20 @@ export default async function Rentabilite({ searchParams }: { searchParams: Prom
         <div className="ui-stat-label">Tes chiffres{scope.account ? ` · ${scope.account.name}` : ""}</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 12, margin: "10px 0" }}>
           <Field label="Type d'activité">
-            <select name="mode" defaultValue={inp.mode} className="op-mini-select">
+            <select name="mode" defaultValue={base.mode} className="op-mini-select">
               <option value="lead">Génération de leads (devis, contacts)</option>
               <option value="ecom">Vente en ligne</option>
             </select>
           </Field>
-          <Num name="panier" label="Valeur moyenne d'une vente HT (€)" v={inp.panier} />
-          <Num name="cogs" label="Coûts variables : production, pose (%)" v={inp.cogs} />
-          <Num name="livraison" label="Livraison, distribution (%)" v={inp.livraison} />
-          <Num name="transaction" label="Frais de transaction, commissions (%)" v={inp.transaction} />
-          <Num name="agence" label="Coûts marketing hors pub (%)" v={inp.agence} />
-          <Num name="opex" label="Coûts fixes : salaires, locaux (%)" v={inp.opex} />
-          <Num name="benefice" label="Bénéfice net voulu (%)" v={inp.benefice} />
-          <Num name="conv" label="Prospect → client (%, leads)" v={inp.conv} />
-          <Num name="ca" label="Objectif de CA mensuel HT (€)" v={inp.ca} />
+          <Num name="panier" label="Valeur moyenne d'une vente HT (€)" v={base.panier} />
+          <Num name="cogs" label="Coûts variables : production, pose (%)" v={base.cogs} />
+          <Num name="livraison" label="Livraison, distribution (%)" v={base.livraison} />
+          <Num name="transaction" label="Frais de transaction, commissions (%)" v={base.transaction} />
+          <Num name="agence" label="Coûts marketing hors pub (%)" v={base.agence} />
+          <Num name="opex" label="Coûts fixes : salaires, locaux (%)" v={base.opex} />
+          <Num name="benefice" label="Bénéfice net voulu (%)" v={base.benefice} />
+          <Num name="conv" label="Devis → vente estimé (%, leads)" v={base.conv} />
+          <Num name="ca" label="Objectif de CA mensuel HT (€)" v={base.ca} />
         </div>
         <SubmitButton className="ui-btn ui-btn-ghost" pending="…">Enregistrer et analyser</SubmitButton>
       </form>
@@ -108,6 +139,25 @@ export default async function Rentabilite({ searchParams }: { searchParams: Prom
         <Stat label="Budget mensuel conseillé" value={e0(t.budgetMois)} sub={`${e0(t.budgetJour)} par jour · ${int(t.ventes)} ventes${lead ? ` · ${int(t.leads ?? 0)} leads` : ""}`} />
       </section>
 
+      {saved && lead && (
+        <Panel title="Ventes signées : ton vrai taux devis → vente" sub={eff.measured ? `Taux mesuré : ${x2(eff.rate)} % (${int(eff.signed)} ventes pour ${int(eff.leads)} leads sur ${eff.months} mois). C'est lui qui sert au diagnostic.` : `Pas encore assez de données (il faut au moins 10 leads sur des mois complets) : le taux saisi, ${x2(base.conv)} %, est utilisé.`}>
+          <form action={saveVentesAction}>
+            <input type="hidden" name="customer_id" value={cid} />
+            <input type="hidden" name="back" value={scope.href({ msg: null })} />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12 }}>
+              {months.map((m) => (
+                <label key={m} style={{ display: "grid", gap: 4, fontSize: 13 }}>
+                  <span><strong>{monthName(m)}</strong> · {int(leadsM[m] ?? 0)} leads{m === nowM ? " (en cours, non compté)" : (sales[m] ?? null) !== null && (leadsM[m] ?? 0) > 0 ? ` · ${x2(((sales[m] ?? 0) / leadsM[m]) * 100)} %` : ""}</span>
+                  <input name={`m_${m}`} inputMode="numeric" defaultValue={sales[m] !== undefined ? String(sales[m]) : ""} placeholder="ventes signées" className="op-target-input" aria-label={`Ventes signées ${monthName(m)}`} />
+                </label>
+              ))}
+            </div>
+            <p className="dg-foot" style={{ margin: "10px 0" }}>Compte les devis signés qui viennent de la publicité. Laisse vide un mois que tu ne sais pas. Les leads viennent de Google Ads (conversions).</p>
+            <SubmitButton className="ui-btn ui-btn-ghost" pending="…">Enregistrer les ventes</SubmitButton>
+          </form>
+        </Panel>
+      )}
+
       {all && (
         <>
           <Panel title="Le compte contre tes cibles" sub={`Période : ${scope.p.label}`}>
@@ -118,41 +168,27 @@ export default async function Rentabilite({ searchParams }: { searchParams: Prom
                 <span>coût par vente réel · cible {eur(t.cpaCible)} · critique {eur(t.cpaCritique)} · ROAS réel {x2(all.roas)}</span>
               </div>
             </div>
-            <div style={{ marginTop: 16 }}><Gauge cpa={all.cpa} t={t} /></div>
+            <div style={{ marginTop: 16 }}><RentaGauge cpa={all.cpa} cible={t.cpaCible} critique={t.cpaCritique} /></div>
             <ul style={{ margin: "14px 0 0", paddingLeft: 18 }}>
               {advice.map((a, i) => <li key={i} style={{ marginBottom: 6 }}>{a}</li>)}
             </ul>
           </Panel>
+          <Panel title="Et si ? Simulateur" sub="Bouge un curseur : coût par vente, ventes et bénéfice se recalculent. Les valeurs de départ sont tes chiffres réels.">
+            <SimuRenta key={`${Math.round(eff.rate * 10)}-${Math.round(unitCost)}-${Math.round(monthly)}`} inp={inp} rate={lead ? inp.conv : 100} unitCost={unitCost} budget={monthly > 0 ? monthly : t.budgetMois} />
+          </Panel>
           <Panel title="Campagne par campagne" sub="Triées par dépense. Le verdict compare le coût par vente à ta cible et à ton seuil de rentabilité." flush>
-            <Table cols={cols} rows={rows} rowKey={(r) => r.id} limit={25} empty="Aucune campagne n'a dépensé sur la période." />
+            <Table cols={cols("Campagne")} rows={rows} rowKey={(r) => r.id} limit={25} empty="Aucune campagne n'a dépensé sur la période." />
+          </Panel>
+          <Panel title="Mot-clé par mot-clé" sub={kwRows.length ? `${e0(lossOf(kwRows))} dépensés sur des mots-clés au-dessus du seuil de perte ou sans résultat.` : undefined} flush>
+            <Table cols={cols("Mot-clé · campagne")} rows={kwRows} rowKey={(r) => r.id} limit={15} empty="Aucun mot-clé n'a dépensé sur la période." />
+          </Panel>
+          <Panel title="Recherche par recherche" sub={termRows.length ? `${e0(lossOf(termRows))} dépensés sur des recherches au-dessus du seuil de perte ou sans résultat. Ajoute-les en négatifs depuis Termes de recherche.` : undefined} flush>
+            <Table cols={cols("Recherche · campagne")} rows={termRows} rowKey={(r) => r.id} limit={15} empty="Aucune recherche n'a dépensé sur la période." />
           </Panel>
         </>
       )}
-      <p className="dg-foot">Coût par vente = dépense ÷ conversions{lead ? ` × taux prospect → client (${inp.conv} %)` : ""}. Les coûts en % s&apos;appliquent à la valeur moyenne d&apos;une vente.</p>
+      <p className="dg-foot">Coût par vente = dépense ÷ conversions{lead ? ` × taux devis → vente (${x2(inp.conv)} %${eff.measured ? ", mesuré" : ", saisi"})` : ""}. Les coûts en % s&apos;appliquent à la valeur moyenne d&apos;une vente.</p>
     </OptPage>
-  );
-}
-
-/** Jauge rouge → vert : vert sous le CPA cible, orange jusqu'au CPA critique, rouge au-delà. Le repère noir est le coût par vente réel. */
-function Gauge({ cpa, t, small }: { cpa: number | null; t: Targets; small?: boolean }) {
-  if (t.cpaCritique <= 0) return null;
-  const max = Math.max(t.cpaCritique * 1.5, (cpa ?? 0) * 1.1);
-  const at = (v: number) => `${Math.min(100, Math.max(0, (v / max) * 100))}%`;
-  const h = small ? 8 : 16;
-  return (
-    <div style={{ minWidth: small ? 120 : 0 }} aria-label={cpa === null ? "Pas de vente mesurée" : `Coût par vente ${eur(cpa)}`}>
-      <div style={{ position: "relative", height: h, borderRadius: h, overflow: "visible", background: `linear-gradient(90deg, #2e9e5b 0, #2e9e5b ${at(t.cpaCible)}, #e8a21a ${at(t.cpaCible)}, #e8a21a ${at(t.cpaCritique)}, #d64545 ${at(t.cpaCritique)}, #d64545 100%)` }}>
-        {cpa !== null && <span style={{ position: "absolute", left: at(cpa), top: -3, width: 4, height: h + 6, marginLeft: -2, background: "#111", border: "1px solid #fff", borderRadius: 2 }} />}
-      </div>
-      {!small && (
-        <div style={{ position: "relative", height: 34, fontSize: 12, marginTop: 6 }}>
-          <span style={{ position: "absolute", left: 0 }}>0 €</span>
-          <span style={{ position: "absolute", left: at(t.cpaCible), transform: "translateX(-50%)", textAlign: "center" }}>cible<br /><strong>{eur(t.cpaCible)}</strong></span>
-          <span style={{ position: "absolute", left: at(t.cpaCritique), transform: "translateX(-50%)", textAlign: "center" }}>seuil de perte<br /><strong>{eur(t.cpaCritique)}</strong></span>
-          {cpa !== null && <span style={{ position: "absolute", right: 0, top: 0 }}>réel : <strong>{eur(cpa)}</strong></span>}
-        </div>
-      )}
-    </div>
   );
 }
 

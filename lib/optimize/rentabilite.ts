@@ -1,29 +1,14 @@
-// Rentabilité : CPA cible, CPA critique, ROAS cible / critique, CPL cible et budget,
-// calculés à partir de la valeur d'une vente et des coûts (méthode du calculateur
-// « Budget pub & KPIs cibles »). Comparés ensuite aux chiffres réels du compte.
+// Rentabilité : stockage (marges, ventes signées) et lecture des leads par mois.
+// Les calculs purs sont dans rentabilite-calc.ts.
 import { getSetting, setSetting } from "@/lib/agent/store";
+import { searchRaw } from "@/lib/google-ads/client";
+import { isLive } from "@/lib/google-ads/config";
+import { EXEMPLE, type RentaInput } from "./rentabilite-calc";
 
-export type Mode = "lead" | "ecom";
-
-export interface RentaInput {
-  mode: Mode;
-  /** Valeur moyenne HT d'une vente (panier moyen, ou prix moyen d'un chantier). */
-  panier: number;
-  cogs: number;        // % du panier : coûts variables (production, pose, matière)
-  livraison: number;   // % : livraison / distribution
-  transaction: number; // % : frais de transaction, commissions
-  agence: number;      // % : coûts marketing hors pub (agence, outils)
-  opex: number;        // % : coûts fixes
-  benefice: number;    // % : bénéfice net voulu
-  /** Prospect → client, en % (mode lead uniquement). */
-  conv: number;
-  /** Objectif de chiffre d'affaires mensuel HT. */
-  ca: number;
-}
-
-export const EXEMPLE: RentaInput = { mode: "ecom", panier: 120, cogs: 15, livraison: 6.66, transaction: 5.68, agence: 5, opex: 30, benefice: 11.92, conv: 25, ca: 33477.69 };
+export * from "./rentabilite-calc";
 
 export const roaKey = (customerId: string) => `roas_targets:${customerId}`;
+export const salesKey = (customerId: string) => `ventes_signees:${customerId}`;
 
 export async function readRenta(customerId: string): Promise<RentaInput | null> {
   try {
@@ -37,57 +22,66 @@ export async function saveRenta(customerId: string, v: RentaInput): Promise<void
   await setSetting(roaKey(customerId), JSON.stringify(v));
 }
 
-export interface Targets {
-  mc1: number; contrib: number; mc2: number; mc3: number;
-  beneficeEur: number;
-  cpaCible: number; cpaCritique: number;
-  roasCible: number | null; roasCritique: number | null;
-  ventes: number; leads: number | null;
-  cplCible: number | null; cplCritique: number | null;
-  budgetMois: number; budgetJour: number;
-  /** Le modèle est-il viable ? (marge après coûts > 0) */
-  viable: boolean;
+/** Ventes réellement signées, par mois (AAAA-MM), saisies à la main. */
+export type Sales = Record<string, number>;
+
+export async function readSales(customerId: string): Promise<Sales> {
+  try {
+    const raw = await getSetting(salesKey(customerId));
+    const o = raw ? (JSON.parse(raw) as Sales) : {};
+    return Object.fromEntries(Object.entries(o).filter(([k, v]) => /^\d{4}-\d{2}$/.test(k) && Number.isFinite(v) && v >= 0));
+  } catch { return {}; }
+}
+export async function saveSales(customerId: string, s: Sales): Promise<void> {
+  await setSetting(salesKey(customerId), JSON.stringify(s));
 }
 
-export function compute(i: RentaInput): Targets {
-  const p = Math.max(0, i.panier);
-  const pc = (x: number) => (p * Math.max(0, x)) / 100;
-  const mc1 = p - pc(i.cogs);
-  const contrib = mc1 - pc(i.livraison) - pc(i.transaction);
-  const mc2 = contrib - pc(i.agence);
-  const mc3 = mc2 - pc(i.opex);
-  const beneficeEur = pc(i.benefice);
-  const cpaCritique = Math.max(0, mc3);
-  const cpaCible = Math.max(0, mc3 - beneficeEur);
-  const ventes = p > 0 ? Math.max(0, i.ca) / p : 0;
-  const conv = i.mode === "lead" && i.conv > 0 ? i.conv / 100 : null;
-  const budgetMois = cpaCible * ventes;
-  return {
-    mc1, contrib, mc2, mc3, beneficeEur, cpaCible, cpaCritique,
-    roasCible: cpaCible > 0 ? p / cpaCible : null,
-    roasCritique: cpaCritique > 0 ? p / cpaCritique : null,
-    ventes,
-    leads: conv ? ventes / conv : null,
-    cplCible: conv ? cpaCible * conv : null,
-    cplCritique: conv ? cpaCritique * conv : null,
-    budgetMois, budgetJour: budgetMois / 30,
-    viable: mc3 > 0,
-  };
+/** Les 6 derniers mois (le mois en cours en dernier), au format AAAA-MM. */
+export function lastMonths(n = 6, now = new Date()): string[] {
+  const out: string[] = [];
+  for (let k = n - 1; k >= 0; k--) {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - k, 1));
+    out.push(d.toISOString().slice(0, 7));
+  }
+  return out;
 }
 
-export type Verdict = "bon" | "limite" | "perte" | "aucune";
-
-/** Où se situe un coût par vente réel : sous la cible, entre cible et critique, ou au-dessus du seuil de rentabilité. */
-export function verdict(cpaReel: number | null, t: Targets): Verdict {
-  if (cpaReel === null || !isFinite(cpaReel)) return "aucune";
-  if (cpaReel <= t.cpaCible) return "bon";
-  if (cpaReel <= t.cpaCritique) return "limite";
-  return "perte";
+/** Conversions (leads) Google Ads par mois sur les 6 derniers mois. */
+export async function leadsByMonth(customerId: string, now = new Date()): Promise<Record<string, number>> {
+  const months = lastMonths(6, now);
+  if (!isLive()) return Object.fromEntries(months.map((m, i) => [m, 9 + ((i * 5) % 7)]));
+  const since = `${months[0]}-01`;
+  const until = now.toISOString().slice(0, 10);
+  const rows = await searchRaw({ customerId }, `SELECT segments.month, metrics.conversions FROM customer WHERE segments.date BETWEEN '${since}' AND '${until}'`);
+  const out: Record<string, number> = Object.fromEntries(months.map((m) => [m, 0]));
+  for (const r of rows) {
+    const m = String(r.segments?.month ?? "").slice(0, 7);
+    if (m in out) out[m] += Number(r.metrics?.conversions ?? 0);
+  }
+  return out;
 }
 
-export const VERDICT_TXT: Record<Verdict, string> = {
-  bon: "Rentable, bénéfice voulu atteint",
-  limite: "Rentable mais sous le bénéfice voulu",
-  perte: "Perte à chaque vente",
-  aucune: "Pas de vente mesurée",
-};
+export interface EffectiveRate {
+  /** taux prospect → client utilisé pour les calculs, en % */
+  rate: number;
+  measured: boolean;
+  leads: number;
+  signed: number;
+  months: number;
+}
+
+/**
+ * Taux mesuré = ventes signées ÷ leads, sur les mois où des ventes sont saisies
+ * (mois en cours exclu : les devis n'y sont pas encore signés). Au moins 10 leads
+ * pour que le taux compte ; sinon on garde le taux saisi.
+ */
+export function effectiveRate(inp: RentaInput, sales: Sales, leads: Record<string, number>, now = new Date()): EffectiveRate {
+  const cur = now.toISOString().slice(0, 7);
+  let l = 0, s = 0, n = 0;
+  for (const [m, v] of Object.entries(sales)) {
+    if (m === cur || !(m in leads)) continue;
+    l += leads[m]; s += v; n++;
+  }
+  if (n > 0 && l >= 10) return { rate: Math.min(100, (s / l) * 100), measured: true, leads: l, signed: s, months: n };
+  return { rate: inp.conv, measured: false, leads: l, signed: s, months: n };
+}

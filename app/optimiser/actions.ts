@@ -224,3 +224,30 @@ export async function saveRentabiliteAction(form: FormData): Promise<void> {
   revalidatePath("/analyser/rentabilite");
   redirect(backTo(form.get("back"), "/analyser/rentabilite", msg));
 }
+
+/** Rentabilité : ventes réellement signées par mois (sert à mesurer le taux devis → vente). */
+export async function saveVentesAction(form: FormData): Promise<void> {
+  const ctx = await getDashboardContext();
+  if (!ctx.isOwner) throw new Error("Accès réservé.");
+  const customerId = String(form.get("customer_id") ?? "");
+  let msg: string;
+  try {
+    if (!/^\d+$/.test(customerId)) throw new Error("Compte manquant.");
+    const { saveSales } = await import("@/lib/optimize/rentabilite");
+    const sales: Record<string, number> = {};
+    for (const [k, v] of form.entries()) {
+      const m = /^m_(\d{4}-\d{2})$/.exec(k);
+      const raw = String(v).trim();
+      if (!m || raw === "") continue;
+      const n = Number(raw.replace(/\s/g, "").replace(",", "."));
+      if (!Number.isFinite(n) || n < 0 || n > 10000) throw new Error(`Nombre illisible pour ${m[1]}.`);
+      sales[m[1]] = Math.round(n);
+    }
+    await saveSales(customerId, sales);
+    msg = "ok:Ventes enregistrées.";
+  } catch (e) {
+    msg = `err:${e instanceof Error ? e.message : String(e)}`;
+  }
+  revalidatePath("/analyser/rentabilite");
+  redirect(backTo(form.get("back"), "/analyser/rentabilite", msg));
+}

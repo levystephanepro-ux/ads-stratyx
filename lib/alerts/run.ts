@@ -4,6 +4,7 @@ import { isLive } from "@/lib/google-ads/config";
 import { monitoredAccounts } from "@/lib/audit/run";
 import { getMonthlyBudget } from "@/lib/dashboard";
 import { setSetting, getSetting } from "@/lib/agent/store";
+import { compute, effectiveRate, readRenta, readSales, leadsByMonth } from "@/lib/optimize/rentabilite";
 import { getAlertsConfig, templateOn, METRICS, type AlertsConfig, type CustomRule } from "./config";
 
 export interface Alert { key: string; severity: "critique" | "important"; title: string; detail: string }
@@ -121,6 +122,32 @@ export async function evaluateAccount(customerId: string, name: string, cfg: Ale
     const a = last7.cost / last7.conv, b = ref30.cost / ref30.conv;
     if (a > b * ch.param) alerts.push({ key: "cpa_hausse", severity: "important", title: `Coût par conversion : ${eur(a)} sur 7 jours`,
       detail: `Contre ${eur(b)} sur les 30 jours d'avant (${n1(a / b)} fois plus). Regarde Change Impact pour la cause.` });
+  }
+  // 4 bis. Coût par vente au-dessus du seuil de perte (chiffres de la page Rentabilité)
+  const cp = templateOn(cfg, "cpa_perte");
+  if (cp.on) {
+    try {
+      const renta = await readRenta(customerId);
+      if (renta) {
+        const n = Math.min(37, Math.max(3, Math.round(cp.param)));
+        const win = sum(day(today, -n), y);
+        if (win.conv >= 3) {
+          let conv = 1;
+          let how = "";
+          if (renta.mode === "lead") {
+            const eff = effectiveRate(renta, await readSales(customerId), await leadsByMonth(customerId).catch(() => ({})), now);
+            conv = Math.max(0.01, eff.rate / 100);
+            how = ` (taux devis → vente ${n1(eff.rate)} %, ${eff.measured ? "mesuré" : "saisi"})`;
+          }
+          const t = compute(renta.mode === "lead" ? { ...renta, conv: conv * 100 } : renta);
+          const cpa = win.cost / (win.conv * conv);
+          if (t.viable && t.cpaCritique > 0 && cpa > t.cpaCritique) {
+            alerts.push({ key: "cpa_perte", severity: cpa > t.cpaCritique * 1.5 ? "critique" : "important", title: `Coût par vente : ${eur(cpa)} sur ${n} jours, au-dessus du seuil de perte`,
+              detail: `Seuil de perte ${eur(t.cpaCritique)}, cible ${eur(t.cpaCible)}${how}. ${eur(win.cost)} dépensés pour ${n1(win.conv)} conversion(s) : chaque vente fait perdre environ ${eur(cpa - t.cpaCritique)}. Ouvre Analyser → Rentabilité pour voir les campagnes et mots-clés en cause.` });
+          }
+        }
+      }
+    } catch (e) { errors.push(`Rentabilité : ${e instanceof Error ? e.message : String(e)}`); }
   }
   // 5. Budget du mois
   const bm = templateOn(cfg, "budget_mois");
