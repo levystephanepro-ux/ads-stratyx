@@ -51,6 +51,7 @@ export default async function Rentabilite({ searchParams }: { searchParams: Prom
     { id: "conv", label: lead ? "Leads" : "Conversions", num: true, render: (r) => int(r.conv) },
     { id: "cpa", label: "Coût par vente", num: true, render: (r) => (r.cpa === null ? "–" : eur(r.cpa)) },
     { id: "roas", label: "ROAS", num: true, render: (r) => x2(r.roas) },
+    { id: "g", label: "Position", render: (r) => <Gauge cpa={r.cpa} t={t} small /> },
     { id: "v", label: "Verdict", render: (r) => <span className={`op-tag ${r.v === "bon" ? "green" : r.v === "limite" ? "" : r.v === "perte" ? "red" : "blue"}`}>{VERDICT_TXT[r.v]}</span> },
   ];
 
@@ -117,6 +118,7 @@ export default async function Rentabilite({ searchParams }: { searchParams: Prom
                 <span>coût par vente réel · cible {eur(t.cpaCible)} · critique {eur(t.cpaCritique)} · ROAS réel {x2(all.roas)}</span>
               </div>
             </div>
+            <div style={{ marginTop: 16 }}><Gauge cpa={all.cpa} t={t} /></div>
             <ul style={{ margin: "14px 0 0", paddingLeft: 18 }}>
               {advice.map((a, i) => <li key={i} style={{ marginBottom: 6 }}>{a}</li>)}
             </ul>
@@ -128,6 +130,29 @@ export default async function Rentabilite({ searchParams }: { searchParams: Prom
       )}
       <p className="dg-foot">Coût par vente = dépense ÷ conversions{lead ? ` × taux prospect → client (${inp.conv} %)` : ""}. Les coûts en % s&apos;appliquent à la valeur moyenne d&apos;une vente.</p>
     </OptPage>
+  );
+}
+
+/** Jauge rouge → vert : vert sous le CPA cible, orange jusqu'au CPA critique, rouge au-delà. Le repère noir est le coût par vente réel. */
+function Gauge({ cpa, t, small }: { cpa: number | null; t: Targets; small?: boolean }) {
+  if (t.cpaCritique <= 0) return null;
+  const max = Math.max(t.cpaCritique * 1.5, (cpa ?? 0) * 1.1);
+  const at = (v: number) => `${Math.min(100, Math.max(0, (v / max) * 100))}%`;
+  const h = small ? 8 : 16;
+  return (
+    <div style={{ minWidth: small ? 120 : 0 }} aria-label={cpa === null ? "Pas de vente mesurée" : `Coût par vente ${eur(cpa)}`}>
+      <div style={{ position: "relative", height: h, borderRadius: h, overflow: "visible", background: `linear-gradient(90deg, #2e9e5b 0, #2e9e5b ${at(t.cpaCible)}, #e8a21a ${at(t.cpaCible)}, #e8a21a ${at(t.cpaCritique)}, #d64545 ${at(t.cpaCritique)}, #d64545 100%)` }}>
+        {cpa !== null && <span style={{ position: "absolute", left: at(cpa), top: -3, width: 4, height: h + 6, marginLeft: -2, background: "#111", border: "1px solid #fff", borderRadius: 2 }} />}
+      </div>
+      {!small && (
+        <div style={{ position: "relative", height: 34, fontSize: 12, marginTop: 6 }}>
+          <span style={{ position: "absolute", left: 0 }}>0 €</span>
+          <span style={{ position: "absolute", left: at(t.cpaCible), transform: "translateX(-50%)", textAlign: "center" }}>cible<br /><strong>{eur(t.cpaCible)}</strong></span>
+          <span style={{ position: "absolute", left: at(t.cpaCritique), transform: "translateX(-50%)", textAlign: "center" }}>seuil de perte<br /><strong>{eur(t.cpaCritique)}</strong></span>
+          {cpa !== null && <span style={{ position: "absolute", right: 0, top: 0 }}>réel : <strong>{eur(cpa)}</strong></span>}
+        </div>
+      )}
+    </div>
   );
 }
 
