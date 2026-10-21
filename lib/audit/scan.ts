@@ -89,10 +89,32 @@ export interface ScanData {
   /** Réponse HTTP des adresses de destination des annonces. */
   urlChecks: { url: string; code: number | null }[] | null;
   enhancedConversions: boolean | null;
+  /** Score PageSpeed mobile des pages qui reçoivent le plus de dépense. */
+  speed: { url: string; score: number; lcp: number | null }[] | null;
 }
 
 const micros = (v: unknown) => Number(v ?? 0) / 1_000_000;
 const iso = (d: Date) => d.toISOString().slice(0, 10);
+
+/** PageSpeed Insights (mobile) : score de performance 0-100 et LCP en secondes. Clé facultative : PAGESPEED_API_KEY. */
+async function pageSpeed(urls: string[]): Promise<{ url: string; score: number; lcp: number | null }[] | null> {
+  const key = process.env.PAGESPEED_API_KEY;
+  const out = await Promise.all(urls.map(async (url) => {
+    try {
+      const api = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&strategy=mobile&category=performance${key ? `&key=${key}` : ""}`;
+      const res = await fetch(api, { signal: AbortSignal.timeout(70000) });
+      if (!res.ok) throw new Error(`PageSpeed ${res.status}`);
+      const j = (await res.json()) as { lighthouseResult?: { categories?: { performance?: { score?: number | null } }; audits?: Record<string, { numericValue?: number }> } };
+      const sc = j.lighthouseResult?.categories?.performance?.score;
+      if (typeof sc !== "number") return null;
+      const lcp = j.lighthouseResult?.audits?.["largest-contentful-paint"]?.numericValue;
+      return { url, score: Math.round(sc * 100), lcp: typeof lcp === "number" ? lcp / 1000 : null };
+    } catch { return null; }
+  }));
+  const ok = out.filter((x): x is { url: string; score: number; lcp: number | null } => x !== null);
+  if (!ok.length) throw new Error("PageSpeed sans réponse");
+  return ok;
+}
 
 /** Ouvre chaque adresse (12 s max, redirections suivies) : code HTTP, ou null si injoignable. */
 async function checkUrls(urls: string[]): Promise<{ url: string; code: number | null }[]> {
@@ -185,6 +207,8 @@ export async function fetchScanData(ctx: AdsContext): Promise<{ data: ScanData; 
   }
   const lastChange = change?.[0]?.changeEvent?.changeDateTime as string | undefined;
   const urlChecks = ads === null ? null : await q("Adresses des annonces", () => checkUrls([...new Set(ads.flatMap((r) => (r.adGroupAd?.ad?.finalUrls ?? []) as string[]))].slice(0, 12)), null as { url: string; code: number | null }[] | null);
+  const topPages = [...pg.values()].filter((x) => /^https?:/.test(x.url)).sort((a, b) => b.cost - a.cost).slice(0, 2).map((x) => x.url);
+  const speed = topPages.length ? await q("Vitesse des pages", () => pageSpeed(topPages), null as { url: string; score: number; lcp: number | null }[] | null) : null;
   const qsMap = new Map<string, { text: string; qs: number; cost: number }>();
   for (const r of qsRows ?? []) {
     const qs = Number(r.adGroupCriterion?.qualityInfo?.qualityScore ?? 0);
@@ -235,6 +259,7 @@ export async function fetchScanData(ctx: AdsContext): Promise<{ data: ScanData; 
       qualityScores: qsRows === null ? null : [...qsMap.values()],
       campaignStatus: campSt === null ? null : campSt.map((r) => ({ id: String(r.campaign?.id), name: String(r.campaign?.name ?? ""), status: String(r.campaign?.primaryStatus ?? ""), reasons: ((r.campaign?.primaryStatusReasons ?? []) as string[]).map(String) })),
       urlChecks: urlChecks ?? null,
+      speed,
       enhancedConversions: cust[0]?.customer?.conversionTrackingSetting?.enhancedConversionsForLeadsEnabled ?? null,
     },
   };
@@ -269,6 +294,7 @@ function mockScan(campaigns: CampaignLite[], perf30: CampaignPerf[], kws: Keywor
     campaignStatus: campaigns.filter((c) => c.status === "ENABLED").map((c, i) => ({ id: c.id, name: c.name, status: i === 0 ? "LIMITED" : "ELIGIBLE", reasons: i === 0 ? ["BUDGET_CONSTRAINED"] : [] })),
     urlChecks: [{ url: "https://d2b-renovation.fr/fenetres", code: 200 }, { url: "https://d2b-renovation.fr/", code: 200 }],
     enhancedConversions: false,
+    speed: [{ url: "https://d2b-renovation.fr/fenetres", score: 42, lcp: 4.1 }],
   };
 }
 
@@ -299,7 +325,9 @@ function evaluators(d: ScanData, model: Model): Record<string, () => Out> {
   const notPmax = (label: string) => (has("PERFORMANCE_MAX") ? null : na(`Pas de campagne Performance Max active (${label}).`));
   const notShop = has("SHOPPING") || has("PERFORMANCE_MAX") ? null : na("Pas de campagne Shopping ou Performance Max active.");
   const notDisplay = has("DISPLAY") || has("DEMAND_GEN") || has("VIDEO") ? null : na("Pas de campagne Display, vidéo ou Demand Gen active.");
+  const isBrandCamp = (n: string) => /marque|brand/i.test(n);
   const brandWords = (d.campaigns.find((c) => /marque|brand/i.test(c.name))?.name ?? "").split(/\W+/).filter((w) => w.length > 3 && !/marque|brand|search/i.test(w)).map((w) => w.toLowerCase());
+  const hasBrand = (t: string) => { const f = t.toLowerCase(); return brandWords.some((w) => f.includes(w)); };
 
   const E: Record<string, () => Out> = {
     // compte
@@ -533,6 +561,37 @@ function evaluators(d: ScanData, model: Model): Record<string, () => Out> {
       return dead.length ? bad(`${dead.length} adresse(s) ne répondent pas correctement : ${dead.slice(0, 3).map((u) => `${u.url} (${u.code ?? "injoignable"})`).join(", ")}.`) : ok(`${d.urlChecks.length} adresse(s) testée(s), toutes répondent.`);
     },
     "Conversions améliorées activées": () => (d.enhancedConversions === null ? manual() : d.enhancedConversions ? ok("Conversions améliorées pour les leads activées.") : warn("Conversions améliorées pour les leads désactivées : Google retrouve moins de leads.")),
+    "Vitesse mobile": () => {
+      if (!d.speed || !d.speed.length) return manual("Vitesse non mesurée (PageSpeed sans réponse ou pages non lues).");
+      const worst = [...d.speed].sort((a, b) => a.score - b.score)[0];
+      const txt = `PageSpeed mobile ${worst.score}/100${worst.lcp !== null ? `, affichage principal en ${f1(worst.lcp)} s` : ""} (${worst.url}).`;
+      return worst.score >= 50 ? ok(txt) : worst.score < 30 ? bad(txt) : warn(txt);
+    },
+    "Termes de marque dans les campagnes génériques": () => {
+      if (!brandWords.length) return manual("Aucune campagne « marque » repérée : mets « marque » dans son nom (et le nom de l'entreprise) pour que ce critère se lise.");
+      const gen = d.terms.filter((t) => !isBrandCamp(t.campaign));
+      const cost = gen.reduce((s, t) => s + t.cur.cost, 0);
+      if (cost <= 0) return na("Pas de dépense générique sur les termes lus.");
+      const b = gen.filter((t) => hasBrand(t.term)).reduce((s, t) => s + t.cur.cost, 0);
+      const sh = b / cost;
+      return sh < 0.02 ? ok(`${pc(sh)} du coût générique.`) : sh > 0.05 ? bad(`${pc(sh)} du coût générique (${eur(b)}) part sur des recherches de marque.`) : warn(`${pc(sh)} du coût générique sur des recherches de marque.`);
+    },
+    "Termes génériques dans la campagne marque": () => {
+      if (!brandWords.length) return manual("Aucune campagne « marque » repérée : mets « marque » dans son nom (et le nom de l'entreprise) pour que ce critère se lise.");
+      const br = d.terms.filter((t) => isBrandCamp(t.campaign));
+      const cost = br.reduce((s, t) => s + t.cur.cost, 0);
+      if (cost <= 0) return na("Pas de dépense sur la campagne marque.");
+      const g = br.filter((t) => !hasBrand(t.term)).reduce((s, t) => s + t.cur.cost, 0);
+      const sh = g / cost;
+      return sh > 0.1 ? bad(`${pc(sh)} du coût de la marque (${eur(g)}) vient de recherches génériques.`) : sh > 0.05 ? warn(`${pc(sh)} du coût de la marque vient de recherches génériques.`) : ok(`${pc(sh)} du coût de la marque.`);
+    },
+    "N-grammes au CTR faible": () => {
+      if (!d.terms.length) return na("Pas de termes de recherche lus.");
+      const agg = new Map<string, { imp: number; clk: number }>();
+      for (const t of d.terms) for (const n of [1, 2]) for (const g of ngrams(t.term, n)) { const e = agg.get(g) ?? { imp: 0, clk: 0 }; e.imp += t.cur.impressions; e.clk += t.cur.clicks; agg.set(g, e); }
+      const low = [...agg.entries()].filter(([, v]) => v.imp >= 500 && v.clk / v.imp < 0.03).sort((a, b) => b[1].imp - a[1].imp);
+      return low.length ? warn(`${low.length} expression(s) sous 3 % de CTR, ex. « ${low[0][0]} » (${pc(low[0][1].clk / low[0][1].imp)} sur ${f0(low[0][1].imp)} affichages). Voir Termes de recherche → N-grammes.`) : ok("Aucune expression fréquente sous 3 % de CTR.");
+    },
     "Calendrier de diffusion": () => (d.schedules === null ? manual() : search.every((c) => d.schedules!.has(c.id)) ? ok("Calendrier défini.") : warn("Diffusion 24 h/24 : caler les horaires sur ceux où l'entreprise répond.")),
     // tendances
     "Chute des conversions": () => (prev.conv < 20 ? warn(`Volume faible (${f0(prev.conv)} conversions avant) : écart ${prev.conv ? pc(tot.conv / prev.conv - 1) : "–"}.`) : tot.conv / prev.conv - 1 <= -0.3 ? bad(`Conversions ${pc(tot.conv / prev.conv - 1)}.`) : ok(`Conversions ${pc(tot.conv / prev.conv - 1)}.`)),
