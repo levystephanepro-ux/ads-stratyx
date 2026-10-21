@@ -171,7 +171,7 @@ export async function fetchScanData(ctx: AdsContext): Promise<{ data: ScanData; 
     q("Dépense par jour", () => searchRaw(ctx, `SELECT segments.date, metrics.cost_micros FROM customer WHERE segments.date BETWEEN '${since30}' AND '${until}'`), [] as RawRow[]),
     q("Historique des modifications", () => searchRaw(ctx, `
       SELECT change_event.change_date_time FROM change_event
-      WHERE change_event.change_date_time >= '${iso(d14)}' ORDER BY change_event.change_date_time DESC LIMIT 1`), null as RawRow[] | null),
+      WHERE change_event.change_date_time >= '${iso(d14)}' AND change_event.change_date_time <= '${iso(new Date())} 23:59:59' ORDER BY change_event.change_date_time DESC LIMIT 1`), null as RawRow[] | null),
     q("Application automatique", () => searchRaw(ctx, `SELECT recommendation_subscription.type, recommendation_subscription.status FROM recommendation_subscription`), null as RawRow[] | null),
     q("Zones", () => searchRaw(ctx, `SELECT campaign.id FROM campaign_criterion WHERE campaign_criterion.type IN ('LOCATION', 'PROXIMITY') AND campaign_criterion.negative = FALSE AND campaign.status = 'ENABLED'`), null as RawRow[] | null),
     q("Calendrier", () => searchRaw(ctx, `SELECT campaign.id FROM campaign_criterion WHERE campaign_criterion.type = 'AD_SCHEDULE' AND campaign.status = 'ENABLED'`), null as RawRow[] | null),
