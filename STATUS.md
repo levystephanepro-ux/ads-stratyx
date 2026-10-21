@@ -385,3 +385,9 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 - Un seul mail par demande : même e-mail, adresse et activité (sans accents ni casse) sur 10 minutes, par mémoire de l'instance (clics simultanés) et par la base (`answers.confirmation_envoyee` des fiches récentes). Un envoi échoué ne bloque pas un nouvel essai.
 - Valeurs saisies échappées dans le HTML, pas de tiret cadratin. 81 tests (`npm run test:zones`), dont `zone-confirmation.test.ts`.
 - Ajustement du mail : adresse de contact (`PROSPECT_CONTACT_EMAIL`, défaut `contact@stratyxmedia.fr`) à la place de l'adresse de Stéphane, reply-to vers cette boîte, ligne téléphone et variable supprimées, phrase finale : « Vous pouvez aussi me répondre directement à [adresse]. ».
+
+## [2026-10-21] Mise en production des zones et ajustement d'alerte
+- Branche `zones-rayon` (17 commits : zones par rayon, bloc zone sur la fiche client, « Libérer maintenant », liste d'attente volontaire, mail de confirmation au prospect) fusionnée dans `main` et déployée en production (commit 4459a43), sans conflit.
+- Migration `0024_zones_exclusives.sql` lancée dans Supabase. `0025_zones_attente_unique.sql` (index anti-doublons de la liste d'attente) : facultative, le code contrôle déjà avant insertion.
+- Alerte « Plus de conversions » (`lib/alerts/config.ts`) : libellé clarifié (« nombre de jours réglé ci-dessous, hier compris »). Règle inchangée : 0 conversion sur N jours, au moins 20 € dépensés, conversions sur les 30 jours d'avant. Un lead non suivi dans Google Ads ne compte pas.
+- Backlog Ades restant : familles d'intentions classées par l'IA (termes de recherche) ; automatiser les critères d'audit encore « à cocher » (PMax, Shopping, Consent Mode, vitesse) ; afficher la valeur réglée dans la phrase de l'alerte.
