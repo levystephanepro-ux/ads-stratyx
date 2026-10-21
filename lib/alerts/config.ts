@@ -7,7 +7,7 @@ export type TemplateKey = "compte_arret" | "depense_emballe" | "sans_conversion"
 export const TEMPLATES: { key: TemplateKey; label: string; hint: string; param?: { label: string; def: number; unit: string } }[] = [
   { key: "compte_arret", label: "Compte à l'arrêt", hint: "Aucune dépense hier alors que le compte dépensait les 7 jours d'avant (paiement refusé, campagnes en pause, annonces refusées)." },
   { key: "depense_emballe", label: "Dépense qui s'emballe", hint: "Dépense d'hier bien au-dessus de la moyenne des 7 jours précédents.", param: { label: "Seuil", def: 2, unit: "× la moyenne" } },
-  { key: "sans_conversion", label: "Plus de conversions", hint: "Aucune conversion depuis N jours alors que le compte dépense (suivi cassé, formulaire en panne).", param: { label: "Depuis", def: 5, unit: "jours" } },
+  { key: "sans_conversion", label: "Plus de conversions", hint: "Aucune conversion sur le nombre de jours réglé ci-dessous (hier compris) alors que le compte dépense (suivi cassé, formulaire en panne).", param: { label: "Depuis", def: 5, unit: "jours" } },
   { key: "cpa_hausse", label: "Coût par conversion en hausse", hint: "CPA des 7 derniers jours au-dessus du CPA des 30 jours d'avant (3 conversions minimum).", param: { label: "Seuil", def: 1.5, unit: "× le CPA habituel" } },
   { key: "budget_mois", label: "Budget du mois dépassé", hint: "Projection de fin de mois au-dessus du budget mensuel saisi sur l'accueil.", param: { label: "Tolérance", def: 10, unit: "%" } },
   { key: "pages_erreur", label: "Pages de destination en erreur", hint: "Une URL finale d'annonce active répond en erreur (404, 410, 500…). Une page qui ne répond pas n'est signalée que si ça se répète deux vérifications de suite." },
