@@ -73,7 +73,7 @@ export interface ScanData {
   ads: AdRow[] | null;
   adGroups: { id: string; campaignId: string; name: string }[] | null;
   assets: AssetRow[] | null;
-  daily: { date: string; cost: number }[];
+  daily: { date: string; cost: number; clicks?: number }[];
   lastChangeDays: number | null;
   autoApply: string[] | null;
   locations: Set<string> | null;
@@ -91,6 +91,17 @@ export interface ScanData {
   enhancedConversions: boolean | null;
   /** Score PageSpeed mobile des pages qui reçoivent le plus de dépense. */
   speed: { url: string; score: number; lcp: number | null }[] | null;
+  accountName: string | null;
+  /** Plafond de CPC des campagnes « maximiser les clics ». */
+  cpcCeilings: { name: string; bidding: string; ceiling: number | null }[] | null;
+  /** Dépense par tranche d'âge (30 jours). */
+  ages: { range: string; cost: number }[] | null;
+  /** Audiences attachées aux groupes Search. */
+  audiences: { adGroupId: string }[] | null;
+  /** Groupes Search dont l'audience est en ciblage (et non en observation). */
+  audienceTargeting: { adGroupId: string; bidOnly: boolean }[] | null;
+  /** Création automatique de composants (texte, images) par campagne. */
+  assetAutomation: { campaign: string; types: string[] }[] | null;
 }
 
 const micros = (v: unknown) => Number(v ?? 0) / 1_000_000;
@@ -148,8 +159,8 @@ export async function fetchScanData(ctx: AdsContext): Promise<{ data: ScanData; 
 
   const since30 = p30.since, until = p30.until;
   const d14 = new Date(); d14.setUTCDate(d14.getUTCDate() - 29);
-  const [cust, sett, conv, ads, ags, campAssets, custAssets, daily, change, autoApply, loc, sched, dev, pages, shared, disKw, qsRows, campSt] = await Promise.all([
-    q("Compte", () => searchRaw(ctx, `SELECT customer.auto_tagging_enabled, customer.optimization_score, customer.conversion_tracking_setting.enhanced_conversions_for_leads_enabled FROM customer`), [] as RawRow[]),
+  const [cust, sett, conv, ads, ags, campAssets, custAssets, daily, change, autoApply, loc, sched, dev, pages, shared, disKw, qsRows, campSt, ceil, ageRows, audRows, audTgt, autoAsset] = await Promise.all([
+    q("Compte", () => searchRaw(ctx, `SELECT customer.descriptive_name, customer.auto_tagging_enabled, customer.optimization_score, customer.conversion_tracking_setting.enhanced_conversions_for_leads_enabled FROM customer`), [] as RawRow[]),
     q("Réglages des campagnes", () => searchRaw(ctx, `
       SELECT campaign.id, campaign.network_settings.target_google_search, campaign.network_settings.target_search_network,
              campaign.network_settings.target_content_network, campaign.geo_target_type_setting.positive_geo_target_type,
@@ -166,9 +177,9 @@ export async function fetchScanData(ctx: AdsContext): Promise<{ data: ScanData; 
              ad_group_ad.ad.responsive_search_ad.descriptions
       FROM ad_group_ad WHERE ad_group_ad.status != 'REMOVED' AND ad_group.status = 'ENABLED' AND campaign.status = 'ENABLED'`), null as RawRow[] | null),
     q("Groupes d'annonces", () => searchRaw(ctx, `SELECT ad_group.id, ad_group.name, campaign.id FROM ad_group WHERE ad_group.status = 'ENABLED' AND campaign.status = 'ENABLED'`), null as RawRow[] | null),
-    q("Composants de campagne", () => searchRaw(ctx, `SELECT campaign.id, campaign_asset.field_type, asset.policy_summary.approval_status FROM campaign_asset WHERE campaign.status = 'ENABLED' AND campaign_asset.status = 'ENABLED'`), null as RawRow[] | null),
-    q("Composants du compte", () => searchRaw(ctx, `SELECT customer_asset.field_type, asset.policy_summary.approval_status FROM customer_asset WHERE customer_asset.status = 'ENABLED'`), null as RawRow[] | null),
-    q("Dépense par jour", () => searchRaw(ctx, `SELECT segments.date, metrics.cost_micros FROM customer WHERE segments.date BETWEEN '${since30}' AND '${until}'`), [] as RawRow[]),
+    q("Composants de campagne", () => searchRaw(ctx, `SELECT campaign.id, campaign.name, campaign_asset.asset, campaign_asset.campaign, campaign_asset.field_type, asset.policy_summary.approval_status FROM campaign_asset WHERE campaign.status = 'ENABLED' AND campaign_asset.status = 'ENABLED'`), null as RawRow[] | null),
+    q("Composants du compte", () => searchRaw(ctx, `SELECT customer_asset.asset, customer_asset.field_type, asset.policy_summary.approval_status FROM customer_asset WHERE customer_asset.status = 'ENABLED'`), null as RawRow[] | null),
+    q("Dépense par jour", () => searchRaw(ctx, `SELECT segments.date, metrics.cost_micros, metrics.clicks FROM customer WHERE segments.date BETWEEN '${since30}' AND '${until}'`), [] as RawRow[]),
     q("Historique des modifications", () => searchRaw(ctx, `
       SELECT change_event.change_date_time FROM change_event
       WHERE change_event.change_date_time >= '${iso(d14)}' AND change_event.change_date_time <= '${iso(new Date())} 23:59:59' ORDER BY change_event.change_date_time DESC LIMIT 1`), null as RawRow[] | null),
@@ -181,6 +192,11 @@ export async function fetchScanData(ctx: AdsContext): Promise<{ data: ScanData; 
     q("Mots-clés refusés", () => searchRaw(ctx, `SELECT ad_group_criterion.keyword.text, campaign.name FROM ad_group_criterion WHERE ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.negative = FALSE AND ad_group_criterion.status = 'ENABLED' AND ad_group_criterion.approval_status = 'DISAPPROVED' AND ad_group.status = 'ENABLED' AND campaign.status = 'ENABLED'`), null as RawRow[] | null),
     q("Niveau de qualité", () => searchRaw(ctx, `SELECT ad_group_criterion.keyword.text, ad_group_criterion.quality_info.quality_score, metrics.cost_micros FROM keyword_view WHERE ad_group_criterion.status = 'ENABLED' AND ad_group.status = 'ENABLED' AND campaign.status = 'ENABLED' AND segments.date BETWEEN '${since30}' AND '${until}'`), null as RawRow[] | null),
     q("Statut des campagnes", () => searchRaw(ctx, `SELECT campaign.id, campaign.name, campaign.primary_status, campaign.primary_status_reasons FROM campaign WHERE campaign.status = 'ENABLED'`), null as RawRow[] | null),
+    q("Plafond de CPC", () => searchRaw(ctx, `SELECT campaign.name, campaign.bidding_strategy_type, campaign.target_spend.cpc_bid_ceiling_micros FROM campaign WHERE campaign.status = 'ENABLED'`), null as RawRow[] | null),
+    q("Tranches d'âge", () => searchRaw(ctx, `SELECT ad_group_criterion.age_range.type, metrics.cost_micros FROM age_range_view WHERE segments.date BETWEEN '${since30}' AND '${until}'`), null as RawRow[] | null),
+    q("Audiences", () => searchRaw(ctx, `SELECT ad_group.id, ad_group_criterion.type FROM ad_group_criterion WHERE ad_group_criterion.type IN ('USER_LIST', 'USER_INTEREST', 'CUSTOM_AUDIENCE', 'COMBINED_AUDIENCE') AND ad_group_criterion.status = 'ENABLED' AND ad_group.status = 'ENABLED' AND campaign.status = 'ENABLED' AND campaign.advertising_channel_type = 'SEARCH'`), null as RawRow[] | null),
+    q("Mode des audiences", () => searchRaw(ctx, `SELECT ad_group.id, ad_group.targeting_setting.target_restrictions FROM ad_group WHERE ad_group.status = 'ENABLED' AND campaign.status = 'ENABLED' AND campaign.advertising_channel_type = 'SEARCH'`), null as RawRow[] | null),
+    q("Création automatique de composants", () => searchRaw(ctx, `SELECT campaign.name, campaign.asset_automation_settings FROM campaign WHERE campaign.status = 'ENABLED'`), null as RawRow[] | null),
   ]);
 
   const settings = new Map<string, { search: boolean; content: boolean; partners: boolean; geo: string; targetCpa: number | null }>();
@@ -190,7 +206,8 @@ export async function fetchScanData(ctx: AdsContext): Promise<{ data: ScanData; 
     settings.set(String(r.campaign?.id), { search: !!ns.targetGoogleSearch, content: !!ns.targetContentNetwork, partners: !!ns.targetSearchNetwork, geo: r.campaign?.geoTargetTypeSetting?.positiveGeoTargetType ?? "", targetCpa: t ? micros(t) : null });
   }
   const dmap = new Map<string, number>();
-  for (const r of daily) dmap.set(r.segments?.date, (dmap.get(r.segments?.date) ?? 0) + micros(r.metrics?.costMicros));
+  const clk = new Map<string, number>();
+  for (const r of daily) { dmap.set(r.segments?.date, (dmap.get(r.segments?.date) ?? 0) + micros(r.metrics?.costMicros)); clk.set(r.segments?.date, (clk.get(r.segments?.date) ?? 0) + Number(r.metrics?.clicks ?? 0)); }
   const devs = new Map<string, { device: string; cost: number; conv: number }>();
   for (const r of dev ?? []) {
     const k = r.segments?.device ?? "?";
@@ -248,7 +265,7 @@ export async function fetchScanData(ctx: AdsContext): Promise<{ data: ScanData; 
         ...(campAssets ?? []).map((r) => ({ field: r.campaignAsset?.fieldType ?? "", approval: r.asset?.policySummary?.approvalStatus ?? "", level: "campagne" as const, campaignId: String(r.campaign?.id) })),
         ...(custAssets ?? []).map((r) => ({ field: r.customerAsset?.fieldType ?? "", approval: r.asset?.policySummary?.approvalStatus ?? "", level: "compte" as const })),
       ],
-      daily: [...dmap.entries()].map(([date, cost]) => ({ date, cost })).sort((a, b) => a.date.localeCompare(b.date)),
+      daily: [...dmap.entries()].map(([date, cost]) => ({ date, cost, clicks: clk.get(date) ?? 0 })).sort((a, b) => a.date.localeCompare(b.date)),
       lastChangeDays: change === null ? null : lastChange ? Math.floor((Date.now() - Date.parse(lastChange.replace(" ", "T"))) / 864e5) : 31,
       autoApply: autoApply === null ? null : autoApply.filter((r) => r.recommendationSubscription?.status === "ENABLED").map((r) => String(r.recommendationSubscription?.type)),
       locations: loc === null ? null : new Set(loc.map((r) => String(r.campaign?.id))),
@@ -260,7 +277,13 @@ export async function fetchScanData(ctx: AdsContext): Promise<{ data: ScanData; 
       campaignStatus: campSt === null ? null : campSt.map((r) => ({ id: String(r.campaign?.id), name: String(r.campaign?.name ?? ""), status: String(r.campaign?.primaryStatus ?? ""), reasons: ((r.campaign?.primaryStatusReasons ?? []) as string[]).map(String) })),
       urlChecks: urlChecks ?? null,
       speed,
-      enhancedConversions: cust[0]?.customer?.conversionTrackingSetting?.enhancedConversionsForLeadsEnabled ?? null,
+      enhancedConversions: cust.length ? !!cust[0]?.customer?.conversionTrackingSetting?.enhancedConversionsForLeadsEnabled : null,
+      accountName: cust[0]?.customer?.descriptiveName ?? null,
+      cpcCeilings: ceil === null ? null : ceil.map((r) => ({ name: String(r.campaign?.name ?? ""), bidding: String(r.campaign?.biddingStrategyType ?? ""), ceiling: r.campaign?.targetSpend?.cpcBidCeilingMicros ? micros(r.campaign.targetSpend.cpcBidCeilingMicros) : null })),
+      ages: ageRows === null ? null : [...ageRows.reduce((m, r) => m.set(String(r.adGroupCriterion?.ageRange?.type ?? "?"), (m.get(String(r.adGroupCriterion?.ageRange?.type ?? "?")) ?? 0) + micros(r.metrics?.costMicros)), new Map<string, number>()).entries()].map(([range, cost]) => ({ range, cost })),
+      audiences: audRows === null ? null : audRows.map((r) => ({ adGroupId: String(r.adGroup?.id) })),
+      audienceTargeting: audTgt === null ? null : audTgt.flatMap((r) => ((r.adGroup?.targetingSetting?.targetRestrictions ?? []) as { targetingDimension?: string; bidOnly?: boolean }[]).filter((t) => t.targetingDimension === "AUDIENCE").map((t) => ({ adGroupId: String(r.adGroup?.id), bidOnly: !!t.bidOnly }))),
+      assetAutomation: autoAsset === null ? null : autoAsset.map((r) => ({ campaign: String(r.campaign?.name ?? ""), types: ((r.campaign?.assetAutomationSettings ?? []) as { assetAutomationType?: string; assetAutomationStatus?: string }[]).filter((x) => x.assetAutomationStatus === "OPTED_IN").map((x) => String(x.assetAutomationType)) })),
     },
   };
 }
@@ -295,6 +318,12 @@ function mockScan(campaigns: CampaignLite[], perf30: CampaignPerf[], kws: Keywor
     urlChecks: [{ url: "https://d2b-renovation.fr/fenetres", code: 200 }, { url: "https://d2b-renovation.fr/", code: 200 }],
     enhancedConversions: false,
     speed: [{ url: "https://d2b-renovation.fr/fenetres", score: 42, lcp: 4.1 }],
+    accountName: "D2B Rénovation",
+    cpcCeilings: campaigns.filter((c) => c.status === "ENABLED").map((c) => ({ name: c.name, bidding: c.bidding, ceiling: null })),
+    ages: [{ range: "AGE_RANGE_18_24", cost: 12 }, { range: "AGE_RANGE_35_44", cost: 380 }, { range: "AGE_RANGE_UNDETERMINED", cost: 120 }],
+    audiences: [{ adGroupId: "7701" }, { adGroupId: "7701" }],
+    audienceTargeting: [{ adGroupId: "7701", bidOnly: true }],
+    assetAutomation: campaigns.filter((c) => c.status === "ENABLED").map((c) => ({ campaign: c.name, types: ["TEXT_ASSET_AUTOMATION"] })),
   };
 }
 
@@ -326,8 +355,14 @@ function evaluators(d: ScanData, model: Model): Record<string, () => Out> {
   const notShop = has("SHOPPING") || has("PERFORMANCE_MAX") ? null : na("Pas de campagne Shopping ou Performance Max active.");
   const notDisplay = has("DISPLAY") || has("DEMAND_GEN") || has("VIDEO") ? null : na("Pas de campagne Display, vidéo ou Demand Gen active.");
   const isBrandCamp = (n: string) => /marque|brand/i.test(n);
-  const brandWords = (d.campaigns.find((c) => /marque|brand/i.test(c.name))?.name ?? "").split(/\W+/).filter((w) => w.length > 3 && !/marque|brand|search/i.test(w)).map((w) => w.toLowerCase());
-  const hasBrand = (t: string) => { const f = t.toLowerCase(); return brandWords.some((w) => f.includes(w)); };
+  const GENERIC = /^(renovation|rénovation|services?|sarl|sas|eurl|menuiserie|menuiseries|france|group|groupe|entreprise|artisan|batiment|bâtiment|construction|habitat|maison)$/i;
+  const fold = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const brandWords = [...new Set(
+    [d.campaigns.find((c) => isBrandCamp(c.name))?.name ?? "", d.accountName ?? ""].join(" ").split(/[^\p{L}\p{N}]+/u)
+      .map(fold).filter((w) => w.length >= 3 && !/^(marque|brand|search|ads|google)$/.test(w) && !GENERIC.test(w)),
+  )];
+  const hasBrand = (t: string) => { const f = fold(t); return brandWords.some((w) => f.includes(w)); };
+  const hasBrandCamp = d.campaigns.some((c) => c.status === "ENABLED" && isBrandCamp(c.name));
 
   const E: Record<string, () => Out> = {
     // compte
@@ -568,16 +603,18 @@ function evaluators(d: ScanData, model: Model): Record<string, () => Out> {
       return worst.score >= 50 ? ok(txt) : worst.score < 30 ? bad(txt) : warn(txt);
     },
     "Termes de marque dans les campagnes génériques": () => {
-      if (!brandWords.length) return manual("Aucune campagne « marque » repérée : mets « marque » dans son nom (et le nom de l'entreprise) pour que ce critère se lise.");
+      if (!brandWords.length) return manual("Nom de l'entreprise introuvable : mets-le dans le nom du compte Google Ads ou d'une campagne « marque ».");
       const gen = d.terms.filter((t) => !isBrandCamp(t.campaign));
       const cost = gen.reduce((s, t) => s + t.cur.cost, 0);
       if (cost <= 0) return na("Pas de dépense générique sur les termes lus.");
       const b = gen.filter((t) => hasBrand(t.term)).reduce((s, t) => s + t.cur.cost, 0);
       const sh = b / cost;
-      return sh < 0.02 ? ok(`${pc(sh)} du coût générique.`) : sh > 0.05 ? bad(`${pc(sh)} du coût générique (${eur(b)}) part sur des recherches de marque.`) : warn(`${pc(sh)} du coût générique sur des recherches de marque.`);
+      const via = `(marque lue : ${brandWords.slice(0, 3).join(", ")})`;
+      return sh < 0.02 ? ok(`${pc(sh)} du coût générique ${via}.`) : sh > 0.05 ? bad(`${pc(sh)} du coût générique (${eur(b)}) part sur des recherches de marque ${via}.`) : warn(`${pc(sh)} du coût générique sur des recherches de marque ${via}.`);
     },
     "Termes génériques dans la campagne marque": () => {
-      if (!brandWords.length) return manual("Aucune campagne « marque » repérée : mets « marque » dans son nom (et le nom de l'entreprise) pour que ce critère se lise.");
+      if (!hasBrandCamp) return na("Pas de campagne « marque » (le mot « marque » ou « brand » n'est dans le nom d'aucune campagne).");
+      if (!brandWords.length) return manual("Nom de l'entreprise introuvable.");
       const br = d.terms.filter((t) => isBrandCamp(t.campaign));
       const cost = br.reduce((s, t) => s + t.cur.cost, 0);
       if (cost <= 0) return na("Pas de dépense sur la campagne marque.");
@@ -591,6 +628,59 @@ function evaluators(d: ScanData, model: Model): Record<string, () => Out> {
       for (const t of d.terms) for (const n of [1, 2]) for (const g of ngrams(t.term, n)) { const e = agg.get(g) ?? { imp: 0, clk: 0 }; e.imp += t.cur.impressions; e.clk += t.cur.clicks; agg.set(g, e); }
       const low = [...agg.entries()].filter(([, v]) => v.imp >= 500 && v.clk / v.imp < 0.03).sort((a, b) => b[1].imp - a[1].imp);
       return low.length ? warn(`${low.length} expression(s) sous 3 % de CTR, ex. « ${low[0][0]} » (${pc(low[0][1].clk / low[0][1].imp)} sur ${f0(low[0][1].imp)} affichages). Voir Termes de recherche → N-grammes.`) : ok("Aucune expression fréquente sous 3 % de CTR.");
+    },
+    "Import des conversions hors ligne": () => {
+      if (d.conversions === null) return manual();
+      const up = d.conversions.filter((c) => /UPLOAD/.test(c.type) || /UPLOAD|STORE|CRM/.test(c.origin));
+      return up.length ? ok(`Import en place : ${up.slice(0, 2).map((c) => `« ${c.name} »`).join(", ")}.`) : warn("Aucun import de ventes signées (CRM) : Google optimise sur les demandes, pas sur les vrais clients.");
+    },
+    "Valeur de conversion renseignée et cohérente": () => {
+      const v = d.perf30.reduce((s, c) => s + c.cur.value, 0);
+      if (tot.conv < 3) return na("Moins de 3 conversions sur 30 jours.");
+      const avg = v / tot.conv;
+      return avg < 10 ? bad(`Valeur moyenne ${eur(avg)} par conversion (aucune valeur renseignée ou trop basse) : impossible d'enchérir à la valeur.`) : ok(`Valeur moyenne ${eur(avg)} par conversion.`);
+    },
+    "ROAS réel par rapport à la cible": () => (d.campaigns.some((c) => c.status === "ENABLED" && /ROAS/.test(c.bidding)) ? manual("Enchère au ROAS cible : compare le ROAS réel à la cible dans chaque campagne.") : na("Aucune campagne à l'enchère au ROAS cible.")),
+    "Ventes croisées suivies (Merchant Center)": () => notShop ?? manual(),
+    "Pics de CPC": () => {
+      if (d.daily.length < 10) return manual();
+      const days = d.daily.filter((x) => (x.clicks ?? 0) >= 3);
+      const clk = d.daily.reduce((s, x) => s + (x.clicks ?? 0), 0);
+      const avg = clk ? d.daily.reduce((s, x) => s + x.cost, 0) / clk : 0;
+      if (!avg || days.length < 5) return na("Trop peu de clics par jour pour mesurer des pics.");
+      const peaks = days.filter((x) => x.cost / (x.clicks ?? 1) > 5 * avg);
+      return peaks.length ? bad(`${peaks.length} jour(s) à plus de 5 fois le CPC moyen (${eur(avg)}), ex. le ${peaks[0].date}.`) : ok(`Aucun jour à plus de 5 fois le CPC moyen (${f1(avg)} €).`);
+    },
+    "Plafond de CPC en enchère automatique": () => {
+      if (d.cpcCeilings === null) return manual();
+      const clicks = d.cpcCeilings.filter((c) => c.bidding === "TARGET_SPEND");
+      if (!clicks.length) return na("Aucune campagne en « maximiser les clics » (le plafond ne concerne que celle-là).");
+      const none = clicks.filter((c) => !c.ceiling);
+      return none.length ? warn(`Sans plafond de CPC : ${none.slice(0, 3).map((c) => `« ${c.name} »`).join(", ")}.`) : ok("Plafond de CPC défini.");
+    },
+    "18-24 ans sur une offre B2B": () => {
+      if (d.ages === null) return manual();
+      const t = d.ages.reduce((s, a) => s + a.cost, 0);
+      if (t <= 0) return na("Pas de dépense par âge sur 30 jours.");
+      const y = (d.ages.find((a) => a.range === "AGE_RANGE_18_24")?.cost ?? 0) / t;
+      return y > 0.1 ? warn(`${pc(y)} du coût sur les 18-24 ans (à exclure si ton offre vise des professionnels).`) : ok(`${pc(y)} du coût sur les 18-24 ans.`);
+    },
+    "Audiences en observation": () => {
+      if (d.audiences === null) return manual();
+      const n = d.audiences.length;
+      return n >= 5 ? ok(`${n} audiences attachées aux groupes Search.`) : warn(n ? `${n} audience(s) seulement (5 ou plus conseillées).` : "Aucune audience en observation sur les groupes Search.");
+    },
+    "Audiences Search en ciblage par erreur": () => {
+      if (d.audiences === null || d.audienceTargeting === null) return manual();
+      if (!d.audiences.length) return na("Aucune audience attachée aux groupes Search.");
+      const withAud = new Set(d.audiences.map((a) => a.adGroupId));
+      const bad_ = d.audienceTargeting.filter((t) => withAud.has(t.adGroupId) && !t.bidOnly);
+      return bad_.length ? bad(`${new Set(bad_.map((b) => b.adGroupId)).size} groupe(s) Search avec une audience en ciblage : elle restreint la diffusion au lieu de l'observer.`) : ok("Audiences en observation uniquement.");
+    },
+    "Composants générés automatiquement": () => {
+      if (d.assetAutomation === null) return manual();
+      const on = d.assetAutomation.filter((c) => c.types.length);
+      return on.length ? warn(`Création automatique activée : ${on.slice(0, 3).map((c) => `« ${c.campaign} »`).join(", ")} (${[...new Set(on.flatMap((c) => c.types))].join(", ")}).`) : ok("Création automatique désactivée.");
     },
     "Calendrier de diffusion": () => (d.schedules === null ? manual() : search.every((c) => d.schedules!.has(c.id)) ? ok("Calendrier défini.") : warn("Diffusion 24 h/24 : caler les horaires sur ceux où l'entreprise répond.")),
     // tendances
