@@ -197,3 +197,30 @@ export async function draftMonthlyReportAction(form: FormData): Promise<void> {
   revalidatePath("/rapports/compte-rendu");
   redirect(backTo(form.get("back"), "/rapports/compte-rendu", msg));
 }
+
+/** Rentabilité : enregistre les marges et le taux de conversion du compte. */
+export async function saveRentabiliteAction(form: FormData): Promise<void> {
+  const ctx = await getDashboardContext();
+  if (!ctx.isOwner) throw new Error("Accès réservé.");
+  const customerId = String(form.get("customer_id") ?? "");
+  const num = (k: string, max: number) => {
+    const n = Number(String(form.get(k) ?? "").replace(/\s/g, "").replace(",", "."));
+    if (!Number.isFinite(n) || n < 0 || n > max) throw new Error(`Valeur illisible ou hors limites : ${k}.`);
+    return n;
+  };
+  let msg: string;
+  try {
+    if (!/^\d+$/.test(customerId)) throw new Error("Compte manquant.");
+    const { saveRenta } = await import("@/lib/optimize/rentabilite");
+    await saveRenta(customerId, {
+      mode: String(form.get("mode")) === "lead" ? "lead" : "ecom",
+      panier: num("panier", 1e7), cogs: num("cogs", 100), livraison: num("livraison", 100), transaction: num("transaction", 100),
+      agence: num("agence", 100), opex: num("opex", 100), benefice: num("benefice", 100), conv: num("conv", 100), ca: num("ca", 1e9),
+    });
+    msg = "ok:Chiffres enregistrés.";
+  } catch (e) {
+    msg = `err:${e instanceof Error ? e.message : String(e)}`;
+  }
+  revalidatePath("/analyser/rentabilite");
+  redirect(backTo(form.get("back"), "/analyser/rentabilite", msg));
+}

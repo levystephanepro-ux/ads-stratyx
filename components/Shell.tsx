@@ -43,6 +43,7 @@ const SECTIONS: Section[] = [
     { label: "Carte des causes", href: "/analyser/carte" },
     { label: "CPC vs marché", href: "/analyser/cpc" },
     { label: "Payant et naturel", href: "/analyser/payant-naturel" },
+    { label: "Rentabilité (ROAS)", href: "/analyser/rentabilite" },
     { label: "Audit", href: "/analyser/audit" },
     { label: "Alertes du matin", href: "/alertes" },
   ] },
