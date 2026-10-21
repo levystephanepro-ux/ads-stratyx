@@ -102,6 +102,19 @@ export interface ScanData {
   audienceTargeting: { adGroupId: string; bidOnly: boolean }[] | null;
   /** Création automatique de composants (texte, images) par campagne. */
   assetAutomation: { campaign: string; types: string[] }[] | null;
+  /** Listes de clients (Customer Match) : nom, taille. */
+  crmLists: { name: string; size: number }[] | null;
+  /** Exclusions d'audiences (clients, visiteurs) posées sur des campagnes ou groupes. */
+  audienceExclusions: number | null;
+  /** Langues ciblées par campagne (codes Google : 1002 = français). */
+  languages: { campaign: string; ids: string[] }[] | null;
+  /** AI Max activé par campagne. */
+  aiMax: { campaign: string; on: boolean }[] | null;
+  /** Objectifs de conversion qui pilotent l'enchère, par campagne. */
+  goals: { campaign: string; categories: string[] }[] | null;
+  /** Composants d'annonces notés « Faible » par Google. */
+  lowAssets: number | null;
+  valueRules: number | null;
 }
 
 const micros = (v: unknown) => Number(v ?? 0) / 1_000_000;
@@ -159,7 +172,7 @@ export async function fetchScanData(ctx: AdsContext): Promise<{ data: ScanData; 
 
   const since30 = p30.since, until = p30.until;
   const d14 = new Date(); d14.setUTCDate(d14.getUTCDate() - 29);
-  const [cust, sett, conv, ads, ags, campAssets, custAssets, daily, change, autoApply, loc, sched, dev, pages, shared, disKw, qsRows, campSt, ceil, ageRows, audRows, audTgt, autoAsset] = await Promise.all([
+  const [cust, sett, conv, ads, ags, campAssets, custAssets, daily, change, autoApply, loc, sched, dev, pages, shared, disKw, qsRows, campSt, ceil, ageRows, audRows, audTgt, autoAsset, crm, audEx, langs, aimax, goalRows, lowAs, vrules] = await Promise.all([
     q("Compte", () => searchRaw(ctx, `SELECT customer.descriptive_name, customer.auto_tagging_enabled, customer.optimization_score, customer.conversion_tracking_setting.enhanced_conversions_for_leads_enabled FROM customer`), [] as RawRow[]),
     q("Réglages des campagnes", () => searchRaw(ctx, `
       SELECT campaign.id, campaign.network_settings.target_google_search, campaign.network_settings.target_search_network,
@@ -197,6 +210,13 @@ export async function fetchScanData(ctx: AdsContext): Promise<{ data: ScanData; 
     q("Audiences", () => searchRaw(ctx, `SELECT ad_group.id, ad_group_criterion.type FROM ad_group_criterion WHERE ad_group_criterion.type IN ('USER_LIST', 'USER_INTEREST', 'CUSTOM_AUDIENCE', 'COMBINED_AUDIENCE') AND ad_group_criterion.status = 'ENABLED' AND ad_group.status = 'ENABLED' AND campaign.status = 'ENABLED' AND campaign.advertising_channel_type = 'SEARCH'`), null as RawRow[] | null),
     q("Mode des audiences", () => searchRaw(ctx, `SELECT ad_group.id, ad_group.targeting_setting.target_restrictions FROM ad_group WHERE ad_group.status = 'ENABLED' AND campaign.status = 'ENABLED' AND campaign.advertising_channel_type = 'SEARCH'`), null as RawRow[] | null),
     q("Création automatique de composants", () => searchRaw(ctx, `SELECT campaign.name, campaign.asset_automation_settings FROM campaign WHERE campaign.status = 'ENABLED'`), null as RawRow[] | null),
+    q("Listes de clients", () => searchRaw(ctx, `SELECT user_list.name, user_list.size_for_search FROM user_list WHERE user_list.type = 'CRM_BASED'`), null as RawRow[] | null),
+    q("Exclusions d'audiences", () => searchRaw(ctx, `SELECT campaign.id, campaign_criterion.negative FROM campaign_criterion WHERE campaign_criterion.type = 'USER_LIST' AND campaign_criterion.negative = TRUE AND campaign.status = 'ENABLED'`), null as RawRow[] | null),
+    q("Langues", () => searchRaw(ctx, `SELECT campaign.name, campaign_criterion.language.language_constant FROM campaign_criterion WHERE campaign_criterion.type = 'LANGUAGE' AND campaign.status = 'ENABLED'`), null as RawRow[] | null),
+    q("AI Max", () => searchRaw(ctx, `SELECT campaign.name, campaign.ai_max_setting.enable_ai_max FROM campaign WHERE campaign.status = 'ENABLED' AND campaign.advertising_channel_type = 'SEARCH'`), null as RawRow[] | null),
+    q("Objectifs de conversion", () => searchRaw(ctx, `SELECT campaign.name, campaign_conversion_goal.category, campaign_conversion_goal.biddable FROM campaign_conversion_goal WHERE campaign.status = 'ENABLED' AND campaign_conversion_goal.biddable = TRUE`), null as RawRow[] | null),
+    q("Composants peu performants", () => searchRaw(ctx, `SELECT ad_group_ad_asset_view.performance_label, metrics.impressions FROM ad_group_ad_asset_view WHERE ad_group_ad_asset_view.performance_label = 'LOW' AND ad_group_ad.status = 'ENABLED' AND campaign.status = 'ENABLED' AND segments.date BETWEEN '${since30}' AND '${until}'`), null as RawRow[] | null),
+    q("Règles de valeur", () => searchRaw(ctx, `SELECT conversion_value_rule.id FROM conversion_value_rule WHERE conversion_value_rule.status = 'ENABLED'`), null as RawRow[] | null),
   ]);
 
   const settings = new Map<string, { search: boolean; content: boolean; partners: boolean; geo: string; targetCpa: number | null }>();
@@ -283,6 +303,13 @@ export async function fetchScanData(ctx: AdsContext): Promise<{ data: ScanData; 
       ages: ageRows === null ? null : [...ageRows.reduce((m, r) => m.set(String(r.adGroupCriterion?.ageRange?.type ?? "?"), (m.get(String(r.adGroupCriterion?.ageRange?.type ?? "?")) ?? 0) + micros(r.metrics?.costMicros)), new Map<string, number>()).entries()].map(([range, cost]) => ({ range, cost })),
       audiences: audRows === null ? null : audRows.map((r) => ({ adGroupId: String(r.adGroup?.id) })),
       audienceTargeting: audTgt === null ? null : audTgt.flatMap((r) => ((r.adGroup?.targetingSetting?.targetRestrictions ?? []) as { targetingDimension?: string; bidOnly?: boolean }[]).filter((t) => t.targetingDimension === "AUDIENCE").map((t) => ({ adGroupId: String(r.adGroup?.id), bidOnly: !!t.bidOnly }))),
+      crmLists: crm === null ? null : crm.map((r) => ({ name: String(r.userList?.name ?? ""), size: Number(r.userList?.sizeForSearch ?? 0) })),
+      audienceExclusions: audEx === null ? null : audEx.length,
+      languages: langs === null ? null : [...langs.reduce((m, r) => m.set(String(r.campaign?.name ?? ""), [...(m.get(String(r.campaign?.name ?? "")) ?? []), String(r.campaignCriterion?.language?.languageConstant ?? "").replace(/^.*\//, "")]), new Map<string, string[]>()).entries()].map(([campaign, ids]) => ({ campaign, ids })),
+      aiMax: aimax === null ? null : aimax.map((r) => ({ campaign: String(r.campaign?.name ?? ""), on: !!r.campaign?.aiMaxSetting?.enableAiMax })),
+      goals: goalRows === null ? null : [...goalRows.reduce((m, r) => m.set(String(r.campaign?.name ?? ""), [...new Set([...(m.get(String(r.campaign?.name ?? "")) ?? []), String(r.campaignConversionGoal?.category ?? "")])]), new Map<string, string[]>()).entries()].map(([campaign, categories]) => ({ campaign, categories })),
+      lowAssets: lowAs === null ? null : lowAs.length,
+      valueRules: vrules === null ? null : vrules.length,
       assetAutomation: autoAsset === null ? null : autoAsset.map((r) => ({ campaign: String(r.campaign?.name ?? ""), types: ((r.campaign?.assetAutomationSettings ?? []) as { assetAutomationType?: string; assetAutomationStatus?: string }[]).filter((x) => x.assetAutomationStatus === "OPTED_IN").map((x) => String(x.assetAutomationType)) })),
     },
   };
@@ -324,6 +351,13 @@ function mockScan(campaigns: CampaignLite[], perf30: CampaignPerf[], kws: Keywor
     audiences: [{ adGroupId: "7701" }, { adGroupId: "7701" }],
     audienceTargeting: [{ adGroupId: "7701", bidOnly: true }],
     assetAutomation: campaigns.filter((c) => c.status === "ENABLED").map((c) => ({ campaign: c.name, types: ["TEXT_ASSET_AUTOMATION"] })),
+    crmLists: [{ name: "Clients D2B", size: 340 }],
+    audienceExclusions: 0,
+    languages: campaigns.filter((c) => c.status === "ENABLED").map((c) => ({ campaign: c.name, ids: ["1002"] })),
+    aiMax: campaigns.filter((c) => c.status === "ENABLED").map((c) => ({ campaign: c.name, on: false })),
+    goals: campaigns.filter((c) => c.status === "ENABLED").map((c) => ({ campaign: c.name, categories: ["PHONE_CALL_LEAD", "SUBMIT_LEAD_FORM"] })),
+    lowAssets: 3,
+    valueRules: 0,
   };
 }
 
@@ -456,7 +490,6 @@ function evaluators(d: ScanData, model: Model): Record<string, () => Out> {
     },
     // structure
     "Marque et générique séparés": () => (brandWords.length ? ok("Une campagne marque existe.") : warn("Pas de campagne marque identifiée (nom contenant « marque »).")),
-    "Une campagne, un objectif": () => manual("Objectifs de conversion par campagne : à vérifier dans les paramètres de chaque campagne."),
     "Groupes sans annonce active": () => {
       if (!d.ads || !d.adGroups) return manual();
       const withAd = new Set(d.ads.filter((a) => a.status === "ENABLED").map((a) => a.adGroupId));
@@ -543,7 +576,6 @@ function evaluators(d: ScanData, model: Model): Record<string, () => Out> {
     "Nombre de titres et descriptions": () => { if (!d.ads) return manual(); const rsa = d.ads.filter((a) => a.type === "RESPONSIVE_SEARCH_AD" && a.status === "ENABLED"); if (!rsa.length) return na("Pas d'annonce responsive."); const min = Math.min(...rsa.map((a) => a.headlines)); return min >= 10 ? ok(`Au moins ${min} titres.`) : min < 5 ? bad(`Une annonce n'a que ${min} titres.`) : warn(`Au moins ${min} titres (10 conseillés).`); },
     "Épinglage excessif": () => { if (!d.ads) return manual(); const w = d.ads.filter((a) => a.pinned > 3); return w.length ? warn(`${w.length} annonce(s) avec plus de 3 éléments épinglés.`) : ok("Épinglage modéré."); },
     "Offre périmée dans les textes": () => { if (!d.ads) return manual(); const y = new Date().getUTCFullYear(); const w = d.ads.filter((a) => /black friday|soldes/i.test(a.text) || new RegExp(`\\b(${y - 1}|${y - 2})\\b`).test(a.text)); return w.length ? bad(`${w.length} annonce(s) avec une offre ou une année passée.`) : ok("Pas d'offre périmée."); },
-    "Composants peu diffusés": () => manual(),
     // pmax / shopping / display
     "Part de la dépense sur Shopping": () => notPmax("dépense Shopping") ?? manual(),
     "Répartition par canal pour les leads": () => notPmax("canaux") ?? manual(),
@@ -681,6 +713,60 @@ function evaluators(d: ScanData, model: Model): Record<string, () => Out> {
       if (d.assetAutomation === null) return manual();
       const on = d.assetAutomation.filter((c) => c.types.length);
       return on.length ? warn(`Création automatique activée : ${on.slice(0, 3).map((c) => `« ${c.campaign} »`).join(", ")} (${[...new Set(on.flatMap((c) => c.types))].join(", ")}).`) : ok("Création automatique désactivée.");
+    },
+    "Liste de clients importée récemment": () => {
+      if (d.crmLists === null) return manual();
+      if (!d.crmLists.length) return warn("Aucune liste de clients (Customer Match) : rien à exclure ni à cibler en remarketing.");
+      return manual(`${d.crmLists.length} liste(s) de clients (${d.crmLists.slice(0, 2).map((l) => `« ${l.name} » ${f0(l.size)} contacts`).join(", ")}). La date du dernier import n'est pas donnée par Google : à vérifier dans Gestionnaire d'audiences.`);
+    },
+    "Clients exclus des campagnes d'acquisition": () => {
+      if (d.audienceExclusions === null) return manual();
+      return d.audienceExclusions ? ok(`${d.audienceExclusions} exclusion(s) d'audience sur les campagnes.`) : warn("Aucune audience exclue : tes clients actuels voient les annonces d'acquisition.");
+    },
+    "Langues cohérentes avec les annonces": () => {
+      if (d.languages === null || d.ads === null) return manual();
+      const fr = d.ads.filter((a) => /\b(le|la|les|de|des|pour|votre|vos|et|sur|mesure|devis)\b/i.test(a.text)).length;
+      if (!d.ads.length || fr / d.ads.length < 0.7) return manual("Annonces non rédigées en français : compare à la main la langue ciblée.");
+      const lack = d.languages.filter((l) => l.ids.length && !l.ids.includes("1002"));
+      const none = search.filter((c) => !d.languages!.some((l) => l.campaign === c.name));
+      return lack.length ? bad(`Annonces en français mais langue ciblée différente : ${lack.slice(0, 3).map((l) => `« ${l.campaign} »`).join(", ")}.`) : none.length ? warn(`Aucune langue définie : ${none.slice(0, 3).map((c) => `« ${c.name} »`).join(", ")}.`) : ok("Annonces en français, langue ciblée : français.");
+    },
+    "AI Max sans garde-fous": () => {
+      if (d.aiMax === null) return manual();
+      const on = d.aiMax.filter((c) => c.on);
+      return on.length ? manual(`AI Max actif sur ${on.slice(0, 3).map((c) => `« ${c.campaign} »`).join(", ")} : vérifie les exclusions de marque et d'URL dans chaque campagne.`) : na("AI Max n'est activé sur aucune campagne Search.");
+    },
+    "AI Max sans Smart Bidding": () => {
+      if (d.aiMax === null) return manual();
+      const on = d.aiMax.filter((c) => c.on);
+      if (!on.length) return na("AI Max n'est activé sur aucune campagne Search.");
+      const click = on.filter((c) => { const b = d.campaigns.find((x) => x.name === c.campaign)?.bidding ?? ""; return ["MANUAL_CPC", "MAXIMIZE_CLICKS", "TARGET_SPEND"].includes(b); });
+      return click.length ? bad(`AI Max sur une enchère au clic : ${click.slice(0, 3).map((c) => `« ${c.campaign} »`).join(", ")}.`) : ok("AI Max uniquement avec une enchère automatique aux conversions.");
+    },
+    "Une campagne, un objectif": () => {
+      if (d.goals === null) return manual();
+      if (!d.goals.length) return na("Aucun objectif de conversion lu.");
+      const multi = d.goals.filter((g) => g.categories.length > 1);
+      return multi.length ? warn(`${multi.length} campagne(s) avec plusieurs objectifs qui pilotent l'enchère, ex. « ${multi[0].campaign} » : ${multi[0].categories.join(", ").toLowerCase()}.`) : ok("Un seul objectif de conversion par campagne.");
+    },
+    "Une seule action de conversion pilote l'enchère": () => {
+      if (d.goals === null) return manual();
+      if (!d.goals.length) return na("Aucun objectif de conversion lu.");
+      const mixed = d.goals.filter((g) => g.categories.some((c) => /PURCHASE|ADD_TO_CART|BEGIN_CHECKOUT/.test(c)) && g.categories.some((c) => /LEAD|CONTACT|PHONE|SIGNUP|PAGE_VIEW/.test(c)));
+      return mixed.length ? bad(`Ventes et demandes mélangées dans « ${mixed[0].campaign} » : ${mixed[0].categories.join(", ").toLowerCase()}.`) : ok("Pas d'objectifs de nature différente mélangés.");
+    },
+    "Composants peu diffusés": () => (d.lowAssets === null ? manual() : d.lowAssets ? warn(`${d.lowAssets} composant(s) d'annonce noté(s) « Faible » par Google : à remplacer (titres et descriptions).`) : ok("Aucun composant noté « Faible » par Google.")),
+    "Règles de valeur si enchère à la valeur": () => {
+      if (d.valueRules === null) return manual();
+      const valueBid = d.campaigns.some((c) => c.status === "ENABLED" && /ROAS|VALUE/.test(c.bidding));
+      return !valueBid ? na("Aucune enchère à la valeur : les règles de valeur ne servent pas.") : d.valueRules ? ok(`${d.valueRules} règle(s) de valeur.`) : warn("Enchère à la valeur sans règle de valeur.");
+    },
+    "Mots-clés trop chers": () => {
+      const by = new Map<string, { cost: number; conv: number }>();
+      for (const k of kwAct) { const e = by.get(k.adGroupId) ?? { cost: 0, conv: 0 }; e.cost += k.cur.cost; e.conv += k.cur.conversions; by.set(k.adGroupId, e); }
+      const bad_ = kwAct.filter((k) => { const g = by.get(k.adGroupId); return k.cur.conversions >= 5 && g && g.conv > 0 && k.cur.cost / k.cur.conversions > 1.5 * (g.cost / g.conv); });
+      if (!kwAct.some((k) => k.cur.conversions >= 5)) return na("Aucun mot-clé avec 5 conversions ou plus sur 30 jours.");
+      return bad_.length ? bad(`${bad_.length} mot(s)-clé(s) à plus de 1,5 fois le CPA de leur groupe, ex. « ${bad_[0].text} ».`) : ok("Aucun mot-clé nettement plus cher que son groupe.");
     },
     "Calendrier de diffusion": () => (d.schedules === null ? manual() : search.every((c) => d.schedules!.has(c.id)) ? ok("Calendrier défini.") : warn("Diffusion 24 h/24 : caler les horaires sur ceux où l'entreprise répond.")),
     // tendances
