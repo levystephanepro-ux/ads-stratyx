@@ -80,10 +80,31 @@ export interface ScanData {
   schedules: Set<string> | null;
   devices: { device: string; cost: number; conv: number }[] | null;
   pages: { url: string; cost: number; clicks: number; conv: number }[] | null;
+  /** Mots-clés refusés par Google (statut d'approbation). */
+  disapprovedKws: { text: string; campaign: string }[] | null;
+  /** Niveau de qualité des mots-clés actifs, avec leur dépense sur 30 jours. */
+  qualityScores: { text: string; qs: number; cost: number }[] | null;
+  /** Statut principal des campagnes (apprentissage, limitée par le budget…). */
+  campaignStatus: { id: string; name: string; status: string; reasons: string[] }[] | null;
+  /** Réponse HTTP des adresses de destination des annonces. */
+  urlChecks: { url: string; code: number | null }[] | null;
+  enhancedConversions: boolean | null;
 }
 
 const micros = (v: unknown) => Number(v ?? 0) / 1_000_000;
 const iso = (d: Date) => d.toISOString().slice(0, 10);
+
+/** Ouvre chaque adresse (12 s max, redirections suivies) : code HTTP, ou null si injoignable. */
+async function checkUrls(urls: string[]): Promise<{ url: string; code: number | null }[]> {
+  return Promise.all(urls.map(async (url) => {
+    try {
+      const u = new URL(url);
+      if (!/^https?:$/.test(u.protocol)) return { url, code: null };
+      const res = await fetch(u, { redirect: "follow", signal: AbortSignal.timeout(12000), headers: { "user-agent": "Mozilla/5.0 (compatible; StratyxAudit/1.0)" } });
+      return { url, code: res.status };
+    } catch { return { url, code: null }; }
+  }));
+}
 
 export async function fetchScanData(ctx: AdsContext): Promise<{ data: ScanData; skipped: string[] }> {
   const skipped: string[] = [];
@@ -105,8 +126,8 @@ export async function fetchScanData(ctx: AdsContext): Promise<{ data: ScanData; 
 
   const since30 = p30.since, until = p30.until;
   const d14 = new Date(); d14.setUTCDate(d14.getUTCDate() - 29);
-  const [cust, sett, conv, ads, ags, campAssets, custAssets, daily, change, autoApply, loc, sched, dev, pages, shared] = await Promise.all([
-    q("Compte", () => searchRaw(ctx, `SELECT customer.auto_tagging_enabled, customer.optimization_score FROM customer`), [] as RawRow[]),
+  const [cust, sett, conv, ads, ags, campAssets, custAssets, daily, change, autoApply, loc, sched, dev, pages, shared, disKw, qsRows, campSt] = await Promise.all([
+    q("Compte", () => searchRaw(ctx, `SELECT customer.auto_tagging_enabled, customer.optimization_score, customer.conversion_tracking_setting.enhanced_conversions_for_leads_enabled FROM customer`), [] as RawRow[]),
     q("Réglages des campagnes", () => searchRaw(ctx, `
       SELECT campaign.id, campaign.network_settings.target_google_search, campaign.network_settings.target_search_network,
              campaign.network_settings.target_content_network, campaign.geo_target_type_setting.positive_geo_target_type,
@@ -135,6 +156,9 @@ export async function fetchScanData(ctx: AdsContext): Promise<{ data: ScanData; 
     q("Appareils", () => searchRaw(ctx, `SELECT segments.device, metrics.cost_micros, metrics.conversions FROM campaign WHERE segments.date BETWEEN '${since30}' AND '${until}' AND campaign.status = 'ENABLED'`), null as RawRow[] | null),
     q("Pages de destination", () => searchRaw(ctx, `SELECT landing_page_view.unexpanded_final_url, metrics.cost_micros, metrics.clicks, metrics.conversions FROM landing_page_view WHERE segments.date BETWEEN '${since30}' AND '${until}'`), null as RawRow[] | null),
     q("Listes de négatifs", () => searchRaw(ctx, `SELECT campaign.id FROM campaign_shared_set WHERE campaign_shared_set.status = 'ENABLED' AND shared_set.type = 'NEGATIVE_KEYWORDS' AND campaign.status = 'ENABLED'`), [] as RawRow[]),
+    q("Mots-clés refusés", () => searchRaw(ctx, `SELECT ad_group_criterion.keyword.text, campaign.name FROM ad_group_criterion WHERE ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.negative = FALSE AND ad_group_criterion.status = 'ENABLED' AND ad_group_criterion.approval_status = 'DISAPPROVED' AND ad_group.status = 'ENABLED' AND campaign.status = 'ENABLED'`), null as RawRow[] | null),
+    q("Niveau de qualité", () => searchRaw(ctx, `SELECT ad_group_criterion.keyword.text, ad_group_criterion.quality_info.quality_score, metrics.cost_micros FROM keyword_view WHERE ad_group_criterion.status = 'ENABLED' AND ad_group.status = 'ENABLED' AND campaign.status = 'ENABLED' AND segments.date BETWEEN '${since30}' AND '${until}'`), null as RawRow[] | null),
+    q("Statut des campagnes", () => searchRaw(ctx, `SELECT campaign.id, campaign.name, campaign.primary_status, campaign.primary_status_reasons FROM campaign WHERE campaign.status = 'ENABLED'`), null as RawRow[] | null),
   ]);
 
   const settings = new Map<string, { search: boolean; content: boolean; partners: boolean; geo: string; targetCpa: number | null }>();
@@ -160,6 +184,16 @@ export async function fetchScanData(ctx: AdsContext): Promise<{ data: ScanData; 
     pg.set(u, e);
   }
   const lastChange = change?.[0]?.changeEvent?.changeDateTime as string | undefined;
+  const urlChecks = ads === null ? null : await q("Adresses des annonces", () => checkUrls([...new Set(ads.flatMap((r) => (r.adGroupAd?.ad?.finalUrls ?? []) as string[]))].slice(0, 12)), null as { url: string; code: number | null }[] | null);
+  const qsMap = new Map<string, { text: string; qs: number; cost: number }>();
+  for (const r of qsRows ?? []) {
+    const qs = Number(r.adGroupCriterion?.qualityInfo?.qualityScore ?? 0);
+    const text = String(r.adGroupCriterion?.keyword?.text ?? "");
+    if (!qs || !text) continue;
+    const e = qsMap.get(text) ?? { text, qs, cost: 0 };
+    e.cost += micros(r.metrics?.costMicros);
+    qsMap.set(text, e);
+  }
 
   return {
     skipped,
@@ -197,6 +231,11 @@ export async function fetchScanData(ctx: AdsContext): Promise<{ data: ScanData; 
       schedules: sched === null ? null : new Set(sched.map((r) => String(r.campaign?.id))),
       devices: dev === null ? null : [...devs.values()],
       pages: pages === null ? null : [...pg.values()],
+      disapprovedKws: disKw === null ? null : disKw.map((r) => ({ text: String(r.adGroupCriterion?.keyword?.text ?? ""), campaign: String(r.campaign?.name ?? "") })),
+      qualityScores: qsRows === null ? null : [...qsMap.values()],
+      campaignStatus: campSt === null ? null : campSt.map((r) => ({ id: String(r.campaign?.id), name: String(r.campaign?.name ?? ""), status: String(r.campaign?.primaryStatus ?? ""), reasons: ((r.campaign?.primaryStatusReasons ?? []) as string[]).map(String) })),
+      urlChecks: urlChecks ?? null,
+      enhancedConversions: cust[0]?.customer?.conversionTrackingSetting?.enhancedConversionsForLeadsEnabled ?? null,
     },
   };
 }
@@ -225,6 +264,11 @@ function mockScan(campaigns: CampaignLite[], perf30: CampaignPerf[], kws: Keywor
     daily, lastChangeDays: 3, autoApply: [], locations: new Set(["2401"]), schedules: new Set(),
     devices: [{ device: "MOBILE", cost: 610, conv: 2 }, { device: "DESKTOP", cost: 260, conv: 1 }, { device: "TABLET", cost: 44, conv: 0 }],
     pages: [{ url: "https://d2b-renovation.fr/fenetres", cost: 790, clicks: 170, conv: 3 }, { url: "https://d2b-renovation.fr/", cost: 124, clicks: 30, conv: 0 }],
+    disapprovedKws: [{ text: "fenêtre pas chère", campaign: campaigns[0]?.name ?? "Campagne" }],
+    qualityScores: [{ text: "fenetre pvc la farlede", qs: 8, cost: 210 }, { text: "porte fenetre", qs: 4, cost: 330 }, { text: "menuisier toulon", qs: 6, cost: 90 }],
+    campaignStatus: campaigns.filter((c) => c.status === "ENABLED").map((c, i) => ({ id: c.id, name: c.name, status: i === 0 ? "LIMITED" : "ELIGIBLE", reasons: i === 0 ? ["BUDGET_CONSTRAINED"] : [] })),
+    urlChecks: [{ url: "https://d2b-renovation.fr/fenetres", code: 200 }, { url: "https://d2b-renovation.fr/", code: 200 }],
+    enhancedConversions: false,
   };
 }
 
@@ -463,6 +507,32 @@ function evaluators(d: ScanData, model: Model): Record<string, () => Out> {
     // ciblage
     "Zones en « présence » uniquement": () => { const w = active.filter((c) => (d.settings.get(c.id)?.geo ?? "PRESENCE") !== "PRESENCE" && c.channel !== "PERFORMANCE_MAX"); return w.length ? bad(`« Présence ou intérêt » : ${w.map((c) => c.name).join(", ")}.`) : ok("Ciblage en présence."); },
     "Segments qui gaspillent (appareil, zone, âge)": () => { if (!d.devices) return manual(); const ref = cpa ?? 60; const w = d.devices.filter((x) => x.conv === 0 && x.cost > 2 * ref); return w.length ? warn(`Sans conversion : ${w.map((x) => `${x.device.toLowerCase()} ${eur(x.cost)}`).join(", ")}.`) : ok("Pas d'appareil qui gaspille."); },
+    "Mots-clés refusés": () => (d.disapprovedKws === null ? manual() : d.disapprovedKws.length ? bad(`${d.disapprovedKws.length} mot(s)-clé(s) refusé(s) : ${d.disapprovedKws.slice(0, 3).map((k) => `« ${k.text} »`).join(", ")}.`) : ok("Aucun mot-clé refusé.")),
+    "Quality Score hors marque": () => {
+      if (d.qualityScores === null) return manual();
+      const gen = d.qualityScores.filter((k) => !brandWords.some((w) => k.text.toLowerCase().includes(w)));
+      const w = gen.reduce((s, k) => s + k.cost, 0);
+      if (!gen.length || w <= 0) return na("Pas de mot-clé hors marque avec un niveau de qualité sur 30 jours.");
+      const avg = gen.reduce((s, k) => s + k.qs * k.cost, 0) / w;
+      const low = gen.filter((k) => k.qs <= 4).sort((a, b) => b.cost - a.cost)[0];
+      const txt = `Niveau moyen ${f1(avg)}/10 (pondéré par la dépense)${low ? ` ; à revoir : « ${low.text} » (${low.qs}/10, ${eur(low.cost)})` : ""}.`;
+      return avg >= 7 ? ok(txt) : avg < 5 ? bad(txt) : warn(txt);
+    },
+    "Campagnes en apprentissage ou limitées": () => {
+      if (d.campaignStatus === null) return manual();
+      const learn = d.campaignStatus.filter((c) => c.status === "LEARNING" || c.reasons.some((r) => /LEARNING/.test(r)));
+      const lim = d.campaignStatus.filter((c) => c.status === "LIMITED" || c.reasons.some((r) => /CONSTRAINED|LIMITED/.test(r)));
+      if (lim.length) return warn(`Limitée par le budget ou la stratégie : ${lim.slice(0, 3).map((c) => `« ${c.name} »`).join(", ")}.`);
+      if (learn.length) return warn(`En apprentissage : ${learn.slice(0, 3).map((c) => `« ${c.name} »`).join(", ")} (éviter de la modifier).`);
+      return ok("Aucune campagne en apprentissage ni limitée.");
+    },
+    "Pages qui répondent": () => {
+      if (d.urlChecks === null) return manual();
+      if (!d.urlChecks.length) return na("Aucune adresse de destination lue.");
+      const dead = d.urlChecks.filter((u) => u.code === null || u.code >= 400);
+      return dead.length ? bad(`${dead.length} adresse(s) ne répondent pas correctement : ${dead.slice(0, 3).map((u) => `${u.url} (${u.code ?? "injoignable"})`).join(", ")}.`) : ok(`${d.urlChecks.length} adresse(s) testée(s), toutes répondent.`);
+    },
+    "Conversions améliorées activées": () => (d.enhancedConversions === null ? manual() : d.enhancedConversions ? ok("Conversions améliorées pour les leads activées.") : warn("Conversions améliorées pour les leads désactivées : Google retrouve moins de leads.")),
     "Calendrier de diffusion": () => (d.schedules === null ? manual() : search.every((c) => d.schedules!.has(c.id)) ? ok("Calendrier défini.") : warn("Diffusion 24 h/24 : caler les horaires sur ceux où l'entreprise répond.")),
     // tendances
     "Chute des conversions": () => (prev.conv < 20 ? warn(`Volume faible (${f0(prev.conv)} conversions avant) : écart ${prev.conv ? pc(tot.conv / prev.conv - 1) : "–"}.`) : tot.conv / prev.conv - 1 <= -0.3 ? bad(`Conversions ${pc(tot.conv / prev.conv - 1)}.`) : ok(`Conversions ${pc(tot.conv / prev.conv - 1)}.`)),
