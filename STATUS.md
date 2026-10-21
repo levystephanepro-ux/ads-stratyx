@@ -398,3 +398,8 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 - Si une requête Google Ads échoue, le critère reste « à cocher » (jamais inventé) et la ligne « Lectures indisponibles » en bas de l'audit donne la raison.
 - Reste « à cocher » : Consent Mode (réglage du site), Titres / Fautes / Cohérence annonce-page (jugement, IA possible), Mentions obligatoires, Convention de nommage, Clients exclus, Langues, Liste de clients importée, Règles de valeur, Une campagne un objectif, AI Max (x2), Mots-clés trop chers, Composants peu diffusés, Nouveaux concurrents (pas dans l'API).
 - Constat D2B : page de destination à 68/100 sur mobile, affichage principal en 5,2 s (Google conseille < 2,5 s) ; l'audit signale « Expérience sur la page de destination » faible sur 79 % des impressions.
+
+## [2026-10-21] Audit : relecture par l'IA sur demande
+- Bouton « ✦ Relire avec l'IA » sur un audit enregistré (/analyser/audit) : l'IA (Haiku, environ 1 crédit) juge Titres, Fautes d'orthographe et de style, Cohérence annonce-page à partir des annonces responsive actives et du texte de la page de destination (`lib/audit/ia.ts`).
+- Résultat gardé par compte (`audit_ia:<id>`), appliqué au dernier audit (note recalculée) et réappliqué à chaque nouveau scan, avec la mention « IA du jj/mm/aaaa ».
+- Aussi lus automatiquement depuis le dernier point : clients exclus, langues, AI Max, objectifs de conversion, composants « Faible », règles de valeur, mots-clés trop chers, liste de clients. Restent à cocher : Consent Mode, Mentions obligatoires, Convention de nommage, Nouveaux concurrents, Mots-clés rentables qui perdent du classement (page CPC vs marché).

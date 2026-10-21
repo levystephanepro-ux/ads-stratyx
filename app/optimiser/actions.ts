@@ -125,13 +125,38 @@ export async function scanAuditAction(form: FormData): Promise<void> {
     if (!/^\d+$/.test(customerId)) throw new Error("Compte manquant.");
     const { data, skipped } = await fetchScanData({ customerId });
     const r = evaluate(data, model in MODELS ? model : "complet", await readOff(), skipped);
-    await saveScan(customerId, r);
+    const { readIa, } = await import("@/lib/audit/ia");
+    const { patchScan } = await import("@/lib/audit/scan");
+    const ia = await readIa(customerId);
+    await saveScan(customerId, ia ? patchScan(r, ia, await readOff()) : r);
     to = `/analyser/audit?account=${customerId}&scan=0`;
   } catch (e) {
     to = backTo(form.get("back"), "/analyser/audit", `err:${e instanceof Error ? e.message : String(e)}`);
   }
   revalidatePath("/analyser/audit");
   redirect(to);
+}
+
+/** Relecture par l'IA des critères de jugement (titres, fautes, cohérence annonce et page), sur demande. */
+export async function reviewAuditIaAction(form: FormData): Promise<void> {
+  const ctx = await getDashboardContext();
+  if (!ctx.isOwner) throw new Error("Accès réservé.");
+  const customerId = String(form.get("customer_id") ?? "");
+  const name = String(form.get("account_name") ?? "");
+  let msg: string;
+  try {
+    if (!/^\d+$/.test(customerId)) throw new Error("Compte manquant.");
+    const { runIaReview } = await import("@/lib/audit/ia");
+    const { readScans, replaceLatestScan, patchScan, readOff } = await import("@/lib/audit/scan");
+    const review = await runIaReview(customerId, name);
+    const scans = await readScans(customerId);
+    if (scans[0]) await replaceLatestScan(customerId, patchScan(scans[0], review, await readOff()));
+    msg = "ok:Relecture faite : titres, fautes et cohérence annonce-page mis à jour (environ 1 crédit).";
+  } catch (e) {
+    msg = `err:${e instanceof Error ? e.message : String(e)}`;
+  }
+  revalidatePath("/analyser/audit");
+  redirect(backTo(form.get("back"), "/analyser/audit", msg));
 }
 
 /** Mes critères : coche / décoche les critères de l'audit. */

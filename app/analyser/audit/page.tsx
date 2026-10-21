@@ -9,7 +9,7 @@ import { Icons } from "@/components/Icons";
 import { getScope, type ScopeParams } from "@/lib/optimize/scope";
 import { AUDIT_GRID } from "@/lib/audit/criteria";
 import { activeCriteria, evaluate, fetchScanData, MODELS, readOff, readScans, type Model, type ScanResult, type ScanStatus } from "@/lib/audit/scan";
-import { saveCriteriaAction, scanAuditAction } from "@/app/optimiser/actions";
+import { reviewAuditIaAction, saveCriteriaAction, scanAuditAction } from "@/app/optimiser/actions";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -55,6 +55,15 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
     </form>
   );
 
+  const iaForm = scan && sp.scan !== "now" ? (
+    <form action={reviewAuditIaAction}>
+      <input type="hidden" name="customer_id" value={scope.account?.customerId ?? ""} />
+      <input type="hidden" name="account_name" value={scope.account?.name ?? ""} />
+      <input type="hidden" name="back" value={scope.href({ msg: null, scan: "0" })} />
+      <SubmitButton className="ui-btn ui-btn-ghost" pending="Relecture… (20 s)">✦ Relire avec l&apos;IA</SubmitButton>
+    </form>
+  ) : null;
+
   return (
     <OptPage
       scope={scope}
@@ -63,10 +72,11 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
       sub="Un audit complet du compte, noté sur 100, puis le rapport PDF à imprimer ou envoyer."
       filters="none"
       ia={scan ? `Lis le dernier audit noté ${scan.score}/100 et propose un plan de correction par ordre d'impact` : undefined}
-      extraActions={<>{scan && <PrintButton />}{scanForm}</>}
+      extraActions={<>{scan && <PrintButton />}{iaForm}{scanForm}</>}
       help={<>
         <p>L&apos;audit passe le compte au crible de la grille ({AUDIT_GRID.reduce((s, c) => s + c.items.length, 0)} critères de media buyers) sur les 30 derniers jours, 90 jours pour les termes de recherche. Sans IA, aucun crédit.</p>
         <p>Chaque critère sort <strong>Parfait</strong>, <strong>À vérifier</strong> ou <strong>Incorrect</strong>. Ce que l&apos;API ne permet pas de lire reste <strong>À cocher</strong> (jamais inventé). La note pèse les critères selon leur sévérité (haut ×3, moyen ×2, bas ×1).</p>
+        <p><strong>Relire avec l&apos;IA</strong> (sur demande, environ 1 crédit) : juge les titres, les fautes et la cohérence entre l&apos;annonce et la page, à partir des textes de tes annonces. Le résultat est gardé et réappliqué aux prochains scans.</p>
         <p><strong>Modèle</strong> : garde seulement les critères utiles au type de compte. <strong>Mes critères</strong> : désactive ceux qui ne te servent pas.</p>
       </>}
     >

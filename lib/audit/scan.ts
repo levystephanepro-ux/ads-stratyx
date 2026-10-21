@@ -48,6 +48,11 @@ export async function saveOff(ids: string[]) { await setSetting(OFF_KEY, JSON.st
 export async function readScans(customerId: string): Promise<ScanResult[]> {
   try { return JSON.parse((await getSetting(scansKey(customerId))) ?? "[]") as ScanResult[]; } catch { return []; }
 }
+/** Remplace le dernier audit enregistré (après relecture par l'IA). */
+export async function replaceLatestScan(customerId: string, r: ScanResult) {
+  const prev = await readScans(customerId);
+  await setSetting(scansKey(customerId), JSON.stringify([r, ...prev.slice(1)]));
+}
 export async function saveScan(customerId: string, r: ScanResult) {
   const prev = await readScans(customerId);
   await setSetting(scansKey(customerId), JSON.stringify([r, ...prev].slice(0, 6)));
@@ -806,4 +811,29 @@ export function evaluate(d: ScanData, model: Model, off: Set<string>, skipped: s
     }
   }
   return { at: new Date().toISOString(), model, score: max ? Math.round((got / max) * 100) : 0, counts, items, skipped };
+}
+
+
+/** Remplace les 3 critères de jugement par la relecture de l'IA et recalcule la note. */
+export function patchScan(scan: ScanResult, review: { at: string; results: Record<"titres" | "fautes" | "coherence", { status: "ok" | "warn" | "bad"; detail: string }> }, off: Set<string>): ScanResult {
+  const byLabel: Record<string, { status: "ok" | "warn" | "bad"; detail: string }> = {
+    "Titres : bonnes pratiques et biais cognitifs": review.results.titres,
+    "Fautes d'orthographe et de style": review.results.fautes,
+    "Cohérence entre l'annonce et la page": review.results.coherence,
+  };
+  const cats = activeCriteria(scan.model, off);
+  const info = new Map(cats.flatMap((c) => c.items.map((it) => [it.id, it] as const)));
+  const day = new Date(review.at).toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" });
+  const items = scan.items.map((it) => {
+    const o = byLabel[info.get(it.id)?.label ?? ""];
+    return o ? { id: it.id, status: o.status as ScanStatus, detail: `IA du ${day} : ${o.detail}`.slice(0, 240) } : it;
+  });
+  const counts: Record<ScanStatus, number> = { ok: 0, warn: 0, bad: 0, manual: 0, na: 0 };
+  let got = 0, max = 0;
+  for (const it of items) {
+    counts[it.status]++;
+    const sev = info.get(it.id)?.sev;
+    if (sev && (it.status === "ok" || it.status === "warn" || it.status === "bad")) { max += W[sev]; got += W[sev] * (it.status === "ok" ? 1 : it.status === "warn" ? 0.5 : 0); }
+  }
+  return { ...scan, items, counts, score: max ? Math.round((got / max) * 100) : 0 };
 }
