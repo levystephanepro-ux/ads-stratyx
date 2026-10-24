@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "test:zones": "node --no-warnings --test lib/zones.test.ts lib/zone-validation.test.ts lib/zones-sync.test.ts lib/app-url.test.ts lib/zones-attente-volontaire.test.ts lib/zone-confirmation.test.ts",
+    "test:meta": "node --no-warnings --test lib/meta/meta.test.ts",
     "start": "next start",
     "types": "supabase gen types typescript --local > lib/database.types.ts"
   },

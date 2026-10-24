@@ -23,12 +23,15 @@ async function scriptAsText(id: string, customerId: string) {
   return { rows: out.rows, text: `### ${s.title}\n${out.summary ?? ""}\n${head}\n${rows.join("\n")}` };
 }
 
-export async function runWeeklyReports(): Promise<{ account: string; ok: boolean; detail: string; markdown?: string }[]> {
+/** `totals` : dépense et conversions Google de la semaine, repris par le bloc Meta (CPL global). */
+export type WeeklyResult = { account: string; ok: boolean; detail: string; markdown?: string; totals?: { cost: number; conversions: number } };
+
+export async function runWeeklyReports(): Promise<WeeklyResult[]> {
   if (!isLive()) return [{ account: "démo", ok: false, detail: "mode démo : rapport désactivé" }];
   const accounts = await monitoredAccounts();
   const audits = await latestAuditReports();
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  type Res = { account: string; ok: boolean; detail: string; markdown?: string };
+  type Res = WeeklyResult;
   const results: Res[] = await mapLimit(accounts, 3, async (acc): Promise<Res> => {
     try {
       const billing = await getGlobalBilling();
@@ -37,6 +40,7 @@ export async function runWeeklyReports(): Promise<{ account: string; ok: boolean
       const point = await scriptAsText("point-semaine", acc.customerId);
       const cost = Number(point.rows.find((r) => r.metric === "Coût (€)")?.now ?? 0);
       if (!cost) { return { account: acc.name, ok: false, detail: "aucune dépense cette semaine" }; }
+      const conversions = Number(point.rows.find((r) => r.metric === "Conversions")?.now ?? 0);
       const match = await scriptAsText("match-des-campagnes", acc.customerId);
       const audit = audits.find((a) => a.customer_id === acc.customerId);
       const prio = audit
@@ -54,7 +58,7 @@ export async function runWeeklyReports(): Promise<{ account: string; ok: boolean
       const usage = calcCost(MODEL, res.usage.input_tokens, res.usage.output_tokens);
       await addMonthlyCost(usage.costUsd, "agent", null);
       const markdown = res.content.map((c) => (c.type === "text" ? c.text : "")).join("");
-      return { account: acc.name, ok: true, detail: `${Math.max(1, Math.round(usage.costUsd / 0.05))} crédit(s)`, markdown };
+      return { account: acc.name, ok: true, detail: `${Math.max(1, Math.round(usage.costUsd / 0.05))} crédit(s)`, markdown, totals: { cost, conversions } };
     } catch (e) {
       return { account: acc.name, ok: false, detail: e instanceof Error ? e.message : String(e) };
     }
