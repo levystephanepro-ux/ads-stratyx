@@ -124,6 +124,7 @@ GOOGLE_ADS_OAUTH_CLIENT_SECRET
 GOOGLE_ADS_LOGIN_CUSTOMER_ID      # MCC (optionnel)
 SEARCH_CONSOLE_DATA_MODE          # mock | live
 GOOGLE_SEARCH_CONSOLE_REFRESH_TOKEN
+GOOGLE_PLACES_API_KEY              # Fiche Google Business (audit entreprise), Places API (New)
 ```
 
 ---

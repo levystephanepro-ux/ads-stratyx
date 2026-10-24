@@ -37,6 +37,11 @@
 
 ## 🔄 En cours
 
+- [2026-10-24] [cowork] **Audit entreprise** (branche `audit-entreprise`, à tester sur l'aperçu Vercel puis fusionner) : livrables en langage de dirigeant (vouvoiement, sans jargon Ads).
+  - `lib/audit/translate.ts` : traduction des contrôles de page et des constats du compte ; `lib/audit/places.ts` : fiche Google Business (Places API, saisie manuelle ou exemple en démo)
+  - `/audit/prospect` : note globale, 3 chiffres en tête (budget, demandes estimées, coût d'une demande), « Par où commencer », fiche Google, page, potentiel de recherche ; `/audit/client` : même vocabulaire
+  - Variable `GOOGLE_PLACES_API_KEY` : cochée pour Production seulement dans Vercel, à cocher aussi pour Preview pour tester l'aperçu ; Places API (New) doit être activée sur la clé
+
 - [2026-10-06] [cowork] Usage interne + **Diagnostic (phase 1)** : code écrit, typecheck OK, règles testées, **à déployer et tester**
   1. Lancer `supabase/migrations/0018_audit_reports.sql` dans le SQL Editor Supabase
      (ignorer `supabase/_obsolete/0018_waste_reports.sql`, version abandonnée, à supprimer)
