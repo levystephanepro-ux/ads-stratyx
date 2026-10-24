@@ -124,7 +124,7 @@ export default async function ProspectAudit({ searchParams }: { searchParams: SP
       const { accounts, defaultCustomerId } = await getAccountsInfo({ workspaceId: ctx.workspaceId, isOwner: true });
       const account = defaultCustomerId ?? accounts[0]?.customerId;
       if (!account) throw new Error("Aucun compte Google Ads disponible pour interroger le planificateur.");
-      geos = lieux.length ? await suggestGeo(lieux, COUNTRIES[0].code) : [{ id: COUNTRIES[0].id, name: "France", type: "Country", canonical: "France" }];
+      geos = lieux.length ? await suggestGeo(lieux, COUNTRIES[0].code, { best: true }) : [{ id: COUNTRIES[0].id, name: "France", type: "Country", canonical: "France" }];
       ideas = (await keywordIdeas(account, seeds, geos.map((g) => g.id), seeds.length ? undefined : site.finalUrl)).slice(0, 25);
       forecastRes = forecast(ideas.slice(0, 15), [monthly / 30.4], null);
     } catch (e) { kwError = e instanceof Error ? e.message : String(e); }

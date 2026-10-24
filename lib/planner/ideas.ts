@@ -23,14 +23,25 @@ export const LANGUAGES = [
 export interface Geo { id: string; name: string; type: string; canonical: string }
 export interface Idea { text: string; searches: number; competition: string; low: number | null; high: number | null }
 
-export async function suggestGeo(names: string[], countryCode = "FR"): Promise<Geo[]> {
+/**
+ * Lieux correspondant aux noms saisis. Google renvoie toutes les correspondances par nom (cantons,
+ * codes postaux, communes voisines) : avec `best`, on ne garde que la première (la plus pertinente)
+ * pour chaque nom saisi. Le planificateur de mots-clés refuse plus de 10 lieux.
+ */
+export async function suggestGeo(names: string[], countryCode = "FR", opts: { best?: boolean } = {}): Promise<Geo[]> {
   const clean = names.map((n) => n.trim()).filter(Boolean).slice(0, 5);
   if (!clean.length) return [];
   const j = await adsPost(null, "geoTargetConstants:suggest", { locale: "fr", countryCode, locationNames: { names: clean } });
   const out: Geo[] = [];
   const seen = new Set<string>();
-  for (const s of (j.geoTargetConstantSuggestions ?? []) as { geoTargetConstant?: { id?: string; name?: string; targetType?: string; canonicalName?: string } }[]) {
+  const doneTerms = new Set<string>();
+  for (const s of (j.geoTargetConstantSuggestions ?? []) as { searchTerm?: string; geoTargetConstant?: { id?: string; name?: string; targetType?: string; canonicalName?: string } }[]) {
     const g = s.geoTargetConstant; if (!g?.id || seen.has(String(g.id))) continue;
+    if (opts.best) {
+      const term = (s.searchTerm ?? "").toLowerCase();
+      if (doneTerms.has(term)) continue;
+      doneTerms.add(term);
+    }
     seen.add(String(g.id));
     out.push({ id: String(g.id), name: g.name ?? "", type: g.targetType ?? "", canonical: g.canonicalName ?? "" });
   }
@@ -42,7 +53,7 @@ export async function keywordIdeas(customerId: string, seeds: string[], geoIds: 
   if (!keywords.length && !url) return [];
   const body: Record<string, unknown> = {
     language: `languageConstants/${languageId}`,
-    geoTargetConstants: (geoIds.length ? geoIds : ["2250"]).map((g) => `geoTargetConstants/${g}`),
+    geoTargetConstants: (geoIds.length ? geoIds : ["2250"]).slice(0, 10).map((g) => `geoTargetConstants/${g}`),
     includeAdultKeywords: false,
     keywordPlanNetwork: "GOOGLE_SEARCH",
     pageSize: 200,
