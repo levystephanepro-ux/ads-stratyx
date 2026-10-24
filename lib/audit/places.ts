@@ -23,70 +23,123 @@ export interface GbpResult { data: GbpData | null; message: string | null }
 const key = () => process.env.GOOGLE_PLACES_API_KEY ?? "";
 export const hasPlacesKey = () => !!key();
 
-interface PlacesResponse {
-  places?: {
-    displayName?: { text?: string };
-    formattedAddress?: string;
-    rating?: number;
-    userRatingCount?: number;
-    regularOpeningHours?: unknown;
-    photos?: unknown[];
-    websiteUri?: string;
-    nationalPhoneNumber?: string;
-    businessStatus?: string;
-    googleMapsUri?: string;
-  }[];
+interface PlaceRaw {
+  displayName?: { text?: string };
+  formattedAddress?: string;
+  rating?: number;
+  userRatingCount?: number;
+  regularOpeningHours?: unknown;
+  photos?: unknown[];
+  websiteUri?: string;
+  nationalPhoneNumber?: string;
+  businessStatus?: string;
+  googleMapsUri?: string;
+  types?: string[];
+}
+interface PlacesResponse { places?: PlaceRaw[] }
+
+const FIELD_LIST = [
+  "displayName", "formattedAddress", "rating", "userRatingCount", "regularOpeningHours", "photos",
+  "websiteUri", "nationalPhoneNumber", "businessStatus", "googleMapsUri", "types",
+];
+const FIELDS = FIELD_LIST.map((f) => `places.${f}`).join(",");
+
+function toGbp(p: PlaceRaw, fallbackName: string): GbpData {
+  return {
+    source: "places",
+    name: p.displayName?.text ?? fallbackName,
+    address: p.formattedAddress ?? "",
+    rating: typeof p.rating === "number" ? p.rating : null,
+    reviews: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
+    hasHours: !!p.regularOpeningHours,
+    photos: Array.isArray(p.photos) ? p.photos.length : 0,
+    phone: p.nationalPhoneNumber ?? "",
+    website: p.websiteUri ?? "",
+    status: p.businessStatus ?? "",
+    mapsUrl: p.googleMapsUri ?? "",
+  };
 }
 
-const FIELDS = [
-  "places.displayName", "places.formattedAddress", "places.rating", "places.userRatingCount",
-  "places.regularOpeningHours", "places.photos", "places.websiteUri", "places.nationalPhoneNumber",
-  "places.businessStatus", "places.googleMapsUri",
-].join(",");
+async function placesFetch(url: string, init: { method: "GET" | "POST"; fields: string; body?: unknown }): Promise<{ ok: true; json: unknown } | { ok: false; message: string }> {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 10000);
+  try {
+    const res = await fetch(url, {
+      method: init.method,
+      signal: ctl.signal,
+      cache: "no-store",
+      headers: { "content-type": "application/json", "X-Goog-Api-Key": key(), "X-Goog-FieldMask": init.fields },
+      body: init.body ? JSON.stringify(init.body) : undefined,
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      const hint = res.status === 403 || res.status === 400 ? " Vérifiez que Places API (New) est activée pour cette clé." : "";
+      return { ok: false, message: `Google Places a répondu ${res.status}.${hint}${body ? ` ${body.slice(0, 160)}` : ""}` };
+    }
+    return { ok: true, json: await res.json() };
+  } catch (e) {
+    const timeout = e instanceof Error && e.name === "AbortError";
+    return { ok: false, message: timeout ? "Google Places n'a pas répondu en 10 secondes." : "Google Places est injoignable pour le moment." };
+  } finally { clearTimeout(t); }
+}
+
+export interface PlaceSuggestion { id: string; main: string; secondary: string; business: boolean }
+
+/** Suggestions pendant la frappe (Places Autocomplete). Renvoie une liste vide si la clé est absente. */
+export async function suggestPlaces(input: string): Promise<{ suggestions: PlaceSuggestion[]; message: string | null }> {
+  const q = input.trim();
+  if (q.length < 3) return { suggestions: [], message: null };
+  if (!hasPlacesKey()) return { suggestions: [], message: "Clé Google Places absente dans cet environnement." };
+  const r = await placesFetch("https://places.googleapis.com/v1/places:autocomplete", {
+    method: "POST",
+    fields: "suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat,suggestions.placePrediction.types",
+    body: { input: q, languageCode: "fr", regionCode: "FR", includedRegionCodes: ["fr"] },
+  });
+  if (!r.ok) return { suggestions: [], message: r.message };
+  const json = r.json as { suggestions?: { placePrediction?: { placeId?: string; text?: { text?: string }; structuredFormat?: { mainText?: { text?: string }; secondaryText?: { text?: string } }; types?: string[] } }[] };
+  const suggestions = (json.suggestions ?? []).flatMap((s) => {
+    const p = s.placePrediction;
+    if (!p?.placeId) return [];
+    const types = p.types ?? [];
+    return [{
+      id: p.placeId,
+      main: p.structuredFormat?.mainText?.text ?? p.text?.text ?? "",
+      secondary: p.structuredFormat?.secondaryText?.text ?? "",
+      business: types.includes("establishment") || types.includes("point_of_interest"),
+    }];
+  }).slice(0, 6);
+  return { suggestions, message: null };
+}
+
+/** Fiche précise à partir d'une suggestion choisie (identifiant Google). */
+export async function placeById(placeId: string): Promise<GbpResult> {
+  const id = placeId.trim();
+  if (!/^[A-Za-z0-9_-]{10,200}$/.test(id)) return { data: null, message: null };
+  if (!hasPlacesKey()) return { data: null, message: "La clé Google Places n'est pas disponible dans cet environnement : renseignez la fiche à la main." };
+  const r = await placesFetch(`https://places.googleapis.com/v1/places/${id}?languageCode=fr&regionCode=FR`, { method: "GET", fields: FIELD_LIST.join(",") });
+  if (!r.ok) return { data: null, message: r.message };
+  const p = r.json as PlaceRaw;
+  const types = p.types ?? [];
+  const isBusiness = types.includes("establishment") || types.includes("point_of_interest");
+  return {
+    data: toGbp(p, ""),
+    message: isBusiness ? null : "Cette suggestion est une adresse, pas une fiche d'entreprise : cherchez plutôt le nom de l'entreprise.",
+  };
+}
 
 /** Cherche la fiche par « nom + ville ». Renvoie la première correspondance (à vérifier sur l'adresse affichée). */
 export async function lookupPlace(query: string): Promise<GbpResult> {
   const q = query.trim();
   if (!q) return { data: null, message: null };
   if (!hasPlacesKey()) return { data: null, message: "La clé Google Places n'est pas disponible dans cet environnement : renseignez la fiche à la main." };
-  const ctl = new AbortController();
-  const t = setTimeout(() => ctl.abort(), 10000);
-  try {
-    const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
-      method: "POST",
-      signal: ctl.signal,
-      cache: "no-store",
-      headers: { "content-type": "application/json", "X-Goog-Api-Key": key(), "X-Goog-FieldMask": FIELDS },
-      body: JSON.stringify({ textQuery: q, languageCode: "fr", regionCode: "FR", pageSize: 1 }),
-    });
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      const hint = res.status === 403 || res.status === 400 ? " Vérifiez que Places API (New) est activée pour cette clé." : "";
-      return { data: null, message: `Google Places a répondu ${res.status}.${hint}${body ? ` ${body.slice(0, 160)}` : ""}` };
-    }
-    const json = (await res.json()) as PlacesResponse;
-    const p = json.places?.[0];
-    if (!p) return { data: null, message: "Aucune fiche Google trouvée pour cette recherche. Essayez avec le nom exact et la ville." };
-    return {
-      message: null,
-      data: {
-        source: "places",
-        name: p.displayName?.text ?? q,
-        address: p.formattedAddress ?? "",
-        rating: typeof p.rating === "number" ? p.rating : null,
-        reviews: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
-        hasHours: !!p.regularOpeningHours,
-        photos: Array.isArray(p.photos) ? p.photos.length : 0,
-        phone: p.nationalPhoneNumber ?? "",
-        website: p.websiteUri ?? "",
-        status: p.businessStatus ?? "",
-        mapsUrl: p.googleMapsUri ?? "",
-      },
-    };
-  } catch (e) {
-    const timeout = e instanceof Error && e.name === "AbortError";
-    return { data: null, message: timeout ? "Google Places n'a pas répondu en 10 secondes." : "Google Places est injoignable pour le moment." };
-  } finally { clearTimeout(t); }
+  const r = await placesFetch("https://places.googleapis.com/v1/places:searchText", {
+    method: "POST", fields: FIELDS,
+    body: { textQuery: q, languageCode: "fr", regionCode: "FR", pageSize: 1 },
+  });
+  if (!r.ok) return { data: null, message: r.message };
+  const p = (r.json as PlacesResponse).places?.[0];
+  if (!p) return { data: null, message: "Aucune fiche Google trouvée pour cette recherche. Essayez avec le nom exact et la ville." };
+  return { data: toGbp(p, q), message: null };
 }
 
 const num = (s?: string) => {

@@ -9,14 +9,15 @@ import { isLive } from "@/lib/google-ads/config";
 import { getAccountsInfo } from "@/lib/google-ads/default-account";
 import { analyzeSite } from "@/lib/audit/site";
 import { plainSiteCheck, scoreOf, IMPACT_LABELS, type Impact, type PlainCheck } from "@/lib/audit/translate";
-import { lookupPlace, gbpFromManual, gbpChecks, demoGbp, hasPlacesKey, type GbpData } from "@/lib/audit/places";
+import { lookupPlace, placeById, gbpFromManual, gbpChecks, demoGbp, hasPlacesKey, type GbpData } from "@/lib/audit/places";
+import PlaceAutocomplete from "@/components/PlaceAutocomplete";
 import { suggestGeo, keywordIdeas, forecast, COUNTRIES, type Idea, type Geo } from "@/lib/planner/ideas";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 type SP = Promise<{
   url?: string; lieux?: string; mots?: string; budget?: string; nom?: string;
-  fiche?: string; gb_note?: string; gb_avis?: string; gb_horaires?: string; gb_photos?: string; gb_tel?: string; gb_site?: string;
+  fiche?: string; place_id?: string; gb_note?: string; gb_avis?: string; gb_horaires?: string; gb_photos?: string; gb_tel?: string; gb_site?: string;
 }>;
 
 const eur = (n: number) => `${Math.round(n).toLocaleString("fr-FR")} €`;
@@ -75,7 +76,7 @@ export default async function ProspectAudit({ searchParams }: { searchParams: SP
           <input name="lieux" placeholder="Villes ou zones visées (séparées par des virgules)" style={input} />
           <textarea name="mots" rows={3} placeholder="Mots-clés de départ, un par ligne (facultatif : sinon lus depuis la page)" style={{ ...input, font: "inherit" }} />
           <input name="budget" placeholder="Budget mensuel envisagé en € (ex. 900)" inputMode="decimal" style={input} />
-          <input name="fiche" placeholder={hasPlacesKey() ? "Fiche Google : nom et ville (ex. Dupont Plomberie Toulon)" : "Fiche Google : nom et ville (clé Places absente ici, utilisez la saisie manuelle)"} style={input} />
+          <PlaceAutocomplete placeholder={hasPlacesKey() ? "Fiche Google : tapez le nom et la ville, puis choisissez dans la liste" : "Fiche Google : clé Places absente ici, utilisez la saisie manuelle"} />
           <details>
             <summary style={{ cursor: "pointer", fontSize: 13 }}>Saisir la fiche Google à la main (si la recherche automatique ne marche pas)</summary>
             <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
@@ -103,9 +104,11 @@ export default async function ProspectAudit({ searchParams }: { searchParams: SP
 
   // Fiche Google : lecture automatique, sinon saisie manuelle, sinon exemple (mode démo sans clé).
   let gbp: GbpData | null = null, gbpMessage: string | null = null;
-  if (fiche) {
-    const r = await lookupPlace(fiche);
+  if (fiche || sp.place_id) {
+    // Suggestion choisie dans la liste : fiche exacte. Sinon, recherche par texte (première correspondance).
+    const r = sp.place_id ? await placeById(sp.place_id) : await lookupPlace(fiche);
     gbp = r.data; gbpMessage = r.message;
+    if (gbp && sp.place_id && !gbp.name) gbp.name = nom;
   }
   if (!gbp) {
     const manual = gbpFromManual(sp, nom);
