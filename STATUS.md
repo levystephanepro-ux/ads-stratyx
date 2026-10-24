@@ -17,6 +17,7 @@
 | Google Ads API | ⚠️ Mode mock (à passer en live) |
 | Search Console | ⚠️ Mode mock (à passer en live) |
 | MCP_SHARED_TOKEN | ⚠️ À configurer avant mise en prod |
+| Meta Ads (rapport du lundi) | ⚠️ Codé (lecture seule), testé en mock, variables `META_*` à ajouter sur Vercel |
 
 ---
 
@@ -37,6 +38,7 @@
 
 ## 🔄 En cours
 
+- [2026-10-24] [code] Bloc **Meta Ads** dans le rapport du lundi : code poussé (branche `claude/meta-ads-weekly-report-tq77uj`), **à tester en live** avec `META_ACCESS_TOKEN` (ads_read), `META_AD_ACCOUNT_IDS`, `META_GRAPH_VERSION`
 - [2026-10-06] [cowork] Usage interne + **Diagnostic (phase 1)** : code écrit, typecheck OK, règles testées, **à déployer et tester**
   1. Lancer `supabase/migrations/0018_audit_reports.sql` dans le SQL Editor Supabase
      (ignorer `supabase/_obsolete/0018_waste_reports.sql`, version abandonnée, à supprimer)
@@ -74,6 +76,18 @@ exclusivité territoriale, connecteur MCP Claude Pro.
 ---
 
 ## 📝 Journal de session
+
+### 2026-10-24 — Code (Meta Ads, lecture seule, dans le rapport du lundi)
+- `lib/meta/insights.ts` : `getMetaWeeklyInsights(accountIds)` → `{ accounts, failed }`. Un seul GET `/act_{id}/insights`
+  (spend, impressions, clicks, actions ; `last_7d`, niveau compte), fetch natif, timeout 10 s, token en en-tête et jamais loggé.
+  Leads = max de `lead`, `onsite_conversion.lead_grouped`, `offsite_conversion.fb_pixel_lead` (évite le double comptage).
+  CPL = dépense / leads, `null` si 0 lead. Fail-soft par compte. Mode mock via `isLive()` (comme Google Ads).
+- `lib/meta/report.ts` : section markdown « Meta Ads » (tableau par compte + total + « CPL global Google + Meta »).
+  « Meta indisponible cette semaine » si tout échoue ; section omise en live si `META_AD_ACCOUNT_IDS` est vide.
+- `lib/weekly.ts` renvoie aussi coût et conversions Google par compte ; `app/api/cron/weekly/route.ts` ajoute la section à l'email.
+- Variables documentées dans `.env.local.example` : `META_ACCESS_TOKEN` (ads_read uniquement), `META_AD_ACCOUNT_IDS` (sans `act_`), `META_GRAPH_VERSION` (défaut v23.0).
+- Limites : « leads » Google = conversions Google Ads ; devise Meta supposée en euros ; en mock le rapport Google reste désactivé (mail = bloc Meta seul).
+- Testé : typecheck OK, rendu mock OK, live sans token OK. Pas testé contre l'API Meta réelle ni en envoi de mail.
 
 ### 2026-10-06 — Cowork (Charte Stratyx + multi-clients sans limite cachée)
 - Couleurs de stratyxmedia.fr : bleu nuit #0B3C5D (accent, menu), orange #F2A122 (marque, repères), crème #F9F4ED (fond) ; polices Inter + Syne (Google Fonts) ; chouette (`components/Owl.tsx`, favicon `app/icon.svg`) ; rapports clients et emails aux mêmes couleurs.
